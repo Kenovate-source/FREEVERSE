@@ -1,0 +1,28 @@
+{
+  "name": "freeverse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FREEVERSE v1 — Stage 1: product foundation and visible experience (mock data)",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs",
+    "start": "node scripts/build.mjs && node scripts/serve.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "screenshots": "node scripts/screenshots.mjs",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3"
+  }
+}
