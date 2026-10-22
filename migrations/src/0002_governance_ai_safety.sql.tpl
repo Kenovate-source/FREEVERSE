@@ -1,0 +1,359 @@
+-- FREEVERSE schema, part 2: governance & authorization, AI (Nova, AI Council, Founder AI), private tools,
+-- moderation, audit, platform configuration. See 0001 for authoring conventions.
+
+-- ───────────────────────────── roles & governance ─────────────────────────────
+-- Every power a person has comes from a row here. A grant with revoked_at NULL is live.
+CREATE TABLE role_grants (
+  id @ID PRIMARY KEY,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('moderator','admin','guardian','director','high_council','council','founder')),
+  seat_id @ID,
+  granted_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  granted_at @TS NOT NULL DEFAULT @NOW,
+  reason TEXT,
+  revoked_at @TS,
+  revoked_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  revoked_reason TEXT
+);
+CREATE INDEX role_grants_user_idx ON role_grants (user_id);
+CREATE UNIQUE INDEX role_grants_one_founder_uq ON role_grants (role) WHERE role = 'founder' AND revoked_at IS NULL;
+CREATE UNIQUE INDEX role_grants_one_live_per_seat_uq ON role_grants (seat_id) WHERE seat_id IS NOT NULL AND revoked_at IS NULL;
+
+-- The 1–3–7–12–24 structure. Seats are configurable records: titles and responsibilities for levels 7/12/24 are not
+-- defined in Governance.md v2.0, so they start vacant and generically named and are set by the Founder.
+CREATE TABLE governance_seats (
+  id @ID PRIMARY KEY,
+  level INTEGER NOT NULL CHECK (level IN (1,3,7,12,24)),
+  seat_no INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  responsibilities TEXT,
+  holder_user_id @ID REFERENCES users(id) ON DELETE SET NULL,
+  appointed_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  appointed_at @TS,
+  updated_at @TS NOT NULL DEFAULT @NOW,
+  UNIQUE (level, seat_no)
+);
+
+-- Periodic review of who holds which privileges. Items snapshot the grants at review start.
+CREATE TABLE access_reviews (
+  id @ID PRIMARY KEY,
+  started_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  scope TEXT NOT NULL DEFAULT 'all_roles',
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','completed')),
+  started_at @TS NOT NULL DEFAULT @NOW,
+  completed_at @TS
+);
+CREATE TABLE access_review_items (
+  id @ID PRIMARY KEY,
+  review_id @ID NOT NULL REFERENCES access_reviews(id) ON DELETE CASCADE,
+  grant_id @ID NOT NULL,
+  user_id @ID,
+  role TEXT NOT NULL,
+  decision TEXT NOT NULL DEFAULT 'pending' CHECK (decision IN ('pending','keep','revoke')),
+  decided_at @TS,
+  note TEXT
+);
+
+-- ───────────────────────────── audit (append-only) ─────────────────────────────
+CREATE TABLE audit_events (
+  id @ID PRIMARY KEY,
+  occurred_at @TS NOT NULL DEFAULT @NOW,
+  actor_id @ID,
+  actor_role TEXT,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  case_id @ID,
+  reason TEXT,
+  outcome TEXT NOT NULL DEFAULT 'success' CHECK (outcome IN ('success','denied','failed')),
+  meta @JSON NOT NULL DEFAULT '{}'
+);
+CREATE INDEX audit_events_time_idx ON audit_events (occurred_at);
+CREATE INDEX audit_events_actor_idx ON audit_events (actor_id, occurred_at);
+CREATE INDEX audit_events_target_idx ON audit_events (target_type, target_id);
+
+--@pg-begin
+CREATE FUNCTION audit_events_immutable() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_events is append-only';
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER audit_events_no_update BEFORE UPDATE OR DELETE ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION audit_events_immutable();
+--@pg-end
+--@sqlite-begin
+CREATE TRIGGER audit_events_no_update BEFORE UPDATE ON audit_events
+BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
+CREATE TRIGGER audit_events_no_delete BEFORE DELETE ON audit_events
+BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
+--@sqlite-end
+
+-- Runtime platform configuration changed through governance workflows (and recorded in audit_events).
+CREATE TABLE platform_config (
+  key TEXT PRIMARY KEY,
+  value @JSON NOT NULL,
+  updated_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+
+-- ───────────────────────────── proposals (sensitive-action approval workflow) ─────────────────────────────
+-- One workflow for everything that needs a decision: Founder AI proposals, specialist proposals, appointments.
+CREATE TABLE proposals (
+  id @ID PRIMARY KEY,
+  source TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('recommendation','change')),
+  action_type TEXT,
+  title TEXT NOT NULL,
+  rationale TEXT NOT NULL DEFAULT '',
+  impact @JSON NOT NULL DEFAULT '{}',
+  evidence @JSON NOT NULL DEFAULT '[]',
+  payload @JSON NOT NULL DEFAULT '{}',
+  effective_risk TEXT NOT NULL DEFAULT 'high' CHECK (effective_risk IN ('low','medium','high')),
+  status TEXT NOT NULL DEFAULT 'pending_approval'
+    CHECK (status IN ('draft','pending_approval','approved','rejected','revision_requested','executing','executed','failed','rolled_back','cancelled')),
+  requested_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  decided_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  decided_at @TS,
+  decision_note TEXT,
+  auto_executed @BOOL NOT NULL DEFAULT @FALSE,
+  executed_at @TS,
+  execution_result @JSON,
+  rollback_data @JSON,
+  verification @JSON,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX proposals_status_idx ON proposals (status, created_at);
+
+CREATE TABLE proposal_events (
+  id @ID PRIMARY KEY,
+  proposal_id @ID NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+  actor_id @ID,
+  actor_label TEXT NOT NULL,
+  event TEXT NOT NULL,
+  note TEXT,
+  occurred_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX proposal_events_proposal_idx ON proposal_events (proposal_id, occurred_at);
+
+-- ───────────────────────────── AI: registry, conversations, usage ─────────────────────────────
+CREATE TABLE ai_agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  tagline TEXT NOT NULL DEFAULT '',
+  responsibilities @JSON NOT NULL DEFAULT '[]',
+  capabilities @JSON NOT NULL DEFAULT '[]',
+  tool_permissions @JSON NOT NULL DEFAULT '[]',
+  provider TEXT,
+  model TEXT,
+  enabled @BOOL NOT NULL DEFAULT @TRUE,
+  is_founding @BOOL NOT NULL DEFAULT @FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 100,
+  config @JSON NOT NULL DEFAULT '{}',
+  updated_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+
+CREATE TABLE ai_conversations (
+  id @ID PRIMARY KEY,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT 'New conversation',
+  pinned @BOOL NOT NULL DEFAULT @FALSE,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX ai_conversations_user_idx ON ai_conversations (user_id, updated_at);
+
+CREATE TABLE ai_messages (
+  id @ID PRIMARY KEY,
+  conversation_id @ID NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user','assistant','notice')),
+  body TEXT NOT NULL,
+  meta @JSON NOT NULL DEFAULT '{}',
+  created_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX ai_messages_conversation_idx ON ai_messages (conversation_id, created_at);
+
+-- Safety-flagged excerpts (Decision 5). Deliberately NOT foreign-keyed to the conversation or user, so deleting a
+-- conversation does not silently erase evidence a human review may still need, and so account deletion can detach
+-- identity (user_id -> NULL) while the minimal excerpt expires on its own schedule (expires_at, default 30 days).
+CREATE TABLE ai_safety_flags (
+  id @ID PRIMARY KEY,
+  user_id @ID,
+  conversation_id @ID,
+  message_id @ID,
+  agent_id TEXT NOT NULL DEFAULT 'nova',
+  category TEXT NOT NULL,
+  severity TEXT NOT NULL CHECK (severity IN ('elevated','crisis')),
+  excerpt TEXT NOT NULL,
+  case_id @ID,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  expires_at @TS NOT NULL,
+  reviewed_at @TS
+);
+CREATE INDEX ai_safety_flags_expiry_idx ON ai_safety_flags (expires_at);
+
+CREATE TABLE ai_usage (
+  id @ID PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  user_id @ID,
+  capability TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'live' CHECK (mode IN ('live','demo')),
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok','error','blocked','rate_limited','unavailable')),
+  latency_ms INTEGER,
+  occurred_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX ai_usage_time_idx ON ai_usage (occurred_at);
+
+CREATE TABLE ai_delegations (
+  id @ID PRIMARY KEY,
+  from_agent TEXT NOT NULL,
+  to_agent TEXT NOT NULL,
+  proposal_id @ID REFERENCES proposals(id) ON DELETE SET NULL,
+  task @JSON NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','completed','failed','unavailable')),
+  result @JSON,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  completed_at @TS
+);
+
+-- ───────────────────────────── Founder AI ─────────────────────────────
+CREATE TABLE founder_ai_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  mode TEXT NOT NULL DEFAULT 'approval_required' CHECK (mode IN ('advisory','approval_required','bounded_autonomy')),
+  autonomy_rules @JSON NOT NULL DEFAULT '[]',
+  updated_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+
+CREATE TABLE founder_ai_findings (
+  id @ID PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('alert','observation','risk','opportunity')),
+  epistemic TEXT NOT NULL CHECK (epistemic IN ('verified_fact','observation','assumption','forecast','suggestion')),
+  severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info','low','medium','high')),
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  evidence @JSON NOT NULL DEFAULT '[]',
+  dedupe_key TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','acknowledged','dismissed','converted')),
+  proposal_id @ID REFERENCES proposals(id) ON DELETE SET NULL,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE UNIQUE INDEX founder_ai_findings_dedupe_uq ON founder_ai_findings (dedupe_key) WHERE dedupe_key IS NOT NULL AND status = 'open';
+
+-- ───────────────────────────── private personal tools (Nova journal, goals, habits) ─────────────────────────────
+CREATE TABLE journal_entries (
+  id @ID PRIMARY KEY,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT,
+  body TEXT NOT NULL,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX journal_entries_user_idx ON journal_entries (user_id, created_at);
+
+CREATE TABLE goals (
+  id @ID PRIMARY KEY,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','done','dropped')),
+  target_date TEXT,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX goals_user_idx ON goals (user_id);
+
+CREATE TABLE goal_steps (
+  id @ID PRIMARY KEY,
+  goal_id @ID NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  done_at @TS
+);
+
+CREATE TABLE habits (
+  id @ID PRIMARY KEY,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  cadence TEXT NOT NULL DEFAULT 'daily' CHECK (cadence IN ('daily','weekly')),
+  target_per_week INTEGER NOT NULL DEFAULT 7 CHECK (target_per_week BETWEEN 1 AND 7),
+  archived_at @TS,
+  created_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX habits_user_idx ON habits (user_id);
+
+CREATE TABLE habit_checkins (
+  habit_id @ID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  PRIMARY KEY (habit_id, day)
+);
+
+-- ───────────────────────────── moderation ─────────────────────────────
+-- A case freezes a minimal snapshot of the reported material so review does not need standing access to private data.
+CREATE TABLE moderation_cases (
+  id @ID PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_review','resolved','dismissed')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('crisis','high','normal','low')),
+  category TEXT NOT NULL,
+  target_type TEXT NOT NULL CHECK (target_type IN ('post','comment','user','message','ai_flag')),
+  target_id TEXT NOT NULL,
+  target_user_id @ID,
+  snapshot @JSON NOT NULL DEFAULT '{}',
+  assigned_to @ID REFERENCES users(id) ON DELETE SET NULL,
+  due_at @TS,
+  resolution TEXT,
+  resolution_note TEXT,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  resolved_at @TS
+);
+CREATE INDEX moderation_cases_queue_idx ON moderation_cases (status, priority, created_at);
+CREATE UNIQUE INDEX moderation_cases_open_target_uq ON moderation_cases (target_type, target_id, category) WHERE status IN ('open','in_review');
+
+CREATE TABLE reports (
+  id @ID PRIMARY KEY,
+  reporter_id @ID REFERENCES users(id) ON DELETE SET NULL,
+  target_type TEXT NOT NULL CHECK (target_type IN ('post','comment','user','message')),
+  target_id TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('harassment','unwanted_contact','self_harm_crisis','spam','impersonation','illegal','other')),
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received','under_review','resolved')),
+  case_id @ID REFERENCES moderation_cases(id) ON DELETE SET NULL,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  updated_at @TS NOT NULL DEFAULT @NOW
+);
+CREATE INDEX reports_reporter_idx ON reports (reporter_id);
+
+CREATE TABLE moderation_actions (
+  id @ID PRIMARY KEY,
+  case_id @ID NOT NULL REFERENCES moderation_cases(id) ON DELETE CASCADE,
+  moderator_id @ID REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK (action IN ('dismiss','remove_content','warn','suspend','ban','send_resources','reveal_author','escalate','resolve')),
+  note TEXT,
+  until @TS,
+  affected_user_id @ID,
+  created_at @TS NOT NULL DEFAULT @NOW
+);
+
+CREATE TABLE appeals (
+  id @ID PRIMARY KEY,
+  action_id @ID NOT NULL REFERENCES moderation_actions(id) ON DELETE CASCADE,
+  user_id @ID REFERENCES users(id) ON DELETE SET NULL,
+  statement TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','upheld','overturned')),
+  reviewed_by @ID REFERENCES users(id) ON DELETE SET NULL,
+  created_at @TS NOT NULL DEFAULT @NOW,
+  decided_at @TS
+);
+
+-- Anonymised record that an account deletion completed (counts only; no identity).
+CREATE TABLE account_deletions (
+  id @ID PRIMARY KEY,
+  completed_at @TS NOT NULL DEFAULT @NOW,
+  summary @JSON NOT NULL DEFAULT '{}'
+);

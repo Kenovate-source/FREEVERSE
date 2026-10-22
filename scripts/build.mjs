@@ -15,7 +15,7 @@ await build({
   minify: true,
   sourcemap: true,
   define: { 'process.env.NODE_ENV': '"production"' },
-  loader: { '.png': 'file', '.svg': 'text' },
+  loader: { '.png': 'file', '.svg': 'text', '.woff2': 'file', '.woff': 'file' },
   logLevel: 'info',
 });
 await cp('public', 'dist', { recursive: true });
