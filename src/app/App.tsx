@@ -1,58 +1,33 @@
-import { useEffect, type ReactNode } from 'react';
-import { useApp } from './context';
-import { navigate, usePath } from '../lib/router';
+import { useEffect } from 'react';
 import { matchRoute } from '../lib/routes';
 import { guardRoute } from '../lib/guard';
-import { Shell } from '../components/Shell';
-import { Welcome, SignIn, SignUp } from '../pages/auth';
-import { Onboarding } from '../pages/Onboarding';
-import { Home } from '../pages/Home';
-import { Learn, LearnItemPage } from '../pages/Learn';
-import { Opportunities, Mentors } from '../pages/Opportunities';
-import { Events } from '../pages/Events';
-import { Nova } from '../pages/Nova';
-import { Messages } from '../pages/Messages';
-import { MyProfile, UserProfile } from '../pages/Profile';
-import { NotFound } from '../pages/NotFound';
+import { navigate, usePath, useQuery } from '../lib/router';
+import { useSession } from '../state/session';
+import { Shell } from '../shell/Shell';
+import { PAGES } from '../pages';
+import { Loading, EmptyState, Button } from '../ui/kit';
+import { Link } from '../lib/router';
 
 export function App() {
-  const path = usePath();
-  const { account } = useApp();
+  const { status, me, perms, configError } = useSession();
+  const path = usePath(); const query = useQuery();
   const match = matchRoute(path);
-  const g = guardRoute(match, account);
+  const session = status === 'in' && me ? { status: me.status, onboarded: me.onboarding.completed, permissions: perms } : null;
+  const g = status === 'loading' ? null : guardRoute(match, session);
+  useEffect(() => { if (g?.kind === 'redirect') navigate(g.to, { replace: true }); }, [g]);
+  useEffect(() => { document.title = match ? `${match.route.title} · FREEVERSE` : 'Not found · FREEVERSE'; }, [match]);
 
-  useEffect(() => {
-    if (g.kind === 'redirect') navigate(g.to, { replace: true });
-  }, [g.kind === 'redirect' ? g.to : '', g.kind]);
-
-  useEffect(() => {
-    if (g.kind === 'render' && (g.match.route.public || g.match.route.id === 'onboarding')) document.title = `${g.match.route.title} · FREEVERSE`;
-  }, [g]);
-
-  if (g.kind === 'redirect') return null;
-  if (g.kind === 'notfound') {
-    return account
-      ? <Shell section={undefined} title="Page not found"><NotFound /></Shell>
-      : <div className="auth-wrap"><main id="main" className="auth-card"><NotFound /></main></div>;
-  }
-
-  const { route, params } = g.match;
-  let page: ReactNode;
-  switch (route.id) {
-    case 'welcome': return <Welcome />;
-    case 'signin': return <SignIn />;
-    case 'signup': return <SignUp />;
-    case 'onboarding': return <Onboarding />;
-    case 'home': page = <Home />; break;
-    case 'learn': page = <Learn />; break;
-    case 'learn-item': page = <LearnItemPage id={params.id ?? ''} />; break;
-    case 'opportunities': page = <Opportunities />; break;
-    case 'mentors': page = <Mentors />; break;
-    case 'events': page = <Events />; break;
-    case 'nova': page = <Nova />; break;
-    case 'messages': page = <Messages />; break;
-    case 'profile': page = <MyProfile />; break;
-    case 'user': page = <UserProfile handle={params.handle ?? ''} />; break;
-  }
-  return <Shell section={route.section} title={route.title}>{page}</Shell>;
+  if (status === 'loading' || !g || g.kind === 'redirect') return <div className="auth-wrap"><Loading rows={2} label="Starting FREEVERSE" /></div>;
+  if (g.kind === 'notfound') return <Chrome signedIn={!!session && me?.status === 'active' && me.onboarding.completed}><NotFound /></Chrome>;
+  const Page = PAGES[g.match.route.id];
+  if (g.kind === 'forbidden') return <Chrome signedIn><EmptyState icon="lock" title="That area isn’t open to your account">This part of FREEVERSE needs a role that your account doesn’t hold. Nothing is wrong; you simply don’t have access here.<Link to="/home" className="btn btn-primary">Back to Home</Link></EmptyState></Chrome>;
+  if (!Page) return <Chrome signedIn={!!session}><NotFound /></Chrome>;
+  const el = <Page params={g.match.params} query={query} />;
+  if (g.match.route.public || g.match.route.id === 'eligibility' || g.match.route.id === 'onboarding') return <>{configError && <div className="devbar" role="alert">We couldn’t reach the FREEVERSE server. Some features may not work.</div>}{el}</>;
+  return <Shell>{el}</Shell>;
 }
+const Chrome = ({ children, signedIn }: { children: React.ReactNode; signedIn: boolean }) => (signedIn ? <Shell>{children}</Shell> : <div className="auth-wrap">{children}</div>);
+function NotFound() {
+  return <EmptyState icon="compass" title="We couldn’t find that page" action={<Link to="/" className="btn btn-primary">Go to the start</Link>}>The link may be old or mistyped. Nothing was lost.</EmptyState>;
+}
+export { Button };

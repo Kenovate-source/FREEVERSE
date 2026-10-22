@@ -1,27 +1,13 @@
-import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react';
-import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource-variable/dm-sans';
 import './styles.css';
-import { AppProvider } from './app/context';
+import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { SessionProvider } from './state/session';
+import { ToastProvider } from './state/toast';
+import { StepUpProvider } from './state/stepup';
+import { A11yApplier } from './state/a11y';
 
-class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  override componentDidCatch(error: Error, info: ErrorInfo) { console.error('FREEVERSE UI error', error, info.componentStack); }
-  override render() {
-    if (!this.state.failed) return this.props.children;
-    return (
-      <div className="auth-wrap"><main id="main" className="auth-card" role="alert">
-        <div className="card state state-error">
-          <h1 style={{ fontSize: '1.3rem' }}>Something went wrong</h1>
-          <p className="muted">The app hit an unexpected problem. Reloading usually fixes it. Your local prototype data is untouched.</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Reload</button>
-        </div>
-      </main></div>
-    );
-  }
-}
-
-const root = document.getElementById('root');
-if (!root) throw new Error('Missing #root element');
-createRoot(root).render(<StrictMode><Boundary><AppProvider><App /></AppProvider></Boundary></StrictMode>);
+createRoot(document.getElementById('root')!).render(
+  <ToastProvider><SessionProvider><StepUpProvider><A11yApplier /><App /></StepUpProvider></SessionProvider></ToastProvider>,
+);

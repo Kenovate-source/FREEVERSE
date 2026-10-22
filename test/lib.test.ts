@@ -1,29 +1,58 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ROUTES, NAV, matchRoute, normalizePath } from '../src/lib/routes';
+import { ROUTES, NAV_GROUPS, TAB_BAR, matchRoute, normalizePath, visibleNav } from '../src/lib/routes';
+import { PAGES_FOR_TEST } from './helpers/pages-list';
 import { guardRoute } from '../src/lib/guard';
 import { validateEmail, validatePassword, validatePost, validateDisplayName, slugHandle, POST_MAX } from '../src/lib/validate';
 import { timeAgo, daysUntil } from '../src/lib/time';
 
-test('every nav item resolves to a real route', () => {
-  for (const n of NAV) assert.ok(matchRoute(n.path), `nav ${n.id} -> ${n.path}`);
+test('every nav item resolves to a real route (no dead links)', () => {
+  for (const g of NAV_GROUPS) for (const n of g.items) assert.ok(matchRoute(n.path), `nav ${n.id} -> ${n.path}`);
 });
-test('route params and unknown paths', () => {
+test('tab bar items exist in the nav', () => {
+  const ids = new Set(NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id)));
+  for (const t of TAB_BAR) assert.ok(ids.has(t), t);
+});
+test('permission-gated nav is hidden without the permission', () => {
+  const none = visibleNav(new Set()).flatMap((g) => g.items.map((i) => i.id));
+  assert.ok(!none.includes('founder') && !none.includes('moderation'));
+  const some = visibleNav(new Set(['founder.console'])).flatMap((g) => g.items.map((i) => i.id));
+  assert.ok(some.includes('founder'));
+});
+test('route params, unknown paths, and uniqueness', () => {
   assert.equal(matchRoute('/nope/nothing/here'), null);
-  assert.ok(ROUTES.length > 5);
+  assert.equal(matchRoute('/communities/study-hall')?.params.slug, 'study-hall');
+  assert.equal(matchRoute('/u/ada')?.route.id, 'member');
+  assert.equal(new Set(ROUTES.map((r) => r.id)).size, ROUTES.length);
   assert.equal(normalizePath('#/home/'), '/home');
   assert.equal(normalizePath('#/home?x=1'), '/home');
   assert.equal(normalizePath(''), '/');
 });
-test('guard: signed-out users cannot reach private routes', () => {
-  const r = guardRoute(matchRoute('/home'), null);
-  assert.deepEqual(r, { kind: 'redirect', to: '/' });
+test('every route id has a page component registered', () => {
+  for (const r of ROUTES) assert.ok(PAGES_FOR_TEST.includes(r.id), `no page for ${r.id}`);
 });
-test('guard: not-onboarded users are sent to onboarding; onboarded users skip it', () => {
-  assert.deepEqual(guardRoute(matchRoute('/home'), { onboarded: false }), { kind: 'redirect', to: '/onboarding' });
-  assert.deepEqual(guardRoute(matchRoute('/onboarding'), { onboarded: true }), { kind: 'redirect', to: '/home' });
-  assert.equal(guardRoute(matchRoute('/home'), { onboarded: true }).kind, 'render');
+const act = (o: object = {}) => ({ status: 'active', onboarded: true, permissions: new Set<string>(), ...o });
+test('guard: signed-out users cannot reach private routes', () => {
+  assert.deepEqual(guardRoute(matchRoute('/home'), null), { kind: 'redirect', to: '/signin' });
+  assert.equal(guardRoute(matchRoute('/signin'), null).kind, 'render');
+});
+test('guard: pending eligibility is confined to the eligibility step', () => {
+  assert.deepEqual(guardRoute(matchRoute('/home'), act({ status: 'pending_eligibility' })), { kind: 'redirect', to: '/eligibility' });
+  assert.equal(guardRoute(matchRoute('/eligibility'), act({ status: 'pending_eligibility' })).kind, 'render');
+});
+test('guard: onboarding redirects both ways', () => {
+  assert.deepEqual(guardRoute(matchRoute('/home'), act({ onboarded: false })), { kind: 'redirect', to: '/onboarding' });
+  assert.deepEqual(guardRoute(matchRoute('/onboarding'), act()), { kind: 'redirect', to: '/home' });
+  assert.equal(guardRoute(matchRoute('/home'), act()).kind, 'render');
   assert.equal(guardRoute(null, null).kind, 'notfound');
+});
+test('guard: permission routes are forbidden without the permission (server enforces it independently)', () => {
+  assert.equal(guardRoute(matchRoute('/founder'), act()).kind, 'forbidden');
+  assert.equal(guardRoute(matchRoute('/founder'), act({ permissions: new Set(['founder.console']) })).kind, 'render');
+  assert.equal(guardRoute(matchRoute('/moderation/abc'), act()).kind, 'forbidden');
+});
+test('guard: suspended accounts only see public landing pages', () => {
+  assert.deepEqual(guardRoute(matchRoute('/home'), act({ status: 'suspended' })), { kind: 'redirect', to: '/' });
 });
 test('validators', () => {
   assert.ok(validateEmail('bad'));
