@@ -1,106 +1,48 @@
-# FREEVERSE — Stage 2
+# Stage 2 Architecture Decision Records
 
-A trust-first, modular web platform for adults aged 18–24. Stage 2 turns the Stage 1 prototype into a real client–server application: accounts and age gate, expressive profiles, anonymous and non-anonymous posting with server-side identity protection, moderation, messaging, Nova (the companion) and the nine-specialist **AI Council**, a large Learn / Opportunities / Mentors / Events catalogue, fifteen **identities** with adaptive homes and spaces, a Founder Console with a governed **Founder AI**, and honest status for fifteen **Universes**.
+Stage 2 decisions, numbered after the project's original ADR set (ADR-001…ADR-009 in the source documentation). Each is short: context, decision, consequences. Status is *Accepted* unless noted. Open items are listed in `docs/IMPLEMENTATION_REPORT.md`.
 
-> **Be clear about what is real.** The server, database, authorization, privacy rules, moderation, governance workflow and client are real and tested. The following need **your** external configuration before they are live, and are labelled as demo until then: managed sign-in (Supabase Auth), a production PostgreSQL database, an AI model provider, and cloud media storage. Seeded Learn/Opportunity/Mentor/Event/community/member content is **fictional demo content and is labelled as such** in the app. See *Known limitations* below and `docs/IMPLEMENTATION_REPORT.md`.
+## ADR-S2-01 — Modular monolith, one deployable
+**Context.** A solo-founder team needs one thing to run, test and secure. **Decision.** One Node process; feature modules (`server/modules/*`) registered on a small router; shared policy code. **Consequences.** Simple operations; module boundaries are conventions enforced by review and tests, not by the network.
 
-## Quick start (local, no external services)
+## ADR-S2-02 — PostgreSQL in production, SQLite for development and tests only
+**Decision.** A persistence abstraction (`server/db`) with two adapters. Schema is written once as `.sql.tpl` templates and rendered per dialect. Tests run on SQLite **and** on real PostgreSQL in-process (PGlite) so dialect differences are caught. The server refuses to start in production without `DATABASE_URL`. **Consequences.** Templates must avoid dialect-specific features outside the marked blocks; known traps (uuid vs text comparisons, JSON columns and LIKE) are covered by tests.
 
-Requires Node 22+.
+## ADR-S2-03 — Managed authentication; no homemade passwords
+**Decision.** Supabase Auth is the production identity provider; FREEVERSE keeps its own `users` row, eligibility, roles and privacy. A local development provider exists for honest demo mode, is labelled in the UI, and is refused in production. **Consequences.** Live auth is unverified until credentials exist (see report).
 
-```bash
-npm install
-npm start            # builds the client, starts the server at http://127.0.0.1:5173
-```
+## ADR-S2-04 — Age: self-attested month and year, 18–24 enforced on the server
+**Decision.** Store birth month and year only; the day is used for the check and discarded. Enforce 18–24 server-side. Never call it "verified"; age range is private by default. The Founder account has a recorded exemption from the upper bound. **Consequences.** Determined under-age or over-age users can lie; this is disclosed.
 
-With no configuration the app runs in an honest **local demo mode**: a development sign-in (passwords are **not** checked, and a banner says so), SQLite in `.data/`, files on local disk, and Nova/Council answering with clearly labelled scripted demo replies. SQLite is for development and tests only; the server refuses to start in production without PostgreSQL.
+## ADR-S2-05 — Authorization is permission-based and server-side; titles are not data access
+**Decision.** Roles map to named permissions (`server/authz`). Governance rank, operations, moderation and private-content access are separate. No role can read private messages, journals or Nova conversations. Sensitive actions require a short-lived step-up grant and are audited. **Consequences.** The UI hides what you can't do, but the server decides.
 
-To try the Founder Console locally, set `FOUNDER_EMAIL=you@example.com` and sign up with that email. In dev mode, step-up confirmations ask you to type your account email.
+## ADR-S2-06 — Visibility enforced in one policy module
+**Decision.** Audiences (Everyone / Members / Connections / Only me) per field and per feature are resolved by `server/policy/visibility.ts` (SQL fragments and helpers). Fields a viewer may not see are **omitted**, never sent as placeholders. Blocks make both parties invisible to each other.
 
-## Commands
+## ADR-S2-07 — Anonymous posting: alias to everyone, author stored but never serialised
+**Decision.** Anonymous content is allowed only in communities that enable it. The real author id is stored for safety and never leaves the server in any response, notification or search result. Reveal requires `moderation.reveal_anonymous`, a written reason, step-up, and writes an audit entry; the Founder does not hold it by default. Authors of anonymous posts reply anonymously. **Consequences.** The platform can identify authors under process; this is disclosed in the UI and Help.
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Server with reload (`tsx watch`). Run `npm run build` once for the client. |
-| `npm run build` | Bundles the client to `dist/` (esbuild). |
-| `npm start` | Build, then start the server. |
-| `npm run typecheck` | `tsc --noEmit` over server, client, shared and tests. |
-| `npm test` | Whole test suite (`node:test`), SQLite **and** real PostgreSQL (in-process PGlite). |
-| `npm run e2e` | Browser checks with Playwright against a running server (phone/tablet/desktop, keyboard, console errors). |
-| `npm run check` | typecheck + test + build. |
-| `npm run db:render` | Renders `migrations/src/*.sql.tpl` into `migrations/{postgres,sqlite}`. |
-| `npm run db:migrate` | Applies migrations to the configured database. |
-| `node scripts/gen-docs.mjs` | Regenerates `docs/api/ROUTES.md` and `docs/SCHEMA.md`. |
+## ADR-S2-08 — Governance changes go through a proposal workflow
+**Decision.** Every governance, role, privacy, constitutional and AI-boundary change is a *proposal* with registry-defined risk, impact, events, execution, verification and (where defined) rollback. High-risk actions always need explicit approval and fresh confirmation. The AI cannot declare its own risk level.
 
-Run the browser checks like this (fresh server, because sign-up is rate-limited per IP):
+## ADR-S2-09 — Founder AI is separate from the nine specialists, with three modes
+**Decision.** Advisory (no execution), Approval Required (default), Bounded Autonomy (only founder-configured, routine, low-risk actions with daily caps). High-impact actions need explicit approval in **every** mode. Mode and rule changes are authenticated, recorded and themselves high-risk. Findings are labelled verified fact / observation / assumption / forecast / suggestion. With no model connected it computes answers from aggregate facts and says so.
 
-```bash
-FOUNDER_EMAIL=tolu@example.test PORT=5199 SQLITE_PATH=/tmp/fv.sqlite npx tsx server/index.ts &
-BASE=http://127.0.0.1:5199 npm run e2e
-```
+## ADR-S2-10 — AI Council as a registry with honest capability states
+**Decision.** Nine specialists defined as data (name, responsibilities, tool permissions, capability list) behind a provider interface. States are `unavailable`, `available`, `configured`, `operational`, `demo`; the UI shows exactly the state. Routing is rule-based and explainable. Specialists advise; they never take actions on a person's behalf.
 
-## Environment variables
+## ADR-S2-11 — Nova data: opt-in private tools, retention, safety flags
+**Decision.** Journal, goals and habits are off by default, private, never auto-published, and not readable by moderators or governance. Conversation history is optional and retention-bound. Safety-flagged excerpts are kept 30 days by default (configurable, disclosed) and detached from identity; the UI does not promise complete deletion of those excerpts inside that window.
 
-Names and safe placeholders are in `.env.example`. Nothing secret is committed, and **no secret is ever sent to the browser**: the browser bundle contains no keys, and the server reads secrets from its own environment only.
+## ADR-S2-12 — Account deletion and what remains
+**Decision.** Every module registers an eraser and an exporter. Deleting an account removes personal content; messages sent to others stay under a neutral "Deleted account" identity; closed moderation cases lose copied content; the append-only audit log keeps content-free records. The list shown to the user is generated from the same source as the behaviour.
 
-| Variable | Purpose |
-|---|---|
-| `NODE_ENV`, `HOST`, `PORT`, `PUBLIC_ORIGIN`, `LOG_LEVEL` | Basics. |
-| `DATABASE_URL`, `DATABASE_SSL` | PostgreSQL connection. **Required in production.** |
-| `SQLITE_PATH` | SQLite file (dev/test only). |
-| `AUTH_PROVIDER`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Managed auth. Service-role key is server-only. |
-| `FOUNDER_EMAIL` | The account with this email receives the Founder role at sign-up. |
-| `STORAGE_DRIVER`, `UPLOAD_DIR`, `SUPABASE_STORAGE_BUCKET`, `MEDIA_URL_SECRET` | Media storage. `MEDIA_URL_SECRET` is **required in production**. |
-| `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `NOVA_MODEL`, `AI_DAILY_MESSAGE_CAP`, `NOVA_FLAG_RETENTION_DAYS` | AI. With no key, AI runs in labelled demo mode. |
-| `ANONYMOUS_POSTING_ENABLED`, `ENABLE_DEV_TOOLS`, `SEED_DEMO_DATA`, `STATIC_DIR` | Behaviour switches. |
+## ADR-S2-13 — Honest catalogue: demo content is flagged in data and in the UI
+**Decision.** All seeded Learn, Opportunity, Mentor, Event, community and member rows carry `is_demo`; pages show a notice. Mentor requests are recorded without pretending a real person was contacted. Unbuilt features say so and offer a private interest signal, not a pre-order.
 
-## Database setup
+## ADR-S2-14 — Identities: many per account, self-declared unless the platform recorded it
+**Decision.** Fifteen archetypes; any number may be active per account and can be paused or removed without affecting the account or entries. Entries are `self_declared` unless created from platform records; suggestions come only from platform records, are never auto-applied, and start `only_me`. Onboarding answers are never shown to other viewers.
 
-* **Development/tests:** nothing to do. SQLite is created and migrated on start.
-* **Production:** create a PostgreSQL database (Supabase Postgres or any PostgreSQL 14+), set `DATABASE_URL` (and `DATABASE_SSL=true` if required), then run `npm run db:migrate` (the server also applies pending migrations on start). Row-level security is enabled on every table with no policies, so Supabase's public API roles can read nothing; only the server's role can. The audit log is append-only via triggers.
-* Migrations are authored once as templates in `migrations/src/` and rendered per dialect. Add schema with a **new** numbered file; a test fails if rendered files are stale.
-
-## Auth setup (Supabase)
-
-1. Create a Supabase project. Under Authentication, set the site URL to `PUBLIC_ORIGIN` and decide whether email confirmation is required (the app handles both).
-2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` on the **server** only.
-3. FREEVERSE never stores passwords and does not implement its own password system. The app maps a Supabase identity to its own user record, then applies the 18–24 gate, authorization and privacy itself.
-4. **Not verified against a live Supabase project** in this build (none was available). The adapter is tested against a fake HTTP layer only. Treat first deployment as the verification step.
-
-## Production configuration checklist
-
-* `NODE_ENV=production`, PostgreSQL `DATABASE_URL`, `MEDIA_URL_SECRET` (long random), Supabase auth variables, `PUBLIC_ORIGIN` set to your HTTPS origin, behind a TLS-terminating proxy.
-* Leave `SEED_DEMO_DATA` and `ENABLE_DEV_TOOLS` unset (they default to off in production), or the demo catalogue will not be present. Replace demo content with real content before launch.
-* Set `FOUNDER_EMAIL` before the Founder signs up.
-* Decide an AI provider and set `ANTHROPIC_API_KEY`, or leave Nova/Council clearly labelled as demo.
-* Review `docs/IMPLEMENTATION_REPORT.md` → *Decisions for review* and *Not verified* before going live. **This build has not been security-audited or load-tested and is not claimed production-ready.**
-
-## Project layout
-
-```
-shared/      constants and wire types used by both server and browser
-server/      modular monolith: db, http, auth, authz, policy, modules/*, governance, ai, moderation, storage, seed, jobs
-src/         React client (hash routes): app, shell, pages, features, ui, state, api, lib
-migrations/  *.sql.tpl templates and rendered postgres/sqlite SQL
-test/        server and client-logic tests
-scripts/     build, e2e, render-migrations, gen-docs
-docs/        architecture, ADRs, schema, API routes, implementation report
-public/      brand assets (preserved from Stage 1)
-```
-
-## Documentation
-
-* `docs/IMPLEMENTATION_REPORT.md` — what was built, tested, simulated; conflicts found; decisions for review; exact commands and results.
-* `docs/architecture/` — architecture, governance & authorization, Founder Console & Founder AI, AI Council, identities & onboarding, privacy/security/data lifecycle, Universe expansion.
-* `docs/adr/` — Stage 2 decisions. `docs/SCHEMA.md`, `docs/api/ROUTES.md` — generated.
-* `docs/ENGINEERING_CONVENTIONS.md` — how to add a module.
-
-## Known limitations
-
-* Web only. There are no native apps and no public API.
-* Age is **self-declared** (birth month and year, kept private, never called "verified"); 18–24 is enforced server-side. There is no document or third-party age verification.
-* Live auth, PostgreSQL, Supabase storage and AI are implemented against their interfaces but **not verified against live services** here.
-* Demo content is fictional. Mentor requests are recorded but no real person receives them. Calls, marketplace, games, watch, portfolios and most Universes are *not built*; their pages say so and offer a private "tell me when this exists" signal.
-* No email or push notifications; notifications are in-app only.
-* Hash-based URLs; no server-side rendering.
-* Feed ordering is plain: recent, a transparent "relevant" (interest overlap, explained per item), and following. There is no engagement-maximising algorithm.
+## ADR-S2-15 — Web client: React, hash routes, no client-side secrets
+**Decision.** React 19 bundled by esbuild into one script; hash URLs (retained from Stage 1) so static hosting and file previews work; all data via `/api`; session token in browser storage only; accessibility preferences applied as data attributes.
