@@ -6,7 +6,7 @@
 
 ```
 Browser ──HTTPS──▶ Vercel  (static client from dist/)
-                     │  /api/*  ──▶ api/[...path].mjs  (same-origin proxy function)
+                     │  /api/*  ──▶ api/proxy.mjs  (same-origin proxy function)
                      ▼
                   Render web service  (Node 22 backend: API, rules, media routes)
                      ├──▶ PostgreSQL        (Render managed, or Supabase Postgres)
@@ -24,7 +24,7 @@ Vercel was hosting only static files. Nothing answered `/api/*`, so every call (
 
 | Cause | Fix |
 |---|---|
-| No backend and no route for `/api/*` on Vercel | `api/[...path].mjs` proxy + `vercel.json`; backend deployable via `render.yaml` or `Dockerfile` |
+| No backend and no route for `/api/*` on Vercel | `api/proxy.mjs` proxy + `vercel.json`; backend deployable via `render.yaml` or `Dockerfile` |
 | Backend bound to loopback only | `HOST` defaults to `0.0.0.0` in production |
 | `tsx`/`esbuild` were dev-only, so a production install could not start | moved to `dependencies`; `engines.node >= 22` |
 | All visitors shared the proxy's IP in rate limits | `PROXY_SHARED_SECRET` + `TRUST_PROXY_HOPS` client-IP handling |
@@ -58,7 +58,7 @@ Vercel was hosting only static files. Nothing answered `/api/*`, so every call (
 | `PROXY_SHARED_SECRET` | a long random string (e.g. `openssl rand -hex 32`); reuse it on Vercel |
 | `ANTHROPIC_API_KEY` | optional. Without it Nova and the Council run in clearly labelled demo mode |
 
-   Already set by the blueprint: `NODE_ENV=production`, `DATABASE_URL`, `AUTH_PROVIDER=supabase`, `STORAGE_DRIVER=supabase`, `MEDIA_URL_SECRET` (generated), `TRUST_PROXY_HOPS=1`, `ANONYMOUS_POSTING_ENABLED=false`, `SEED_DEMO_DATA=true`.
+   Already set by the blueprint: `NODE_ENV=production`, `DATABASE_URL`, `AUTH_PROVIDER=supabase`, `STORAGE_DRIVER=supabase`, `MEDIA_URL_SECRET` (generated), `TRUST_PROXY_HOPS=1`, `ANONYMOUS_POSTING_ENABLED=true`, `SEED_DEMO_DATA=true`.
 3. Deploy. **Migrations run automatically on start**; you can also run `npm run db:migrate`.
 4. The server **refuses to start** with a clear message if production config is unsafe (SQLite, missing `DATABASE_URL` or `MEDIA_URL_SECRET`, non-https `PUBLIC_ORIGIN`, dev auth, local disk storage without `ALLOW_EPHEMERAL_STORAGE`). Read the Render log first if a deploy fails.
 5. Check `https://YOUR-BACKEND.onrender.com/api/health` → `{"ok":true,…}` and `/api/health/ready` → database `ok`.
@@ -83,7 +83,7 @@ Vercel was hosting only static files. Nothing answered `/api/*`, so every call (
 node scripts/check-deploy.mjs https://YOUR-SITE.vercel.app https://YOUR-BACKEND.onrender.com
 ```
 
-It checks: site serves the app, security headers, site→backend health, database readiness, `/api/config` returns JSON, managed Supabase auth (not the dev provider), `NODE_ENV=production`, PostgreSQL, dev tools off, anonymous posting off, 18–24 self-declared. Then do this once by hand:
+It checks: site serves the app, security headers, site→backend health, database readiness, `/api/config` returns JSON, managed Supabase auth (not the dev provider), `NODE_ENV=production`, PostgreSQL, dev tools off, anonymous posting on, 18 and over, self-declared. Then do this once by hand:
 
 1. Sign up with a new email → "check your email" → open the link → you land signed in on **Confirm eligibility**.
 2. Enter a date of birth; tick the draft terms; continue → onboarding → Home.
@@ -95,7 +95,7 @@ It checks: site serves the app, security headers, site→backend health, databas
 
 | Symptom | Likely cause and fix |
 |---|---|
-| Banner "couldn't reach the server" | `BACKEND_URL` missing/wrong on Vercel, or backend asleep (Render free plan). Open `YOUR-SITE/api/health`. A JSON error naming `backend_unreachable` or `proxy_not_configured` says which. |
+| Banner "couldn't reach the server" | `BACKEND_URL` missing/wrong on Vercel, or backend asleep (Render free plan). Open `YOUR-SITE/api/health`. A JSON error naming `backend_unreachable` or `backend_not_configured` says which. |
 | `/api/health` works on Render but not on Vercel | Vercel env vars not applied: redeploy. |
 | Backend won't start | Read the log line; it names the missing/unsafe variable. |
 | Sign-up says it worked but no email | Supabase email rate limit or SMTP not configured; configure a custom SMTP in Supabase for real use. |
@@ -111,4 +111,4 @@ It checks: site serves the app, security headers, site→backend health, databas
 
 ## 10. Launch decisions still open
 
-See `docs/DEPLOYMENT_REPORT.md` → *Outstanding legal placeholders* before turning legal acceptance to "approved", and the anonymous-posting default (off). 
+See `docs/DEPLOYMENT_REPORT.md` → *Outstanding legal placeholders* before turning legal acceptance to "approved", (anonymous posting is on by default; see the age and anonymity record in `docs/POLICY_CHANGES.md`). 

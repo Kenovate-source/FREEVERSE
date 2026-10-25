@@ -8,7 +8,7 @@ Stage 2 is a real client–server application built on Stage 1's brand and struc
 ## 2. Implemented and tested
 | Area | Status |
 |---|---|
-| Landing, trust page, sign-up/in/recover, age gate (18–24, month+year, self-declared) | Implemented; server tests + browser |
+| Landing, trust page, sign-up/in/recover, age gate (18+, no upper limit, month+year, self-declared) | Implemented; server tests + browser |
 | Onboarding Path A and Path B, skippable/resumable; 15 archetypes; large interest catalogue with search/filter/custom/private-vs-public | Implemented; server tests + browser (skip path) |
 | Profiles: avatar builder, photo upload, cover presets/upload, sections/entries, suggestions, milestones, safe distinct default avatars | Implemented; server tests; browser loads every screen |
 | Settings (11 sections) and Privacy & visibility: presets, per-field audiences, per-feature audiences, plain-language effects, blocking/muting, notifications, messaging, accessibility (applied live), Nova data, export, delete | Implemented; server tests; browser |

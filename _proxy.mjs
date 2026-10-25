@@ -8,6 +8,24 @@ const DROP_RESPONSE = new Set(['content-encoding', 'content-length', 'transfer-e
 
 const json = (status, code, message) => new Response(JSON.stringify({ error: { code, message } }), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
+/**
+ * vercel.json rewrites /api/:__fvp* to /api/proxy; Vercel then adds ?__fvp=<original path> (a plain file name, because `[...path]` file names are not
+ * matched reliably for multi-segment paths). Depending on the runtime, request.url is either the original URL or the rewritten
+ * one, so accept both and rebuild the real API path and query. Returns null for anything that is not an /api/ path.
+ */
+export function resolveTarget(u) {
+  if (u.pathname === '/api/proxy') {
+    const p = u.searchParams.get(PATH_PARAM);
+    if (!p || p.includes('..') || p.startsWith('/') || p.includes('\\')) return null;
+    u.searchParams.delete(PATH_PARAM);
+    const qs = u.searchParams.toString();
+    return { pathname: '/api/' + p, search: qs ? '?' + qs : '' };
+  }
+  if (!u.pathname.startsWith('/api/')) return null;
+  return { pathname: u.pathname, search: u.search };
+}
+const PATH_PARAM = '__fvp';
+
 /** Returns the validated backend origin, or null when BACKEND_URL is missing or unsafe. */
 export function backendOrigin(env) {
   try {
@@ -20,8 +38,8 @@ export function backendOrigin(env) {
 export async function proxyRequest(request, env = process.env, fetchImpl = fetch) {
   const origin = backendOrigin(env);
   if (!origin) return json(503, 'backend_not_configured', 'The FREEVERSE service is not connected yet: BACKEND_URL is missing or invalid in the website’s deployment settings.');
-  const inUrl = new URL(request.url);
-  if (!inUrl.pathname.startsWith('/api/')) return json(404, 'not_found', 'Unknown API route.');
+  const inUrl = resolveTarget(new URL(request.url));
+  if (!inUrl) return json(404, 'not_found', 'Unknown API route.');
   const headers = new Headers();
   for (const [k, v] of request.headers) if (!DROP_REQUEST.has(k.toLowerCase()) && !k.toLowerCase().startsWith('x-vercel-')) headers.set(k, v);
   const ip = (request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || '').split(',')[0].trim();
