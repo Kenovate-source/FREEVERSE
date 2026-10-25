@@ -22,8 +22,8 @@ line(c?.auth?.kind === 'supabase' && c?.auth?.managed === true, 'sign-in is mana
 line(c?.features?.env === 'production', 'backend runs with NODE_ENV=production', c?.features?.env);
 line(c?.features?.database === 'postgres', 'backend uses PostgreSQL', c?.features?.database);
 line(c?.features?.devTools === false, 'dev tools are off');
-line(c?.features?.anonymousPosting === false, 'anonymous posting is off by default (launch decision)');
-line(c?.eligibility?.verified === false && c?.eligibility?.min === 18 && c?.eligibility?.max === 24, 'age policy is 18–24, self-declared (not "verified")');
+line(c?.features?.anonymousPosting === true, 'anonymous posting is available (Founder decision; protections are server-side)');
+line(c?.eligibility?.verified === false && c?.eligibility?.min === 18 && c?.eligibility?.max === null, 'age policy is 18 and over, self-declared (not "verified")');
 console.log(`INFO  storage driver: ${c?.features?.storage ?? 'unknown'}; AI provider: ${c?.features?.aiProvider ?? 'unknown'} (demo = labelled sample replies)`);
 if (backend) {
   const direct = await get(`${backend}/api/health/ready`);

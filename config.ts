@@ -93,7 +93,7 @@ export function loadConfig(e: Record<string, string | undefined> = process.env):
     mediaUrlSecret: e.MEDIA_URL_SECRET || randomBytes(32).toString('hex'),
     storage: { driver: storageDriver, dir: resolve(e.UPLOAD_DIR || '.data/uploads'), supabaseBucket: e.SUPABASE_STORAGE_BUCKET || 'freeverse-media' },
     ai: { provider: aiProvider, anthropicApiKey: e.ANTHROPIC_API_KEY, novaModel: e.NOVA_MODEL || 'claude-sonnet-5-5', dailyMessageCap: Number(e.AI_DAILY_MESSAGE_CAP || 60) },
-    anonymousPostingEnabled: truthy(e.ANONYMOUS_POSTING_ENABLED, false),
+    anonymousPostingEnabled: truthy(e.ANONYMOUS_POSTING_ENABLED, true),
     novaFlagRetentionDays: retention,
     devTools: truthy(e.ENABLE_DEV_TOOLS, !prod),
     seedDemoData: truthy(e.SEED_DEMO_DATA, !prod),
