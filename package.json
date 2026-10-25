@@ -1,6 +1,6 @@
 {
   "name": "freeverse",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "FREEVERSE Stage 2: trust-first platform for adults 18 and over (web). Server (Node + PostgreSQL/SQLite) and React client.",
   "type": "module",
@@ -17,6 +17,7 @@
     "db:render": "node scripts/render-migrations.mjs",
     "db:migrate": "tsx server/cli/migrate.ts",
     "build:web": "node scripts/build.mjs",
+    "check:structure": "node scripts/check-structure.mjs",
     "check:deploy": "node scripts/check-deploy.mjs",
     "check:vercel": "node scripts/check-vercel.mjs"
   },
