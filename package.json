@@ -1,8 +1,8 @@
 {
   "name": "freeverse",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
-  "description": "FREEVERSE Stage 2: trust-first platform for adults 18-24 (web). Server (Node + PostgreSQL/SQLite) and React client.",
+  "description": "FREEVERSE Stage 2: trust-first platform for adults 18 and over (web). Server (Node + PostgreSQL/SQLite) and React client.",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -12,20 +12,24 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
     "e2e": "node scripts/e2e.mjs",
+    "e2e:immersive": "node scripts/e2e-immersive.mjs",
     "check": "npm run typecheck && npm test && npm run build",
     "db:render": "node scripts/render-migrations.mjs",
     "db:migrate": "tsx server/cli/migrate.ts",
     "build:web": "node scripts/build.mjs",
-    "check:deploy": "node scripts/check-deploy.mjs"
+    "check:deploy": "node scripts/check-deploy.mjs",
+    "check:vercel": "node scripts/check-vercel.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/dm-sans": "^5.3.0",
     "esbuild": "0.28.2",
+    "gsap": "3.15.0",
     "pg": "^8.23.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "^0.35.5",
+    "three": "0.186.1",
     "tsx": "4.23.12",
     "zod": "^4.6.7"
   },
@@ -35,6 +39,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "0.186.0",
     "typescript": "6.0.3"
   },
   "engines": {

@@ -20,7 +20,7 @@ test('legal drafts: present, labelled draft, placeholders explicit, consistent w
   for (const w of ['what we collect', 'anonymous posting', 'ai interactions', 'third-party', 'retention', 'security', 'your rights', 'complaints', 'international']) assert.ok(p.includes(w), `privacy covers ${w}`);
   const all = LEGAL_DOC_IDS.map((i) => LEGAL_DOCS[i].md).join('\n');
   assert.doesNotMatch(all.replace(/does not describe members as "age verified"/gi, ""), /age[- ]verified/i);
-  assert.match(LEGAL_DOCS.privacy.md, /off by default/i);
+  assert.match(LEGAL_DOCS.privacy.md, /available by default/i); assert.doesNotMatch(all, /18 to 24|18–24|upper age limit exists/);
   assert.match(LEGAL_DOCS.terms.md + LEGAL_DOCS.privacy.md, /does \*\*not\*\* automatically have this power/);
 });
 test('legal routes are public, always reachable and the pages are registered', () => {

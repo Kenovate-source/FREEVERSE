@@ -17,7 +17,7 @@ services:
       - { key: AUTH_PROVIDER, value: supabase }
       - { key: STORAGE_DRIVER, value: supabase }
       - { key: SEED_DEMO_DATA, value: "true" }       # demo content is labelled; set to "false" once real content exists
-      - { key: ANONYMOUS_POSTING_ENABLED, value: "false" }
+      - { key: ANONYMOUS_POSTING_ENABLED, value: "true" }
       - { key: TRUST_PROXY_HOPS, value: "1" }
       - { key: PUBLIC_ORIGIN, sync: false }          # https://YOUR-SITE.vercel.app
       - { key: SUPABASE_URL, sync: false }
