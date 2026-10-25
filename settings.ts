@@ -4,7 +4,7 @@ import type { PrivacySettings, ProfileField } from '../privacy';
 
 export interface NotificationSettings { comments: boolean; replies: boolean; reactions: boolean; follows: boolean; mentions: boolean; messages: boolean; message_request: boolean; system: boolean; events: boolean }
 export interface MessagingSettings { readReceipts: boolean; allowMessageRequests: boolean }
-export interface AccessibilitySettings { textSize: 'sm' | 'md' | 'lg' | 'xl'; reduceMotion: boolean; highContrast: boolean; calmBackground: boolean; underlineLinks: boolean }
+export interface AccessibilitySettings { textSize: 'sm' | 'md' | 'lg' | 'xl'; reduceMotion: boolean; decorativeMotion?: 'full' | 'reduced' | 'off'; highContrast: boolean; calmBackground: boolean; underlineLinks: boolean }
 export interface NovaSettings { journalEnabled: boolean; goalsEnabled: boolean; habitsEnabled: boolean; historyRetentionDays: null | 30 | 90 | 365; saveHistory: boolean }
 
 export interface Settings { notifications: NotificationSettings; messaging: MessagingSettings; accessibility: AccessibilitySettings; nova: NovaSettings }
@@ -13,7 +13,7 @@ export type SettingsPatch = { [K in keyof Settings]?: Partial<Settings[K]> };
 export const DEFAULT_SETTINGS: Settings = {
   notifications: { comments: true, replies: true, reactions: true, follows: true, mentions: true, messages: true, message_request: true, system: true, events: true },
   messaging: { readReceipts: true, allowMessageRequests: true },
-  accessibility: { textSize: 'md', reduceMotion: false, highContrast: false, calmBackground: false, underlineLinks: false },
+  accessibility: { textSize: 'md', reduceMotion: false, decorativeMotion: 'full', highContrast: false, calmBackground: false, underlineLinks: false },
   nova: { journalEnabled: false, goalsEnabled: false, habitsEnabled: false, historyRetentionDays: null, saveHistory: true },
 };
 

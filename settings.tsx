@@ -1,3 +1,4 @@
+import { useMotion } from '../motion/react';
 import { useState } from 'react';
 import { api } from '../api/client';
 import { Link, navigate } from '../lib/router';
@@ -46,7 +47,7 @@ function useSettings() { const res = useResource(() => api.get<{ settings: Setti
 function AccountS() {
   const { me, config } = useSession();
   return <><H>Account</H><Card className="stack-sm"><dl className="kv"><dt>Email</dt><dd>{me?.email ?? '—'}</dd><dt>Handle</dt><dd>@{me?.handle ?? '—'}</dd><dt>Age check</dt><dd>{me?.eligibility.status === 'attested' ? 'You told us your birth month and year. This is self-declared, not verified.' : 'Not completed'}{me?.eligibility.ageBand ? ` (${me.eligibility.ageBand})` : ''}</dd><dt>Member since</dt><dd>{me?.createdAt ? new Date(me.createdAt).toLocaleDateString() : '—'}</dd></dl>
-    <p className="faint">FREEVERSE is for adults aged {config?.eligibility.min ?? 18}–{config?.eligibility.max ?? 24}. We store only your birth month and year, keep it private, and don’t call it verified.</p>
+    <p className="faint">FREEVERSE is for adults aged {config?.eligibility.min ?? 18} and over. We store only your birth month and year, keep it private, and don’t call it verified.</p>
     <div className="row-wrap"><Link to="/me/profile" className="btn btn-secondary btn-sm">Edit profile</Link><Link to="/identities" className="btn btn-secondary btn-sm">Identities</Link><Link to="/settings/data" className="btn btn-ghost btn-sm">Delete or export</Link></div></Card></>;
 }
 function ProfileS() {
@@ -90,9 +91,12 @@ function MsgS() {
   const { res, patch } = useSettings();
   return <><H>Messaging</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><Switch label="Read receipts" checked={s.messaging.readReceipts} onChange={(v) => void patch({ messaging: { readReceipts: v } })} hint="When off, others can’t see that you’ve read their messages, and you can’t see theirs." /><Switch label="Allow message requests" checked={s.messaging.allowMessageRequests} onChange={(v) => void patch({ messaging: { allowMessageRequests: v } })} hint="First messages from people you don’t follow go to Requests. Who can message you at all is under Privacy." /></Card>}</Async></>;
 }
+function MotionNote() { const m = useMotion(); return <p className="faint" role="status">Right now: <strong>{m.mode}</strong> mode. {m.reason}.</p>; }
 function A11yS() {
   const { res, patch } = useSettings(); const set = async (p: Partial<Settings['accessibility']>, cur: Settings['accessibility']) => { applyA11y({ ...cur, ...p }); await patch({ accessibility: p }, 'Updated'); };
   return <><H>Accessibility & appearance</H><Async res={res}>{({ settings: { accessibility: a } }) => <Card className="stack-sm"><SelectField label="Text size" value={a.textSize} onChange={(e) => void set({ textSize: e.target.value as Settings['accessibility']['textSize'] }, a)}><option value="sm">Smaller</option><option value="md">Default</option><option value="lg">Larger</option><option value="xl">Largest</option></SelectField>
+    <SelectField label="Decorative motion" value={a.decorativeMotion ?? 'full'} onChange={(e) => void set({ decorativeMotion: e.target.value as 'full' | 'reduced' | 'off' }, a)} hint="Controls the 3D scenes, scroll effects and ambient animation. FREEVERSE also pauses decorative motion automatically while you read, write or fill in forms, and follows your device’s reduced-motion setting."><option value="full">Full: spatial effects where they help</option><option value="reduced">Reduced: still images instead of 3D and scroll effects</option><option value="off">Off: no decorative motion at all</option></SelectField>
+    <MotionNote />
     <Switch label="Reduce motion" checked={a.reduceMotion} onChange={(v) => void set({ reduceMotion: v }, a)} hint="Turns off animations and transitions." /><Switch label="High contrast" checked={a.highContrast} onChange={(v) => void set({ highContrast: v }, a)} hint="Stronger text and border contrast." /><Switch label="Calm background" checked={a.calmBackground} onChange={(v) => void set({ calmBackground: v }, a)} hint="Removes the decorative glow." /><Switch label="Underline links" checked={a.underlineLinks} onChange={(v) => void set({ underlineLinks: v }, a)} /></Card>}</Async></>;
 }
 function NovaS() {

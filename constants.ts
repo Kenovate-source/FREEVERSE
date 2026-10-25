@@ -1,7 +1,10 @@
 // Constants shared by the server and the browser bundle. Keep this file free of server-only imports.
 
 export const MIN_AGE = 18;
-export const MAX_AGE = 24; // FREEVERSE v1 is strictly for adults aged 18–24. Widening this is a Constitutional decision.
+/** Founder decision (Oct 2026): FREEVERSE is for adults aged 18 and above. There is no upper age limit. */
+export const MAX_AGE: number | null = null;
+/** A birth date implying an age above this is treated as a typing error, not as an eligibility rule. */
+export const MAX_PLAUSIBLE_AGE = 120;
 export const TERMS_VERSION = '2026-10-draft-1';
 /** Version recorded for all three legal documents. They are drafts until counsel approves them. */
 export const LEGAL_VERSION = TERMS_VERSION;

@@ -5,7 +5,7 @@ export const RULES_MD = `# Community Rules and Anonymous Participation
 **Version:** 2026-10-draft-1
 
 ## The basics
-FREEVERSE is a trust-first space for adults aged 18 to 24 to learn, find opportunities, build and create together. Be kind, be honest, and look after each other.
+FREEVERSE is a trust-first space for adults (18 and over) to learn, find opportunities, build and create together. Be kind, be honest, and look after each other.
 
 ## What's not allowed
 - Harassment, bullying, threats, doxxing and hate.
@@ -23,7 +23,8 @@ Use **Report** on any post, comment, message or profile. Reports go to trained m
 Remove content, limit features, suspend or end accounts, and escalate. All of this is logged. You can appeal (see the Terms, section 8).
 
 ## Anonymous posting
-- **Off by default.** It must be switched on globally and for the specific community.
+- **Available by default.** You can post and comment anonymously in communities that allow it. A community can switch anonymous posting off for itself, and the platform can switch it off everywhere if it is being abused.
+- Anonymous posts are rate limited, can be reported like any other post, and are moderated by the same rules.
 - Anonymous posts hide your name from other members. They do not make you untraceable to the safety team.
 - The same rules apply to anonymous posts, and moderators can remove them.
 - **Identity reveal** is a last resort, only for serious harm such as threats, targeted harassment or illegal content. It requires:

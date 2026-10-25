@@ -7,6 +7,7 @@ import { Shell } from '../shell/Shell';
 import { PAGES } from '../pages';
 import { Loading, EmptyState, Button } from '../ui/kit';
 import { Link } from '../lib/router';
+import { MotionRouteSync } from '../motion/react';
 
 export function App() {
   const { status, me, perms, configError, retryConnection } = useSession();
@@ -24,8 +25,9 @@ export function App() {
   if (g.kind === 'forbidden') return <Chrome signedIn><EmptyState icon="lock" title="That area isn’t open to your account">This part of FREEVERSE needs a role that your account doesn’t hold. Nothing is wrong; you simply don’t have access here.<Link to="/home" className="btn btn-primary">Back to Home</Link></EmptyState></Chrome>;
   if (!Page) return <Chrome signedIn={!!session}><NotFound /></Chrome>;
   const el = <Page params={g.match.params} query={query} />;
-  if (g.match.route.public || g.match.route.id === 'eligibility' || g.match.route.id === 'onboarding') return <>{banner}{el}</>;
-  return <Shell>{banner}{el}</Shell>;
+  const sync = <MotionRouteSync routeId={g.match.route.id} path={path} />;
+  if (g.match.route.public || g.match.route.id === 'eligibility' || g.match.route.id === 'onboarding') return <>{sync}{banner}{el}</>;
+  return <Shell>{sync}{banner}{el}</Shell>;
 }
 function ConnectionBanner({ retry }: { retry: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);

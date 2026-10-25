@@ -6,6 +6,10 @@ import { FeedList } from '../features/posts';
 import { PostCard } from '../features/posts';
 import { TemplateComposer } from '../features/universe/composer';
 import { renderTool } from '../features/universe/tools';
+import { OrbitMap } from '../features/universe/OrbitMap';
+import { UniverseSigil } from '../features/universe/Sigil';
+import { themeFor } from '../../shared/universe-theme';
+import { useMotion } from '../motion/react';
 import { specFor, type Space, type Template } from '../../shared/universe-spaces';
 import type { FeedResponse } from '../../shared/api/content';
 import type { UniverseView } from '../../shared/api/catalog';
@@ -27,7 +31,7 @@ export function UniversesPage(_: P) {
     <TextField label="Find a Universe" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Try “games”, “money” or “research”" />
     <Async res={res}>{(d) => { const ql = q.trim().toLowerCase(); const match = (u: UniverseView) => !ql || `${u.name} ${u.tagline} ${u.description} ${u.today.join(' ')}`.toLowerCase().includes(ql);
       const shown = d.items.filter(match); if (!shown.length) return <EmptyState icon="search" title="No Universe matches that">Try a different word, or clear the search.</EmptyState>;
-      return <>{GROUPS.map((g) => { const items = g.ids.map((id) => shown.find((u) => u.id === id)).filter(Boolean) as UniverseView[]; if (!items.length) return null;
+      return <><OrbitMap items={shown} />{GROUPS.map((g) => { const items = g.ids.map((id) => shown.find((u) => u.id === id)).filter(Boolean) as UniverseView[]; if (!items.length) return null;
         return <section key={g.label} className="stack" aria-labelledby={`g-${g.label}`}><div><h2 id={`g-${g.label}`} className="h-md">{g.label}</h2><p className="muted">{g.blurb}</p></div>
           <div className="grid-cards">{items.map((u) => <Card as="article" key={u.id} className="uni-card" style={{ ['--accent' as string]: u.accent }}><div className="spread"><h3 className="h-sm"><Link to={`/universes/${u.id}`}>{u.name}</Link></h3><Badge tone={STATUS_TONE(u.status)}>{u.statusLabel}</Badge></div><p className="muted">{u.tagline}</p><ul className="tight">{u.today.slice(0, 3).map((t) => <li key={t}>{t}</li>)}</ul><Link className="btn btn-secondary btn-sm" to={`/universes/${u.id}`}>Open {u.name}</Link></Card>)}</div></section>; })}</>; }}</Async></div>;
 }
@@ -65,14 +69,22 @@ function Browse({ uid, space, spec, query }: { uid: string; space: Space; spec: 
   </div>;
 }
 
+function HeroHeader({ depth, children }: { depth: 0 | 1 | 2; children: React.ReactNode }) {
+  const m = useMotion();
+  // Bounded pointer response (at most a few pixels), only where the motion mode allows pointer effects.
+  const move = (e: React.PointerEvent<HTMLElement>) => { if (!m.pointer || depth < 2 || e.pointerType !== 'mouse') return; const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty('--px', String(Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2)))); e.currentTarget.style.setProperty('--py', String(Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2)))); };
+  return <header className="uni-hero" data-depth={depth} onPointerMove={move}>{children}</header>;
+}
+
 export function UniversePage({ params, query }: P) {
   const res = useResource(() => api.get<{ items: UniverseView[] }>('/api/universes'), []); const spec = specFor(params.id ?? '');
   const spaceId = params.space ?? 'overview';
   return <Async res={res}>{(d) => { const u = d.items.find((x) => x.id === params.id);
     if (!u || !spec) return <EmptyState icon="grid" title="Universe not found"><Link to="/universes">All Universes</Link></EmptyState>;
     const space = spec.spaces.find((s) => s.id === spaceId);
-    return <div className="stack-lg uni-page" style={{ ['--accent' as string]: u.accent }}>
-      <header className="uni-hero"><div className="stack-sm"><Link to="/universes" className="faint">← All Universes</Link><h1 id="page-title" tabIndex={-1} className="h-xl">{u.name}</h1><p className="lead">{u.tagline}</p><div className="row-wrap"><Badge tone={STATUS_TONE(u.status)}>{u.statusLabel}</Badge></div></div></header>
+    const th = themeFor(u.id);
+    return <div className={`stack-lg uni-page uni-layout-${th?.layout ?? 'ordered'} uni-motion-${th?.motion ?? 'settle'}`} data-universe={u.id} style={{ ['--accent' as string]: u.accent }}>
+      <HeroHeader depth={th?.depth ?? 0}><div className="stack-sm"><Link to="/universes" className="faint">← All Universes</Link><h1 id="page-title" tabIndex={-1} className="h-xl">{u.name}</h1><p className="lead">{u.tagline}</p><div className="row-wrap"><Badge tone={STATUS_TONE(u.status)}>{u.statusLabel}</Badge></div></div>{th && <UniverseSigil kind={th.sigil} label={th.mood} />}</HeroHeader>
       <nav className="row-wrap uni-tabs" aria-label={`${u.name} sections`}>{spec.spaces.map((s) => <Link key={s.id} to={s.type === 'link' ? s.to! : s.id === 'overview' ? `/universes/${u.id}` : `/universes/${u.id}/${s.id}`} className={`chip chip-link${s.id === spaceId ? ' on' : ''}`} aria-current={s.id === spaceId ? 'page' : undefined}>{s.label}{s.type === 'link' ? ' ↗' : ''}</Link>)}</nav>
       {!space ? <EmptyState icon="compass" title="That section doesn’t exist"><Link to={`/universes/${u.id}`}>Back to {u.name}</Link></EmptyState>
         : space.type === 'overview' ? <Overview u={u} spec={spec} />

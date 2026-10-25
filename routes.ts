@@ -6,7 +6,7 @@ export interface RouteDef {
   public?: boolean;
   /** Renders for everyone in every account state (legal documents, password-reset return). */
   always?: boolean;
-  /** Needs a signed-in session whose eligibility is still pending (the 18–24 step). */
+  /** Needs a signed-in session whose eligibility is still pending (the 18+ step). */
   eligibility?: boolean;
   /** Needs this permission (server enforces it too; this only decides what the UI offers). */
   perm?: string;

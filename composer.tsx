@@ -3,12 +3,14 @@ import { api } from '../../api/client';
 import { Icon } from '../../ui/Icon';
 import { Button, Notice, SelectField, TextArea, TextField, errMsg, fieldErrors } from '../../ui/kit';
 import { useToast } from '../../state/toast';
+import { useFocusZone } from '../../motion/react';
 import { POST_LIMITS } from '../../../shared/api/content';
 import type { MediaItem } from '../../../shared/api/media';
 import { validateMeta, type Template } from '../../../shared/universe-spaces';
 
 /** The form for one Universe template. The server validates everything again; this is only for helpful, early feedback. */
 export function TemplateComposer({ universe, template, onPosted, onClose }: { universe: string; template: Template; onPosted: () => void; onClose: () => void }) {
+  useFocusZone(); // writing is focused work: decorative motion calms while the composer is open
   const { say } = useToast();
   const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [url, setUrl] = useState(''); const [when, setWhen] = useState(''); const [meta, setMeta] = useState<Record<string, string>>({});
   const [media, setMedia] = useState<MediaItem[]>([]); const [up, setUp] = useState(false); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null); const [fe, setFe] = useState<Record<string, string>>({});

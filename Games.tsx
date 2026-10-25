@@ -1,3 +1,4 @@
+import { useFocusZone } from '../../motion/react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
@@ -92,6 +93,7 @@ function Result({ game, score, onAgain, onSaved }: { game: GameId; score: number
 }
 
 export function GamesHub({ initial }: { initial?: string }) {
+  useFocusZone(); // playing a game is focused
   const [game, setGame] = useState<GameId | null>((GAMES.find((g) => g.id === initial)?.id as GameId | undefined) ?? null); const [score, setScore] = useState<number | null>(null); const [run, setRun] = useState(0); const [bump, setBump] = useState(0);
   const def = GAMES.find((g) => g.id === game); const Game = game ? COMPONENTS[game] : null;
   return <div className="stack-lg">

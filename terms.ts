@@ -5,7 +5,7 @@ export const TERMS_MD = `# Terms of Service
 **Version:** 2026-10-draft-1 · **Operator:** [[PLACEHOLDER: legal entity name]] · **Address:** [[PLACEHOLDER: registered address]] · **Contact:** [[PLACEHOLDER: legal contact email]]
 
 ## 1. Eligibility: who FREEVERSE is for
-FREEVERSE is for adults aged 18 to 24. When you sign up, you tell us your date of birth. **This is self-declared. FREEVERSE does not verify your age with documents or third parties, and does not describe members as "age verified".** We keep only the month and year. If you give a false date, we may close your account. A documented Founder exception to the upper age limit exists for the platform's founder only.
+FREEVERSE is for adults aged 18 and over. When you sign up, you tell us your date of birth. **This is self-declared. FREEVERSE does not verify your age with documents or third parties, and does not describe members as "age verified".** We keep only the month and year. If you give a false date, we may close your account.  There is no upper age limit.
 
 ## 2. Your account
 - You need a working email address and a password (or another sign-in method we offer).
