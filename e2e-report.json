@@ -1,0 +1,307 @@
+{
+  "ran": "2026-10-16T23:47:06.314Z",
+  "total": 60,
+  "failed": 0,
+  "results": [
+    {
+      "name": "welcome: headline renders",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "welcome: states mock clearly",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "signup: blocked without 18+ confirmation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "signup: focus moves to the first invalid field",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "signup: proceeds to onboarding after attestation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "signup: password is never stored",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "signup: attestation recorded as self_attestation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding: welcome step",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding: validates display name",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding: interest chip toggles",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding: Nova step shows non-therapist framing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding: lands on Home",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home: feed renders seeded posts",
+      "ok": true,
+      "detail": "count=8"
+    },
+    {
+      "name": "home: feed is strictly newest-first",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home: new post appears first",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home: reaction toggles",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home: report dialog is honest that nothing was sent",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home: empty post is rejected with a message",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Home → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Good morning, Test\""
+    },
+    {
+      "name": "nav: Home marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Learn → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Learn\""
+    },
+    {
+      "name": "nav: Learn marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Learn focus moved to main",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Opportunities → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Opportunities\""
+    },
+    {
+      "name": "nav: Opportunities marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Opportunities focus moved to main",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Events → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Events\""
+    },
+    {
+      "name": "nav: Events marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Events focus moved to main",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Nova → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Nova\""
+    },
+    {
+      "name": "nav: Nova marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Nova focus moved to main",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Messages → screen with heading",
+      "ok": true,
+      "detail": "h1=\"Messages\""
+    },
+    {
+      "name": "nav: Messages marked aria-current",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Messages focus moved to main",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nav: Profile screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "learn: article detail renders body",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "learn: path shows ordered steps",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "learn: unknown lesson shows a not-found state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "opportunities: apply controls are disabled and explained",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "opportunities: filter narrows list",
+      "ok": true,
+      "detail": "count=2"
+    },
+    {
+      "name": "mentors: request recorded with honest wording",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "events: RSVP toggles and persists in view",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "nova: scripted reply is labelled as mock",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "error mode: feed shows error with retry",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "empty mode: Learn shows empty state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "slow mode: loading skeleton is announced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "router: unknown route shows not-found with a way back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "guard: signed-out user is redirected from /home",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "demo account: lands on Home with the demo profile",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard: first Tab stop is the skip link",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard: focus is visibly styled",
+      "ok": true,
+      "detail": "rgb(4, 7, 22) 0px 0px 0px 3px, rgb(62, 230, 244) 0px 0px 0px"
+    },
+    {
+      "name": "responsive 360px: no horizontal overflow on any signed-in screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "responsive 390px: no horizontal overflow on any signed-in screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "responsive 768px: no horizontal overflow on any signed-in screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "responsive 1280px: no horizontal overflow on any signed-in screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "responsive: mobile tab bar visible at phone width",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a11y: every interactive control has an accessible name (Profile screen, phone)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "file://: dist/index.html launches directly from disk",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "console: no errors or page exceptions during the whole run",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

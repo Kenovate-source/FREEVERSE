@@ -1,4 +1,4 @@
-# Test report — immersive release (v0.3.0)
+# Test report — immersive release (v0.3.1, repository repair)
 
 All numbers below come from a **clean extraction of the delivered zip** (Node 22.22, Linux, headless Chromium with software WebGL). Nothing here was run against live Vercel, Render, Supabase, a real PostgreSQL server or a live AI provider.
 
@@ -32,3 +32,22 @@ All numbers below come from a **clean extraction of the delivered zip** (Node 22
 
 ## Not run
 Lighthouse, axe or other automated accessibility audits; screen-reader testing; real-device performance; load testing; live-service tests. See `docs/INCOMPLETE_AND_EXTERNAL.md`.
+
+
+---
+
+## Repository-repair verification (v0.3.1)
+
+Run from a **pure `git clone` of the corrected repository** (332 tracked files, so nothing depends on untracked or ignored files), after applying the documented update procedure to a copy of the real GitHub `main` (`8311020`).
+
+| Check | Result |
+|---|---|
+| Repository structure (`npm run check:structure`) | OK: 25 required files present, no stray or duplicate files. Runs first in every build |
+| `npm ci`, `tsc --noEmit`, `npm run build:web` | OK; `dist/` has `app.js`, `immersive.js`, `index.html` |
+| `npm test` | **305 / 305 pass** (296 earlier + 9 structure-guard tests) |
+| `npm run check:vercel` | PASS: real `vercel build`, `functions: proxy.func`, `/api` rewrite routed |
+| `test/deploy.test.ts` | 14 / 14 |
+| `npm run e2e` / `npm run e2e:immersive` | **192 / 192** and **54 / 54** |
+| Local request through the real `api/proxy.mjs` to the real Node backend | `GET /api/health` 200 JSON `{"ok":true,"service":"freeverse-api"}`; query string kept; `/api/health/ready` 200 with `database: ok`; invalid sign-up body 400 `validation_failed` from the backend; unknown route 404 JSON; backend down 502 `backend_unreachable`; `BACKEND_URL` unset 503 `backend_not_configured`. No HTML, no fabricated success |
+| **Live** `https://freeverse-weld.vercel.app/api/health` | **Not tested.** The sandbox cannot reach `*.vercel.app`, `*.onrender.com` or Supabase (egress is allow-listed) |
+| Live registration, sign-in, Supabase redirects, storage bucket, Render deployment | **Not tested**; see `docs/REPO_REPAIR.md` for what you must configure |

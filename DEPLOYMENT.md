@@ -95,6 +95,7 @@ It checks: site serves the app, security headers, site→backend health, databas
 
 | Symptom | Likely cause and fix |
 |---|---|
+| `/api/health` returns the website's HTML or a Vercel 404 | The `api/` folder is not in the repository (files uploaded without folders). `npm run check:structure` names the problem; fix: `docs/REPO_REPAIR.md`. |
 | Banner "couldn't reach the server" | `BACKEND_URL` missing/wrong on Vercel, or backend asleep (Render free plan). Open `YOUR-SITE/api/health`. A JSON error naming `backend_unreachable` or `backend_not_configured` says which. |
 | `/api/health` works on Render but not on Vercel | Vercel env vars not applied: redeploy. |
 | Backend won't start | Read the log line; it names the missing/unsafe variable. |
