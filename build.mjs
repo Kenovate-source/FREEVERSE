@@ -2,6 +2,9 @@
 // IIFE format + relative URLs + hash routing => dist/index.html also works when opened directly from disk (file://).
 import { build } from 'esbuild';
 import { cp, rm, mkdir } from 'node:fs/promises';
+import { assertStructure } from './check-structure.mjs';
+
+assertStructure(); // fail early and clearly if the repository was uploaded flattened or incomplete
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
