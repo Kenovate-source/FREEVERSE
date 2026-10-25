@@ -1,28 +1,24 @@
-export interface ProviderIdentity {
-  provider: 'dev' | 'supabase';
-  subject: string;
-  email: string | null;
-  emailVerified: boolean;
-}
-export interface ProviderSession { accessToken: string; refreshToken?: string; expiresAt?: string }
+export type Row = Record<string, unknown>;
+export type Dialect = 'sqlite' | 'postgres';
 
-export interface AuthProvider {
-  readonly kind: 'dev' | 'supabase';
-  /** Whether this provider is real, managed authentication. The dev provider is not. */
-  readonly managed: boolean;
-  signUp(email: string, password: string, opts?: { redirectTo?: string }): Promise<{ identity: ProviderIdentity; session?: ProviderSession; needsEmailConfirmation: boolean }>;
-  signIn(email: string, password: string): Promise<{ identity: ProviderIdentity; session: ProviderSession }>;
-  signOut(accessToken: string): Promise<void>;
-  recover(email: string, opts?: { redirectTo?: string }): Promise<void>;
-  updatePassword(accessToken: string, newPassword: string): Promise<void>;
-  /** Returns the identity for a valid access token, or null. */
-  verifyToken(accessToken: string): Promise<ProviderIdentity | null>;
-  /** Re-checks credentials without creating a session; used for step-up. */
-  verifyPassword(email: string, password: string): Promise<boolean>;
-  deleteIdentity(subject: string): Promise<{ deleted: boolean; note?: string }>;
-  describe(): { kind: string; managed: boolean; note: string };
-}
-
-export class AuthProviderError extends Error {
-  constructor(public status: number, public code: 'invalid_credentials' | 'email_not_confirmed' | 'already_registered' | 'weak_password' | 'rate_limited' | 'provider_unavailable' | 'invalid_request' | 'not_supported', message: string) { super(message); }
+/**
+ * Persistence abstraction (Decision 1). SQL is written with numbered placeholders ($1, $2, ...) and a portable subset.
+ * PostgreSQL is the production datastore; SQLite is a development/test stand-in and must never be used in production.
+ *
+ * Value conventions that hold on both dialects:
+ *  - booleans are accepted as JS booleans and returned as boolean (PG) or 0/1 (SQLite): read with bool()
+ *  - timestamps are written as ISO strings and returned as ISO strings
+ *  - plain objects/arrays passed as parameters are JSON-stringified; JSON columns are read with json()
+ *  - COUNT()/SUM() results come back as JS numbers
+ */
+export interface Db {
+  readonly dialect: Dialect;
+  query<T = Row>(sql: string, params?: readonly unknown[]): Promise<T[]>;
+  get<T = Row>(sql: string, params?: readonly unknown[]): Promise<T | undefined>;
+  run(sql: string, params?: readonly unknown[]): Promise<{ changes: number }>;
+  /** Runs fn inside a transaction; commits on return, rolls back on throw. The handle passed to fn must be used inside. */
+  tx<T>(fn: (db: Db) => Promise<T>): Promise<T>;
+  /** Execute multiple statements (migrations). */
+  exec(sql: string): Promise<void>;
+  close(): Promise<void>;
 }

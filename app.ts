@@ -1,76 +1,86 @@
-import type { Server } from 'node:http';
-import { loadConfig, type Config } from '../../server/config';
-import { createServices } from '../../server/bootstrap';
-import { createApp, type App } from '../../server/app';
-import { openSqlite } from '../../server/db/sqlite';
-import { openPglite } from '../../server/db/pglite';
-import type { Db, Dialect } from '../../server/db/types';
-import type { Services } from '../../server/services';
-import { createMemoryStorage } from '../../server/storage/local';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { readFile, stat } from 'node:fs/promises';
+import { extname, join, normalize, resolve, sep } from 'node:path';
+import type { Services } from './services';
+import { Router } from './http/router';
+import { modules } from './modules';
 
-export const DIALECTS: Dialect[] = ['sqlite', 'postgres'];
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
+};
 
-export interface TestClock { now(): Date; set(d: Date | string): void; advance(ms: number): void }
-export function clock(start = '2026-10-15T12:00:00.000Z'): TestClock {
-  let t = new Date(start).getTime();
-  return { now: () => new Date(t), set: (d) => { t = new Date(d).getTime(); }, advance: (ms) => { t += ms; } };
-}
+export const SECURITY_HEADERS: Record<string, string> = {
+  'content-security-policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'cross-origin-opener-policy': 'same-origin',
+};
 
-export interface Reply { status: number; json: any; headers: Headers; buffer?: Buffer }
-export interface TestApp {
-  s: Services; app: App; db: Db; clock: TestClock; base: string; config: Config;
-  call(method: string, path: string, o?: { token?: string; body?: unknown; headers?: Record<string, string>; raw?: Buffer; contentType?: string }): Promise<Reply>;
-  /** Creates an account through the real HTTP flow and returns its session token. Eligibility is NOT completed. */
-  register(email: string): Promise<{ token: string; userId: string }>;
-  /** register + confirm eligibility with a valid 18–24 birth date. Returns token and user id. */
-  member(email: string, o?: { handle?: string; name?: string }): Promise<{ token: string; userId: string }>;
-  /** Grants a role directly in the database (test setup only). */
-  grantRole(userId: string, role: string): Promise<void>;
-  close(): Promise<void>;
-}
+export interface App { handler(req: IncomingMessage, res: ServerResponse): Promise<void>; router: Router; listen(port: number, host: string): Promise<Server> }
 
-export async function startTestApp(dialect: Dialect = 'sqlite', env: Record<string, string> = {}, extra: { fetchImpl?: typeof fetch } = {}): Promise<TestApp> {
-  const db = dialect === 'sqlite' ? openSqlite(':memory:') : await openPglite();
-  const config = loadConfig({ NODE_ENV: 'test', AUTH_PROVIDER: 'dev', SEED_DEMO_DATA: '0', ...env });
-  const clk = clock();
-  const s = await createServices(config, { db, now: clk.now, storage: createMemoryStorage(), fetchImpl: extra.fetchImpl });
-  const app = await createApp(s);
-  const server: Server = await app.listen(0, '127.0.0.1');
-  const addr = server.address();
-  const base = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+export async function createApp(s: Services): Promise<App> {
+  const router = new Router(s);
+  for (const m of modules) m.register(router, s);
+  for (const m of modules) if (m.seed) await m.seed(s);
 
-  async function call(method: string, path: string, o: { token?: string; body?: unknown; headers?: Record<string, string>; raw?: Buffer; contentType?: string } = {}): Promise<Reply> {
-    const headers: Record<string, string> = { ...(o.headers ?? {}) };
-    if (o.token) headers.authorization = `Bearer ${o.token}`;
-    let body: BodyInit | undefined;
-    if (o.raw) { headers['content-type'] = o.contentType ?? 'application/octet-stream'; body = new Uint8Array(o.raw); }
-    else if (o.body !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(o.body); }
-    const res = await fetch(base + path, { method, headers, body });
-    const ct = res.headers.get('content-type') ?? '';
-    if (ct.includes('application/json')) return { status: res.status, json: await res.json().catch(() => null), headers: res.headers };
-    return { status: res.status, json: null, headers: res.headers, buffer: Buffer.from(await res.arrayBuffer()) };
+  async function serveStatic(req: IncomingMessage, res: ServerResponse) {
+    const url = new URL(req.url ?? '/', 'http://x');
+    const root = resolve(s.config.staticDir);
+    let rel = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
+    if (rel.endsWith('/') || rel === '') rel = join(rel, 'index.html');
+    let file = resolve(join(root, rel));
+    if (!file.startsWith(root + sep) && file !== root) { res.writeHead(403); res.end(); return; }
+    try { if (!(await stat(file)).isFile()) throw new Error('not file'); }
+    catch {
+      if (extname(rel)) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Not found'); return; }
+      file = join(root, 'index.html'); // client-side routes
+    }
+    try {
+      const data = await readFile(file);
+      const ext = extname(file);
+      res.writeHead(200, { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=3600' });
+      res.end(req.method === 'HEAD' ? undefined : data);
+    } catch {
+      res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Build the client first: npm run build');
+    }
   }
-  const t: TestApp = {
-    s, app, db, clock: clk, base, config, call,
-    async register(email) {
-      const r = await call('POST', '/api/auth/signup', { body: { email, password: 'correct-horse-battery', confirmAgeRange: true } });
-      if (r.status !== 200) throw new Error(`signup failed: ${r.status} ${JSON.stringify(r.json)}`);
-      const token = r.json.session.accessToken as string;
-      const me = await call('GET', '/api/me', { token });
-      return { token, userId: me.json.user.id as string };
-    },
-    async member(email, o = {}) {
-      const { token, userId } = await t.register(email);
-      const r = await call('POST', '/api/me/eligibility', { token, body: { birthMonth: 3, birthDay: 14, birthYear: 2003, acceptTerms: true, confirmSelfDeclared: true } });
-      if (r.status !== 200) throw new Error(`eligibility failed: ${r.status} ${JSON.stringify(r.json)}`);
-      if (o.handle || o.name) await db.run('UPDATE users SET handle = COALESCE($2, handle), display_name = COALESCE($3, display_name) WHERE id = $1', [userId, o.handle ?? null, o.name ?? null]);
-      return { token, userId };
-    },
-    async grantRole(userId, role) {
-      const { uuid } = await import('../../server/db');
-      await db.run('INSERT INTO role_grants (id, user_id, role, granted_at, reason) VALUES ($1,$2,$3,$4,$5)', [uuid(), userId, role, clk.now().toISOString(), 'test setup']);
-    },
-    async close() { await new Promise((ok) => server.close(ok)); await db.close(); },
+
+  async function handler(req: IncomingMessage, res: ServerResponse) {
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+    const path = (req.url ?? '/').split('?')[0] ?? '/';
+    if (path === '/api/health' || path === '/api/health/ready') {
+      // Liveness never touches the database; readiness does. Neither returns secrets or configuration values.
+      let ready = true; let dbOk: boolean | undefined;
+      if (path.endsWith('/ready')) { try { await s.db.get('SELECT 1 AS ok'); dbOk = true; } catch { dbOk = false; ready = false; } }
+      res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ok: ready, service: 'freeverse-api', env: s.config.env, ...(dbOk === undefined ? {} : { database: dbOk ? 'ok' : 'unreachable' }) }));
+      return;
+    }
+    if (path.startsWith('/api/')) {
+      // Dev-only failure injection so error and loading states can be exercised honestly.
+      const sim = s.config.devTools ? String(req.headers['x-fv-sim'] ?? '') : '';
+      if (sim === 'slow') await new Promise((r) => setTimeout(r, 2500));
+      if (sim === 'error' && path !== '/api/config') {
+        res.writeHead(503, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { code: 'simulated_failure', message: 'Simulated failure (dev tools).' } }));
+        return;
+      }
+      if (!(await router.handle(req, res))) { res.writeHead(404, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { code: 'not_found', message: 'Unknown API route.' } })); }
+      return;
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+    await serveStatic(req, res);
+  }
+
+  return {
+    handler, router,
+    listen: (port, host) => new Promise((ok, fail) => {
+      const srv = createServer((q, r) => { handler(q, r).catch((e) => { s.log.error('fatal_handler_error', { err: String(e) }); if (!r.headersSent) r.writeHead(500); r.end(); }); });
+      srv.once('error', fail);
+      srv.listen(port, host, () => ok(srv));
+    }),
   };
-  return t;
 }

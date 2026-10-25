@@ -1,12 +1,21 @@
-import type { Db } from './types';
-import { openSqlite } from './sqlite';
-import { openPostgres } from './postgres';
+import type { Config } from '../config';
+import type { Db } from '../db';
+import type { Logger } from '../log';
+import type { AuthProvider } from '../auth/types';
+import type { StorageProvider } from '../storage/types';
+import type { AiRuntime } from '../ai/providers';
+import { RateLimiter } from './rate-limit';
 
-export type { Db, Row, Dialect } from './types';
-export * from './helpers';
-export { migrate } from './migrate';
-
-export function openDatabase(opts: { databaseUrl?: string; sqlitePath: string; ssl?: boolean }): Db {
-  if (opts.databaseUrl) return openPostgres(opts.databaseUrl, { ssl: opts.ssl });
-  return openSqlite(opts.sqlitePath);
+/** Everything a module may depend on. Tests build this with fakes (in-memory DB, fake clock, memory storage). */
+export interface Services {
+  config: Config;
+  db: Db;
+  log: Logger;
+  auth: AuthProvider;
+  storage: StorageProvider;
+  ai: AiRuntime;
+  rate: RateLimiter;
+  /** Injected clock: always use this instead of `new Date()` so behaviour is testable. */
+  now(): Date;
 }
+export { RateLimiter };
