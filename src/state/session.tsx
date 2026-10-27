@@ -5,7 +5,7 @@ import { navigate } from '../lib/router';
 
 type Status = 'loading' | 'out' | 'in';
 interface Ctx {
-  status: Status; me: Me | null; config: AppConfig | null; perms: ReadonlySet<string>; configError: boolean;
+  status: Status; me: Me | null; config: AppConfig | null; perms: ReadonlySet<string>; configError: boolean; retryConnection(): Promise<void>;
   signIn(email: string, password: string): Promise<void>; signUp(email: string, password: string): Promise<{ needsEmailConfirmation: boolean }>;
   signOut(): Promise<void>; refresh(): Promise<Me | null>; can(p: string): boolean;
   badges: { notifications: number; messages: number }; refreshBadges(): void;
@@ -21,10 +21,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async (): Promise<Me | null> => {
     if (!getToken()) { setMe(null); setStatus('out'); return null; }
     try { const r = await api.get<{ user: Me }>('/api/me'); setMe(r.user); setStatus('in'); return r.user; }
-    catch (e) { if (e instanceof ApiError && e.status === 401) { setToken(null); setMe(null); setStatus('out'); } else if (e instanceof ApiError && e.status === 0) { setStatus((s) => (s === 'loading' ? 'out' : s)); } return null; }
+    catch (e) { if (e instanceof ApiError && e.status === 401) { setToken(null); setMe(null); setStatus('out'); } else { setStatus((s) => (s === 'loading' ? 'out' : s)); setConfigError(true); } return null; }
   }, []);
-  useEffect(() => { api.get<AppConfig>('/api/config').then(setConfig).catch(() => setConfigError(true)); void refresh(); }, [refresh]);
-  useEffect(() => { setUnauthorizedHandler(() => { setToken(null); setMe(null); setStatus('out'); navigate('/signin', { replace: true }); }); return () => setUnauthorizedHandler(null); }, []);
+  const loadConfig = useCallback(() => api.get<AppConfig>('/api/config').then((c) => { setConfig(c); setConfigError(false); }).catch(() => setConfigError(true)), []);
+  useEffect(() => { void loadConfig(); void refresh(); }, [loadConfig, refresh]);
+  useEffect(() => { setUnauthorizedHandler(() => { setToken(null); setMe(null); setStatus('out'); navigate('/signin?notice=session_expired', { replace: true }); }); return () => setUnauthorizedHandler(null); }, []);
 
   const refreshBadges = useCallback(() => {
     if (!getToken()) return;
@@ -35,7 +36,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const perms = useMemo(() => new Set(me?.permissions ?? []), [me]);
   const v: Ctx = useMemo(() => ({
-    status, me, config, perms, configError, badges, refreshBadges,
+    status, me, config, perms, configError, badges, refreshBadges, retryConnection: async () => { await loadConfig(); await refresh(); },
     async signIn(email, password) { const r = await api.post<{ session: { accessToken: string } }>('/api/auth/signin', { email, password }); setToken(r.session.accessToken); await refresh(); },
     async signUp(email, password) {
       const r = await api.post<{ needsEmailConfirmation: boolean; session: { accessToken: string } | null }>('/api/auth/signup', { email, password, confirmAgeRange: true });
@@ -44,6 +45,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     async signOut() { try { await api.post('/api/auth/signout'); } catch { /* the local session is cleared regardless */ } setToken(null); setMe(null); setStatus('out'); navigate('/', { replace: true }); },
     refresh, can: (p) => perms.has(p),
-  }), [status, me, config, perms, configError, badges, refresh, refreshBadges]);
+  }), [status, me, config, perms, configError, badges, refresh, refreshBadges, loadConfig]);
   return <C.Provider value={v}>{children}</C.Provider>;
 }

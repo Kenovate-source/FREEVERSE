@@ -13,6 +13,8 @@ import { registerEraser, registerExporter } from '../services/erasure';
 import { loadPrivacy } from '../profile/common';
 import { POST_KINDS, REACTION_KINDS, AUDIENCES, type ReactionKind } from '../../shared/constants';
 import { POST_LIMITS, type CommentsResponse, type FeedResponse, type PostView } from '../../shared/api/content';
+import { UNIVERSE_IDS } from '../../shared/universes';
+import { templateFor, validateMeta } from '../../shared/universe-spaces';
 import type { Services } from '../services';
 import type { Db } from '../db';
 
@@ -44,6 +46,9 @@ const createBody = z.object({
   pollDays: z.number().int().min(1).max(30).optional(),
   startsAt: z.string().datetime().optional(),
   location: z.string().trim().max(120).optional(),
+  universe: z.enum(UNIVERSE_IDS).optional(),
+  template: z.string().trim().max(40).optional(),
+  meta: z.record(z.string().max(30), z.union([z.string().max(700), z.number()])).optional(),
 }).strict();
 
 type CreateBody = z.infer<typeof createBody>;
@@ -93,6 +98,10 @@ const feedQuery = z.object({
   sort: z.enum(['recent', 'relevant', 'following']).default('recent'),
   community: z.string().max(48).optional(),
   kind: z.enum(POST_KINDS).optional(),
+  universe: z.enum(UNIVERSE_IDS).optional(),
+  template: z.string().max(200).optional(),
+  facet: z.string().max(80).optional(),
+  mine: z.enum(['1', 'true']).transform(() => true).optional(),
   tag: z.string().max(24).optional(),
   q: z.string().trim().max(80).optional(),
   cursor: z.string().max(120).optional(),
@@ -113,7 +122,11 @@ async function feed(s: Services, me: string, q: z.infer<typeof feedQuery>): Prom
   where.push(`NOT (p.is_anonymous = ${p(false)} AND EXISTS (SELECT 1 FROM mutes mu WHERE mu.user_id = $1 AND mu.muted_id = p.author_id))`);
   if (q.community) where.push(`c.slug = ${p(q.community)}`);
   if (q.kind) where.push(`p.kind = ${p(q.kind)}`);
-  if (q.tag) where.push(`p.tags LIKE ${p(`%"${q.tag.toLowerCase().replace(/[%_"\\]/g, '')}"%`)}`);
+  if (q.universe) where.push(`p.universe = ${p(q.universe)}`);
+  if (q.template) { const ts = q.template.split(',').filter((x) => /^[a-z-]{1,40}$/.test(x)).slice(0, 8); if (ts.length) where.push(`p.template IN (${ts.map((x) => p(x)).join(',')})`); }
+  if (q.facet) where.push(`p.facet = ${p(q.facet)}`);
+  if (q.mine) where.push('p.author_id = $1');
+  if (q.tag) where.push(`CAST(p.tags AS TEXT) LIKE ${p(`%"${q.tag.toLowerCase().replace(/[%_"\\]/g, '')}"%`)}`);
   if (q.q) { const l = p(contains(q.q)); where.push(`(lower(COALESCE(p.title,'')) LIKE ${l} ESCAPE '\\' OR lower(p.body) LIKE ${l} ESCAPE '\\')`); }
   if (q.sort === 'following') {
     where.push(`((p.is_anonymous = ${p(false)} AND p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $1)) OR p.community_id IN (SELECT community_id FROM community_members WHERE user_id = $1) OR p.author_id = $1)`);
@@ -174,6 +187,24 @@ export const postsModule: ModuleDef = {
     router.post('/api/posts', { auth: 'active', body: createBody, rate: { key: 'post:create', limit: 20, windowMs: 10 * 60_000 } }, async (c) => {
       const b = c.body; const me = c.me.userId;
       const v = validateKind(b);
+      // Universe spaces: the template defines the form. Its structured fields are validated here, not trusted from the browser.
+      let facet: string | null = null;
+      if (b.universe || b.template || b.meta) {
+        const tpl = b.universe && b.template ? templateFor(b.universe, b.template) : undefined;
+        if (!tpl) throw unprocessable('That kind of post does not exist in this Universe.', undefined, 'validation_failed');
+        if (tpl.kind !== b.kind) throw unprocessable('That kind of post does not match the template.', undefined, 'validation_failed');
+        if (b.anonymous) throw conflict('Anonymous posting is not available in Universe spaces.', 'anonymous_not_allowed');
+        if (b.mediaIds.length && !tpl.images) throw unprocessable('This kind of post does not take images.', undefined, 'validation_failed');
+        if (tpl.titleRequired && !v.title) throw unprocessable(`${tpl.titleLabel ?? 'A title'} is required.`, undefined, 'validation_failed');
+        if (tpl.bodyRequired && !(v.body.length || b.mediaIds.length)) throw unprocessable(`${tpl.bodyLabel} is required.`, undefined, 'validation_failed');
+        if (tpl.urlRequired && !b.url) throw unprocessable(`${tpl.urlLabel ?? 'A link'} is required.`, undefined, 'validation_failed');
+        if (b.url && !tpl.urlLabel && b.kind !== 'link') throw unprocessable('This kind of post does not take a link.', undefined, 'validation_failed');
+        const m = validateMeta(tpl, b.meta);
+        if (!m.ok) throw unprocessable(Object.values(m.errors)[0] ?? 'Please check the form.', Object.entries(m.errors).map(([path, message]) => ({ path: `meta.${path}`, message })), 'validation_failed');
+        v.data.template = tpl.id; v.data.meta = m.meta;
+        if (b.url) v.data.url = b.url;
+        facet = tpl.filterField && m.meta[tpl.filterField] !== undefined ? String(m.meta[tpl.filterField]).slice(0, 80) : null;
+      }
       let community: any = null;
       if (b.communityId) {
         community = await c.db.get<any>("SELECT id, allow_anonymous FROM communities WHERE id = $1 AND status = 'active'", [b.communityId]);
@@ -190,14 +221,14 @@ export const postsModule: ModuleDef = {
         if (owned.length !== new Set(b.mediaIds).size) throw unprocessable('One of the images is not available.', undefined, 'media_invalid');
       }
       // Community and anonymous posts are visible to members; otherwise the author's default applies.
-      let visibility = b.visibility ?? (await loadPrivacy(c.db, me)).default_post_visibility;
+      let visibility = b.visibility ?? (b.universe ? 'everyone' : (await loadPrivacy(c.db, me)).default_post_visibility);
       if (community) visibility = visibility === 'only_me' ? 'only_me' : 'members';
       if (b.anonymous) visibility = 'members';
       const pid = uuid(); const now = c.now().toISOString();
       await c.db.tx(async (t) => {
         await t.run(
-          `INSERT INTO posts (id, author_id, kind, title, body, community_id, visibility, is_anonymous, data, tags, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-          [pid, me, b.kind, v.title, v.body, community?.id ?? null, visibility, b.anonymous, v.data, [...new Set(b.tags)], now]);
+          `INSERT INTO posts (id, author_id, kind, title, body, community_id, visibility, is_anonymous, data, tags, created_at, universe, template, facet) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [pid, me, b.kind, v.title, v.body, community?.id ?? null, visibility, b.anonymous, v.data, [...new Set(b.tags)], now, b.universe ?? null, b.template ?? null, facet]);
         let i = 0;
         for (const m of [...new Set(b.mediaIds)]) await t.run('INSERT INTO post_media (post_id, media_id, sort_order) VALUES ($1,$2,$3)', [pid, m, i++]);
         if (b.anonymous) await aliasFor(t, pid, me, true);
@@ -253,6 +284,7 @@ export const postsModule: ModuleDef = {
         // The words are erased right away; the row stays as a tombstone so reports and comment threads keep a stable reference.
         await t.run("UPDATE posts SET status = 'deleted', title = NULL, body = '', data = '{}', tags = '[]', deleted_at = $2 WHERE id = $1", [row.id, c.now().toISOString()]);
         await t.run('DELETE FROM post_media WHERE post_id = $1', [row.id]);
+        await t.run('DELETE FROM post_participation WHERE post_id = $1', [row.id]);
         await t.run("DELETE FROM saved_items WHERE kind = 'post' AND ref_id = $1", [row.id]);
         await t.run("UPDATE comments SET status = 'deleted', body = '', deleted_at = $2 WHERE post_id = $1 AND status = 'published'", [row.id, c.now().toISOString()]);
       });
