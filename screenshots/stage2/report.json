@@ -3,6 +3,21 @@
   "results": [
     {
       "size": "phone",
+      "name": "public /terms",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "public /privacy",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "public /rules",
+      "ok": true
+    },
+    {
+      "size": "phone",
       "name": "sign up",
       "ok": true
     },
@@ -24,6 +39,106 @@
     {
       "size": "phone",
       "name": "route /home",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeconnect",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freelearn",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freework",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freebuild",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freemarket",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeai",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeresearch",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freehealth",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freefinance",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freemedia",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeevents",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freevolunteer",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freelabs",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeplay",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeentertainment",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freeplay/games",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /universes/freefinance/tools",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /terms",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /privacy",
+      "ok": true
+    },
+    {
+      "size": "phone",
+      "name": "route /rules",
       "ok": true
     },
     {
@@ -173,6 +288,21 @@
     },
     {
       "size": "tablet",
+      "name": "public /terms",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "public /privacy",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "public /rules",
+      "ok": true
+    },
+    {
+      "size": "tablet",
       "name": "sign up",
       "ok": true
     },
@@ -194,6 +324,106 @@
     {
       "size": "tablet",
       "name": "route /home",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeconnect",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freelearn",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freework",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freebuild",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freemarket",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeai",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeresearch",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freehealth",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freefinance",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freemedia",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeevents",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freevolunteer",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freelabs",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeplay",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeentertainment",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freeplay/games",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /universes/freefinance/tools",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /terms",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /privacy",
+      "ok": true
+    },
+    {
+      "size": "tablet",
+      "name": "route /rules",
       "ok": true
     },
     {
@@ -343,6 +573,21 @@
     },
     {
       "size": "desktop",
+      "name": "public /terms",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "public /privacy",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "public /rules",
+      "ok": true
+    },
+    {
+      "size": "desktop",
       "name": "sign up",
       "ok": true
     },
@@ -364,6 +609,106 @@
     {
       "size": "desktop",
       "name": "route /home",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeconnect",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freelearn",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freework",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freebuild",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freemarket",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeai",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeresearch",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freehealth",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freefinance",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freemedia",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeevents",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freevolunteer",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freelabs",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeplay",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeentertainment",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freeplay/games",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /universes/freefinance/tools",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /terms",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /privacy",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "route /rules",
       "ok": true
     },
     {
@@ -509,6 +854,21 @@
     {
       "size": "desktop",
       "name": "no dead buttons on nav",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "public /terms",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "public /privacy",
+      "ok": true
+    },
+    {
+      "size": "desktop",
+      "name": "public /rules",
       "ok": true
     },
     {
