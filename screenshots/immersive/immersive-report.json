@@ -1,0 +1,276 @@
+{
+  "base": "http://127.0.0.1:5199",
+  "results": [
+    {
+      "group": "3d",
+      "name": "scene mounts lazily and becomes ready",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "scene holds real GPU resources and renders frames",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "scrolling advances the chapter coordinate; ordinary wheel scroll is not intercepted",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "hidden tab pauses the render loop",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "Settings \"Off\" tears the scene down completely and persists across reload",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "leaving the landing disposes the scene; returning remounts it",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "repeated mount/unmount does not accumulate GPU resources",
+      "ok": true
+    },
+    {
+      "group": "3d",
+      "name": "no console errors during the 3D session",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "OS reduce-motion: static art, no canvas, no 3D bundle fetched, content fully visible",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "reduced mode keeps every chapter and its call to action reachable",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "no WebGL: fallback mode with the SVG scene, nothing broken",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "fallback art follows the chapter as you scroll",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "fallback has no console errors",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on registration: no canvas, no motion layers",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on terms: no canvas, no motion layers",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on privacy: no canvas, no motion layers",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on rules: no canvas, no motion layers",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on sign in: no canvas, no motion layers",
+      "ok": true
+    },
+    {
+      "group": "modes",
+      "name": "focus mode on the Universe composer and games, exploration on the hub",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "skip link is the first stop and moves focus to main content",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "every interactive element shows a visible focus indicator",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "chapter rail buttons jump to chapters",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "horizontal section scrolls with arrow keys and never traps Tab",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "horizontal drag with the mouse scrolls sideways",
+      "ok": true
+    },
+    {
+      "group": "keyboard",
+      "name": "no console errors",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "orbit map lists all fifteen as ordinary links",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "arrow button, keyboard and drag all move the map; a drag does not trigger navigation",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "clicking a card (no drag) opens the Universe",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeconnect: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freelearn: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freework: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeai: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeevents: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freebuild: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freemarket: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeresearch: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freevolunteer: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freehealth: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freefinance: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freemedia: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeentertainment: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freelabs: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "freeplay: renders with its own identity",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "fifteen distinct signature artworks across several layouts and motion languages",
+      "ok": true
+    },
+    {
+      "group": "universes",
+      "name": "no console errors",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "phone: landing has no horizontal overflow and shows its headline, CTA and motion control",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "phone: Universe hub and a Universe page",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "phone: no console errors",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "tablet: landing has no horizontal overflow and shows its headline, CTA and motion control",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "tablet: Universe hub and a Universe page",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "tablet: no console errors",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "desktop: landing has no horizontal overflow and shows its headline, CTA and motion control",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "desktop: Universe hub and a Universe page",
+      "ok": true
+    },
+    {
+      "group": "responsive",
+      "name": "desktop: no console errors",
+      "ok": true
+    }
+  ],
+  "problems": []
+}
