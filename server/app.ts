@@ -51,6 +51,14 @@ export async function createApp(s: Services): Promise<App> {
   async function handler(req: IncomingMessage, res: ServerResponse) {
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     const path = (req.url ?? '/').split('?')[0] ?? '/';
+    if (path === '/api/health' || path === '/api/health/ready') {
+      // Liveness never touches the database; readiness does. Neither returns secrets or configuration values.
+      let ready = true; let dbOk: boolean | undefined;
+      if (path.endsWith('/ready')) { try { await s.db.get('SELECT 1 AS ok'); dbOk = true; } catch { dbOk = false; ready = false; } }
+      res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ok: ready, service: 'freeverse-api', env: s.config.env, ...(dbOk === undefined ? {} : { database: dbOk ? 'ok' : 'unreachable' }) }));
+      return;
+    }
     if (path.startsWith('/api/')) {
       // Dev-only failure injection so error and loading states can be exercised honestly.
       const sim = s.config.devTools ? String(req.headers['x-fv-sim'] ?? '') : '';

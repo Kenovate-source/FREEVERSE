@@ -492,3 +492,49 @@ html[data-links="underline"] a:not(.btn):not(.chip):not(.settings-link) { text-d
 .topsearch { min-width: 0; }
 .topsearch input { width: 100%; min-width: 0; }
 @media (max-width: 520px) { .topbar .brand-name { display: none; } .topbar { gap: 8px; padding-left: 12px; padding-right: 12px; } .topbar .icon-btn { width: 40px; height: 40px; } }
+
+/* Deployment repair: connection banner */
+.link-btn { background: none; border: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; padding: 0 2px; min-height: 24px; }
+.link-btn:disabled { opacity: .6; cursor: progress; }
+.conn-banner { position: sticky; top: 0; z-index: 50; }
+
+/* ───────── Universes, games, tools ───────── */
+.uni-hero { border-radius: var(--radius-lg, 18px); padding: 24px; border: 1px solid color-mix(in srgb, var(--accent, #3ee6f4) 45%, transparent); background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #3ee6f4) 22%, transparent), transparent 70%), var(--surface, rgba(255,255,255,.04)); }
+.uni-hero .lead { font-size: 1.1rem; color: var(--text-muted); max-width: 60ch; }
+.uni-card { border-top: 3px solid var(--accent, #3ee6f4); }
+.uni-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; scrollbar-width: thin; }
+.uni-tabs .chip { white-space: nowrap; }
+ul.tight { margin: 0; padding-left: 1.1rem; display: grid; gap: 2px; font-size: 0.92rem; color: var(--text-muted); }
+.h-xl { font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.1; margin: 0; }
+.meta-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; margin: 0; }
+.meta-list div { display: grid; gap: 2px; }
+.meta-list dt { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.meta-list dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.game-grid.mem { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; max-width: 420px; }
+.mem-card { aspect-ratio: 1; font-size: 1.8rem; border-radius: 12px; border: 1px solid var(--border, rgba(255,255,255,.2)); background: var(--surface-2, rgba(255,255,255,.06)); color: inherit; cursor: pointer; min-height: 56px; }
+.mem-card.up { background: rgba(62, 230, 244, .18); border-color: var(--cyan, #3ee6f4); }
+.mem-card.matched { opacity: .75; }
+.game-grid.slide { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 360px; padding: 8px; border-radius: 14px; background: rgba(255,255,255,.06); touch-action: none; }
+.game-grid.slide:focus-visible { outline: 3px solid var(--cyan, #3ee6f4); outline-offset: 3px; }
+.tile { aspect-ratio: 1; display: grid; place-items: center; border-radius: 10px; font-weight: 800; background: rgba(255,255,255,.05); font-size: clamp(1rem, 4vw, 1.5rem); }
+.tile.t2 { background: #2a3f66; } .tile.t4 { background: #32507f; } .tile.t8 { background: #3a63a0; } .tile.t16 { background: #2d8fa8; } .tile.t32 { background: #2aa38f; } .tile.t64 { background: #3aa65a; } .tile.t128 { background: #8aa83a; color: #101828; } .tile.t256 { background: #c9a63a; color: #101828; } .tile.t512 { background: #d98a3a; color: #101828; } .tile.t1024 { background: #d9603a; } .tile.t2048 { background: #d93a6a; }
+.dpad { display: grid; grid-template-columns: repeat(4, auto); gap: 8px; justify-content: start; }
+.big-q { font-size: clamp(1.4rem, 5vw, 2rem); font-weight: 800; letter-spacing: .04em; }
+.bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan, #3ee6f4), var(--blue, #4f9dff)); }
+.neg { color: var(--danger, #ff7b8a); }
+.table-wrap { overflow-x: auto; }
+.grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+@media (prefers-reduced-motion: reduce) { .mem-card, .tile { transition: none; } }
+
+/* Legal drafts */
+.legal-placeholder { background: color-mix(in srgb, var(--warn, #f5b942) 28%, transparent); color: inherit; padding: 0 .25em; border-radius: 4px; }
+.legal-draft { border-left: 3px solid var(--warn, #f5b942); margin: 1rem 0; padding: .25rem 1rem; }
+.land-foot .legal-links { display: flex; flex-wrap: wrap; gap: 1rem; }
+.eco-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); list-style: none; padding: 0; margin: 0; }
+.eco-step { position: relative; }
+.eco-step .eco-num { font: 600 .8rem/1 var(--font-mono, monospace); color: var(--cyan); letter-spacing: .08em; }
+.land-top { flex-wrap: wrap; gap: .5rem 1rem; }
+.land-top nav { flex-wrap: wrap; gap: .25rem 1rem; min-width: 0; }
+.prose { overflow-wrap: anywhere; }
+.eco-grid > li { margin: 0; }

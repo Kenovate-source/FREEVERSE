@@ -8,6 +8,7 @@ import type { Permission } from '../authz/permissions';
 import { HttpError, badRequest, forbidden, unauthorized } from './errors';
 import { authenticate } from '../auth/session';
 import { verifyStepUp } from '../authz/step-up';
+import { clientIp } from './client-ip';
 
 export class Reply {
   constructor(public status: number, public body: unknown, public headers: Record<string, string> = {}, public binary?: Buffer) {}
@@ -135,7 +136,7 @@ export class Router {
     const log = s.log.child({ reqId });
     const started = Date.now();
     try {
-      const ip = (req.socket.remoteAddress ?? 'unknown').replace(/^::ffff:/, '');
+      const ip = clientIp(req, s.config);
       const mode: AuthMode = r.opts.auth ?? 'active';
       let principal: Principal | null = null;
       if (mode !== 'none') {

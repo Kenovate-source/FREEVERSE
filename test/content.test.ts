@@ -9,7 +9,7 @@ for (const dialect of DIALECTS) {
     let a: { token: string; userId: string }, b: typeof a, c: typeof a, mod: typeof a, founder: typeof a;
     let anonCommunity: string, openCommunity: string;
     before(async () => {
-      t = await startTestApp(dialect);
+      t = await startTestApp(dialect, { ANONYMOUS_POSTING_ENABLED: 'true' });
       a = await t.member('a@example.com', { handle: 'alice', name: 'Alice' });
       b = await t.member('b@example.com', { handle: 'bob', name: 'Bob' });
       c = await t.member('c@example.com', { handle: 'carol', name: 'Carol' });
@@ -232,6 +232,43 @@ for (const dialect of DIALECTS) {
       const mod2 = await t.member('mod2@example.com', { handle: 'mod2', name: 'Mod2' }); await t.grantRole(mod2.userId, 'moderator');
       assert.equal((await t.call('POST', `/api/moderation/appeals/${ap.json.appeal.id}/decide`, { token: mod2.token, body: { decision: 'overturned', note: 'Context shows it was fair' } })).status, 200);
       assert.equal((await t.call('GET', `/api/posts/${p.id}`, { token: b.token })).status, 200);
+    });
+
+    test('anonymous-author reveal: needs review first, no conflicts, limited, and is overseen without exposing the author', async () => {
+      const p = (await post(a, { body: 'another rude post', anonymous: true, communityId: anonCommunity })).json.post;
+      await t.call('POST', '/api/reports', { token: b.token, body: { targetType: 'post', targetId: p.id, category: 'harassment', details: 'mean' } });
+      const caseId = (await t.call('GET', '/api/moderation/queue', { token: mod.token })).json.items.find((i: any) => i.assignedToMe === false && i.status === 'open')?.id;
+      assert.ok(caseId);
+      const stepUp = async (who: { token: string }, email: string) => (await t.call('POST', '/api/me/step-up', { token: who.token, body: { secret: email } })).json.token;
+      const reveal = (who: { token: string }, tok: string, note = 'Targeted harassment needs follow-up with the author') => t.call('POST', `/api/moderation/cases/${caseId}/actions`, { token: who.token, headers: { 'x-step-up': tok }, body: { action: 'reveal_author', note } });
+      // 1. must have looked at the material first
+      const modTok = await stepUp(mod, 'mod@example.com');
+      const early = await reveal(mod, modTok); assert.equal(early.status, 403); assert.equal(early.json.error.code, 'review_required');
+      await t.call('POST', `/api/moderation/cases/${caseId}/review-content`, { token: mod.token, body: { reason: 'Reviewing the reported post' } });
+      // 2. the reporter cannot reveal the author of what they reported (conflict of interest)
+      await t.grantRole(b.userId, 'moderator');
+      await t.call('POST', `/api/moderation/cases/${caseId}/review-content`, { token: b.token, body: { reason: 'Reviewing the post I reported' } });
+      const bTok = await stepUp(b, 'b@example.com');
+      assert.equal((await reveal(b, bTok)).json.error.code, 'conflict_of_interest');
+      // 3. the author, even when a moderator, cannot reveal themselves on their own content
+      await t.grantRole(a.userId, 'moderator');
+      await t.call('POST', `/api/moderation/cases/${caseId}/review-content`, { token: a.token, body: { reason: 'Looking at my own post' } });
+      const aTok = await stepUp(a, 'a@example.com');
+      assert.equal((await reveal(a, aTok)).json.error.code, 'conflict_of_interest');
+      // denied attempts are audited
+      assert.ok(Number((await t.db.get<any>("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'moderation.reveal_denied'")).n) >= 3);
+      // 4. a legitimate reveal works, and the Founder is not the revealer
+      const ok = await reveal(mod, modTok); assert.equal(ok.status, 201); assert.equal(ok.json.author.handle, 'alice');
+      // 5. oversight: Council/Founder can list and review, the moderator cannot, nobody reviews their own, and the identity is not shown
+      assert.equal((await t.call('GET', '/api/moderation/reveals', { token: mod.token })).status, 403);
+      const list = await t.call('GET', '/api/moderation/reveals', { token: founder.token });
+      assert.equal(list.status, 200); assert.ok(list.json.items.length >= 1); assert.ok(list.json.deniedAttempts >= 3);
+      assert.ok(!JSON.stringify(list.json).includes('alice') && !JSON.stringify(list.json).includes(a.userId), 'oversight never reveals the author');
+      const revId = list.json.items[0].id;
+      assert.equal((await t.call('POST', `/api/moderation/reveals/${revId}/review`, { token: mod.token, body: { outcome: 'appropriate', note: 'Self review attempt here' } })).status, 403);
+      assert.equal((await t.call('POST', `/api/moderation/reveals/${revId}/review`, { token: founder.token, body: { outcome: 'appropriate', note: 'Case file supports the reveal' } })).status, 200);
+      assert.equal((await t.call('POST', `/api/moderation/reveals/${revId}/review`, { token: founder.token, body: { outcome: 'appropriate', note: 'Case file supports the reveal' } })).status, 409);
+      assert.equal((await t.call('GET', '/api/moderation/reveals', { token: founder.token })).json.items[0].review.outcome, 'appropriate');
     });
 
     test('moderators cannot suspend governance members; suspension blocks sign-in features', async () => {

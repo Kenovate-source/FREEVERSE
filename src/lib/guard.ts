@@ -7,6 +7,7 @@ export interface GuardSession { status: 'active' | 'pending_eligibility' | 'inel
 export function guardRoute(match: RouteMatch | null, session: GuardSession | null): GuardResult {
   if (!match) return { kind: 'notfound' };
   const r = match.route;
+  if (r.always) return { kind: 'render', match }; // legal pages and the password-reset return are readable in any state
   if (!session) return r.public ? { kind: 'render', match } : { kind: 'redirect', to: '/signin' };
   if (session.status === 'pending_eligibility') return r.id === 'eligibility' ? { kind: 'render', match } : { kind: 'redirect', to: '/eligibility' };
   if (session.status !== 'active') return r.id === 'landing' || r.id === 'trust' ? { kind: 'render', match } : { kind: 'redirect', to: '/' };

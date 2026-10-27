@@ -78,3 +78,12 @@ PostgreSQL production notes: row-level security is enabled on every table with *
 - **events**: id, title, description, category, format, location, starts_at, ends_at, capacity, art, is_demo, status
 - **event_rsvps**: event_id, user_id, response, updated_at
 - **feature_interest**: user_id, feature_key, created_at
+
+## 0004_governance_detail_legal_anon.sql
+
+- **legal_acceptances**: id, user_id, document, version, accepted_at
+
+## 0005_universe_spaces.sql
+
+- **post_participation**: post_id, user_id, created_at
+- **game_scores**: id, user_id, game, score, show_name, created_at

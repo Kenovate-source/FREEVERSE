@@ -35,7 +35,6 @@ async function maybeBootstrapFounder(s: Services, userId: string, id: ProviderId
       const seat = await t.get<{ id: string }>('SELECT id FROM governance_seats WHERE level = 1 AND seat_no = 1');
       await t.run('INSERT INTO role_grants (id, user_id, role, seat_id, granted_at, reason) VALUES ($1,$2,$3,$4,$5,$6)', [uuid(), userId, 'founder', seat?.id ?? null, nowIso, 'Bootstrap from FOUNDER_EMAIL']);
       if (seat) await t.run('UPDATE governance_seats SET holder_user_id = $1, appointed_at = $2, updated_at = $2 WHERE id = $3', [userId, nowIso, seat.id]);
-      await t.run("UPDATE users SET eligibility_exemption = 'founder' WHERE id = $1", [userId]);
       await audit(t, { actorId: userId, actorRole: 'founder', action: 'governance.founder_bootstrap', targetType: 'user', targetId: userId, reason: 'First verified sign-in with the configured FOUNDER_EMAIL' }, s.now());
     });
   } catch (e) {

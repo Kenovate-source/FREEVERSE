@@ -3,7 +3,7 @@
 ## What is enforced where
 | Property | Mechanism | Verified by |
 |---|---|---|
-| 18–24 gate | `/api/me/eligibility` computes age from month+year server-side; `active` routes refuse until complete | foundation tests |
+| 18+ gate (no upper limit) | `/api/me/eligibility` computes age from month+year server-side; `active` routes refuse until complete | foundation tests |
 | Age is private, not "verified" | stored month+year; shown only via per-field audience (age range defaults Only me); copy says *self-declared* | tests, UI review |
 | Per-field / per-feature audiences | `server/policy/visibility.ts`; omitted not masked | people/content tests (SQLite + PG) |
 | Blocking | symmetric invisibility; DMs and follows refused | people tests |

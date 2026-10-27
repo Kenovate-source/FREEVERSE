@@ -5,6 +5,9 @@ import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
 import { Badge, Button, Check, Chip, Confirm, DemoBadge, Dialog, errMsg, IconButton, Loading, Notice, SelectField, TextArea, TextField, Seg, useResource } from '../ui/kit';
 import { useToast } from '../state/toast';
+import { useSession } from '../state/session';
+import { UniverseBits } from './universe/bits';
+import { templateFor } from '../../shared/universe-spaces';
 import { timeAgo } from '../lib/time';
 import { AUDIENCE_LABEL, POST_KINDS, REACTION_KINDS, REPORT_CATEGORIES, type Audience, type PostKind, type ReactionKind } from '../../shared/constants';
 import { POST_LIMITS, REACTION_LABEL, type AuthorView, type CommentsResponse, type CommentView, type CommunityView, type FeedResponse, type PostView } from '../../shared/api/content';
@@ -81,7 +84,7 @@ export function PostCard({ post: initial, detail, onGone }: { post: PostView; de
   return (
     <article className="card post" aria-labelledby={`pt-${p.id}`}>
       <div className="spread"><Author a={p.author} time={timeAgo(p.createdAt, now) + (p.editedAt ? ' · edited' : '')} extra={p.community ? <> · <Link to={`/communities/${p.community.slug}`}>{p.community.name}</Link></> : p.visibility !== 'members' ? ` · ${AUDIENCE_LABEL[p.visibility]}` : ''} />
-        <div className="row-wrap">{p.kind !== 'text' && <Badge tone="violet">{KIND_LABEL[p.kind]}</Badge>}{p.author.anonymous && <Badge>Anonymous</Badge>}</div></div>
+        <div className="row-wrap">{p.universe && p.template ? <Badge tone="violet">{templateFor(p.universe, p.template)?.label ?? KIND_LABEL[p.kind]}</Badge> : p.kind !== 'text' && <Badge tone="violet">{KIND_LABEL[p.kind]}</Badge>}{p.author.anonymous && <Badge>Anonymous</Badge>}</div></div>
       {(p.title || edit) && !edit && <h2 id={`pt-${p.id}`} className="post-title">{detail ? p.title : <Link to={`/post/${p.id}`}>{p.title}</Link>}</h2>}
       {edit ? <div className="stack-sm"><TextField label="Title" value={etitle} onChange={(e) => setEtitle(e.target.value)} maxLength={POST_LIMITS.titleMax} /><TextArea label="Body" value={ebody} onChange={(e) => setEbody(e.target.value)} maxLength={POST_LIMITS.bodyMax} /><div className="row-wrap"><Button variant="primary" size="sm" onClick={() => void doEdit()}>Save</Button><Button variant="ghost" size="sm" onClick={() => setEdit(false)}>Cancel</Button></div></div>
         : p.body && <p className="post-body">{detail || p.body.length < 500 ? p.body : <>{p.body.slice(0, 480)}… <Link to={`/post/${p.id}`}>Read more</Link></>}</p>}
@@ -89,6 +92,7 @@ export function PostCard({ post: initial, detail, onGone }: { post: PostView; de
       {ev && <div className="notice"><Icon name="calendar" size={18} /><div>{ev.startsAt ? new Date(String(ev.startsAt)).toLocaleString() : ''}{ev.location ? ` · ${String(ev.location)}` : ''}</div></div>}
       {p.media.length > 0 && <div className={`media-grid m${Math.min(p.media.length, 4)}`}>{p.media.map((m) => <img key={m.id} src={m.url} alt={m.altText ?? 'Image shared in this post'} loading="lazy" width={m.width ?? undefined} height={m.height ?? undefined} />)}</div>}
       {p.poll && <Poll post={p} onChange={setPost} />}
+      {p.universe && p.template && <UniverseBits post={p} onChange={setPost} />}
       {p.tags.length > 0 && <div className="row-wrap">{p.tags.map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
       {p.why && p.why.length > 0 && <p className="faint"><Icon name="info" size={14} /> Why you’re seeing this: {p.why.join(' · ')}</p>}
       <div className="post-actions">
@@ -110,7 +114,7 @@ export function PostCard({ post: initial, detail, onGone }: { post: PostView; de
 
 // ───────── composer ─────────
 export function Composer({ community, communities, onPosted }: { community?: CommunityView | null; communities?: CommunityView[]; onPosted: () => void }) {
-  const { say } = useToast(); const [open, setOpen] = useState(false); const [kind, setKind] = useState<PostKind>('text'); const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [url, setUrl] = useState(''); const [opts, setOpts] = useState(['', '']); const [tags, setTags] = useState(''); const [vis, setVis] = useState<Audience | ''>(''); const [cid, setCid] = useState(community?.id ?? ''); const [anon, setAnon] = useState(false); const [when, setWhen] = useState(''); const [loc, setLoc] = useState(''); const [media, setMedia] = useState<MediaItem[]>([]); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [up, setUp] = useState(false);
+  const { say } = useToast(); const anonOn = !!useSession().config?.features.anonymousPosting; const [open, setOpen] = useState(false); const [kind, setKind] = useState<PostKind>('text'); const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [url, setUrl] = useState(''); const [opts, setOpts] = useState(['', '']); const [tags, setTags] = useState(''); const [vis, setVis] = useState<Audience | ''>(''); const [cid, setCid] = useState(community?.id ?? ''); const [anon, setAnon] = useState(false); const [when, setWhen] = useState(''); const [loc, setLoc] = useState(''); const [media, setMedia] = useState<MediaItem[]>([]); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [up, setUp] = useState(false);
   const comm = community ?? communities?.find((c) => c.id === cid) ?? null;
   const reset = () => { setTitle(''); setBody(''); setUrl(''); setOpts(['', '']); setTags(''); setAnon(false); setWhen(''); setLoc(''); setMedia([]); setKind('text'); setErr(null); };
   const needTitle = ['question', 'poll', 'article', 'creative', 'resource', 'event'].includes(kind);
@@ -118,7 +122,7 @@ export function Composer({ community, communities, onPosted }: { community?: Com
   const submit = async () => {
     setBusy(true); setErr(null);
     try {
-      const b: Record<string, unknown> = { kind, body, anonymous: anon && !!comm?.allowAnonymous, tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, '').toLowerCase()).filter(Boolean).slice(0, POST_LIMITS.tagsMax) };
+      const b: Record<string, unknown> = { kind, body, anonymous: anon && anonOn && !!comm?.allowAnonymous, tags: tags.split(/[,\s]+/).map((t) => t.replace(/^#/, '').toLowerCase()).filter(Boolean).slice(0, POST_LIMITS.tagsMax) };
       if (title.trim()) b.title = title.trim(); if (cid) b.communityId = cid; if (vis && !cid) b.visibility = vis; if (url.trim()) b.url = url.trim();
       if (kind === 'poll') b.pollOptions = opts.map((o) => o.trim()).filter(Boolean);
       if (kind === 'event') { if (when) b.startsAt = new Date(when).toISOString(); if (loc) b.location = loc; }
@@ -140,7 +144,7 @@ export function Composer({ community, communities, onPosted }: { community?: Com
       {(kind === 'image' || kind === 'creative' || kind === 'article') && <div className="stack-sm"><label className="btn btn-secondary btn-sm" style={{ justifySelf: 'start' }}><Icon name="image" size={16} /> {up ? 'Uploading…' : 'Add image'}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="sr-only" disabled={up || media.length >= POST_LIMITS.mediaMax} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} /></label><div className="row-wrap">{media.map((m) => <span key={m.id} className="thumb"><img src={m.url} alt="Selected upload" width="64" height="64" /><button type="button" aria-label="Remove image" onClick={() => setMedia(media.filter((x) => x.id !== m.id))}>✕</button></span>)}</div><p className="hint">Add a description (alt text) to images in Settings → Data so everyone can follow.</p></div>}
       <TextField label="Tags" optional hint="Up to 5, separated by spaces or commas" value={tags} onChange={(e) => setTags(e.target.value)} />
       {!cid && <SelectField label="Who can see this" value={vis} onChange={(e) => setVis(e.target.value as Audience | '')}><option value="">My default</option>{(['everyone', 'members', 'connections', 'only_me'] as Audience[]).map((a) => <option key={a} value={a}>{AUDIENCE_LABEL[a]}</option>)}</SelectField>}
-      {comm?.allowAnonymous && comm.viewer.member && <Check label="Post anonymously" checked={anon} onChange={(e) => setAnon(e.target.checked)} hint="Members see “Anonymous author”, never your name. We still record who wrote it for safety, and moderators can’t see it without a recorded reason." />}
+      {anonOn && comm?.allowAnonymous && comm.viewer.member && <Check label="Post anonymously" checked={anon} onChange={(e) => setAnon(e.target.checked)} hint="Members see “Anonymous author”, never your name. We still record who wrote it for safety, and moderators can’t see it without a recorded reason." />}
       {err && <p className="error-text" role="alert">{err}</p>}
       <div className="row-wrap"><Button variant="primary" busy={busy} onClick={() => void submit()}>Post</Button><Button variant="ghost" onClick={() => { reset(); setOpen(false); }}>Discard</Button></div>
     </section>
@@ -191,9 +195,9 @@ function CommentItem({ c, canComment, community, onReply, onChanged, depth }: { 
 }
 
 export function Comments({ post }: { post: PostView }) {
-  const res = useResource(() => api.get<CommentsResponse>(`/api/posts/${post.id}/comments`), [post.id]); const { say } = useToast();
+  const res = useResource(() => api.get<CommentsResponse>(`/api/posts/${post.id}/comments`), [post.id]); const { say } = useToast(); const anonOn = !!useSession().config?.features.anonymousPosting;
   const [body, setBody] = useState(''); const [parent, setParent] = useState<CommentView | null>(null); const [anon, setAnon] = useState(false); const [busy, setBusy] = useState(false); const [allowAnon, setAllowAnon] = useState(false);
-  useEffect(() => { if (post.community) api.get<{ community: CommunityView }>(`/api/communities/${post.community.slug}`).then((r) => setAllowAnon(r.community.allowAnonymous && r.community.viewer.member)).catch(() => {}); }, [post.community]);
+  useEffect(() => { if (post.community) api.get<{ community: CommunityView }>(`/api/communities/${post.community.slug}`).then((r) => setAllowAnon(anonOn && r.community.allowAnonymous && r.community.viewer.member)).catch(() => {}); }, [post.community, anonOn]);
   const forced = post.author.anonymous && post.viewer.mine; // authors of an anonymous post reply anonymously
   const send = async () => { setBusy(true); try { await api.post(`/api/posts/${post.id}/comments`, { body, parentId: parent?.id, anonymous: anon || forced }); setBody(''); setParent(null); res.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
   const tree = (res.data?.items ?? []);

@@ -113,17 +113,19 @@ const remove: ActionDef<z.infer<typeof removeSchema>> = {
   async verify(c, p) { const s = await c.db.get<any>('SELECT holder_user_id FROM governance_seats WHERE id = $1', [p.seatId]); return { ok: !s?.holder_user_id, detail: 'Seat re-read: it is vacant.' }; },
 };
 
-const seatSchema = z.object({ seatId: id, title: z.string().trim().min(2).max(60), responsibilities: z.string().trim().max(600).nullable().default(null) }).strict();
+const seatSchema = z.object({ seatId: id, title: z.string().trim().min(2).max(90), responsibilities: z.string().trim().max(1500).nullable().default(null), scope: z.string().trim().max(600).nullable().optional(), reportsTo: z.string().trim().max(200).nullable().optional(), boundaries: z.string().trim().max(1500).nullable().optional() }).strict();
 const seatUpdate: ActionDef<z.infer<typeof seatSchema>> = {
   type: 'governance.seat_update', label: 'Rename a seat or change its responsibilities', risk: 'high', riskWhy: 'Defines governance responsibilities (a constitutional matter).', autonomyEligible: false, schema: seatSchema,
   async impact(db, p) { const s = await db.get<any>('SELECT title FROM governance_seats WHERE id = $1', [p.seatId]); return { summary: `Rename “${s?.title}” to “${p.title}” and set its responsibilities text.`, affects: ['Governance seat'], reversible: true }; },
   async execute(c, p) {
-    const s = await c.db.get<any>('SELECT title, responsibilities FROM governance_seats WHERE id = $1', [p.seatId]);
+    const s = await c.db.get<any>('SELECT title, responsibilities, scope, reports_to, boundaries FROM governance_seats WHERE id = $1', [p.seatId]);
     if (!s) throw new Error('That seat does not exist.');
-    await c.db.run('UPDATE governance_seats SET title = $2, responsibilities = $3, updated_at = $4 WHERE id = $1', [p.seatId, p.title, p.responsibilities, c.now.toISOString()]);
-    return { result: {}, rollback: { seatId: p.seatId, title: s.title, responsibilities: s.responsibilities } };
+    // Fields left out of the request keep their current value. A customised seat is never overwritten by later default updates (seat_key is cleared).
+    await c.db.run('UPDATE governance_seats SET title = $2, responsibilities = $3, scope = $5, reports_to = $6, boundaries = $7, seat_key = NULL, updated_at = $4 WHERE id = $1',
+      [p.seatId, p.title, p.responsibilities, c.now.toISOString(), p.scope === undefined ? s.scope : p.scope, p.reportsTo === undefined ? s.reports_to : p.reportsTo, p.boundaries === undefined ? s.boundaries : p.boundaries]);
+    return { result: {}, rollback: { seatId: p.seatId, title: s.title, responsibilities: s.responsibilities, scope: s.scope, reportsTo: s.reports_to, boundaries: s.boundaries } };
   },
-  async rollback(c, d) { await c.db.run('UPDATE governance_seats SET title = $2, responsibilities = $3, updated_at = $4 WHERE id = $1', [d.seatId, d.title, d.responsibilities, c.now.toISOString()]); },
+  async rollback(c, d) { await c.db.run('UPDATE governance_seats SET title = $2, responsibilities = $3, scope = $5, reports_to = $6, boundaries = $7, updated_at = $4 WHERE id = $1', [d.seatId, d.title, d.responsibilities, c.now.toISOString(), d.scope ?? null, d.reportsTo ?? null, d.boundaries ?? null]); },
   async verify(c, p) { const s = await c.db.get<any>('SELECT title FROM governance_seats WHERE id = $1', [p.seatId]); return { ok: s?.title === p.title, detail: 'Seat title re-read.' }; },
 };
 

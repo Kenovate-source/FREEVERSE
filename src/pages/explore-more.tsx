@@ -14,26 +14,11 @@ function InterestButton({ k, on, onChange }: { k: string; on: boolean; onChange:
   return <Button variant={on ? 'secondary' : 'primary'} aria-pressed={on} onClick={async () => { try { if (on) await api.del(`/api/interest/${k}`); else await api.put(`/api/interest/${k}`); say(on ? 'Removed' : 'Noted. It’s private, and it’s not a pre-order or a promise of a date.'); onChange(); } catch (e) { say(errMsg(e), 'error'); } }}>{on ? 'You’re interested ✓' : 'Tell me when this exists'}</Button>;
 }
 
-export function UniversesPage(_: P) {
-  const res = useResource(() => api.get<{ items: UniverseView[] }>('/api/universes'), []);
-  return <div className="stack-lg"><PageHead title="Universes">FREEVERSE is a set of connected spaces. Each one says honestly what exists today and what doesn’t.</PageHead>
-    <Async res={res}>{(d) => <div className="grid-cards">{d.items.map((u) => <Card as="article" key={u.id} style={{ ['--accent' as string]: u.accent }}><div className="spread"><h2 className="h-sm"><Link to={`/universes/${u.id}`}>{u.name}</Link></h2><Badge tone={STATUS_TONE(u.status)}>{u.statusLabel}</Badge></div><p className="muted">{u.tagline}</p>{u.route ? <Link className="btn btn-secondary btn-sm" to={u.route}>Open</Link> : <Link className="btn btn-ghost btn-sm" to={`/universes/${u.id}`}>See what’s planned</Link>}</Card>)}</div>}</Async></div>;
-}
-export function UniversePage({ params }: P) {
-  const res = useResource(() => api.get<{ items: UniverseView[] }>('/api/universes'), []);
-  return <Async res={res}>{(d) => { const u = d.items.find((x) => x.id === params.id); if (!u) return <EmptyState icon="grid" title="Universe not found"><Link to="/universes">All Universes</Link></EmptyState>;
-    return <div className="stack-lg"><PageHead title={u.name} back={{ to: '/universes', label: 'Universes' }}>{u.tagline}</PageHead><div className="row-wrap"><Badge tone={STATUS_TONE(u.status)}>{u.statusLabel}</Badge></div>
-      <p className="prose">{u.description}</p>{u.note && <Notice>{u.note}</Notice>}
-      <Card className="stack-sm"><h2 className="h-sm">What works today</h2>{u.today.length ? <ul>{u.today.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">Nothing yet. This Universe is not built.</p>}{u.route && <Link className="btn btn-primary" to={u.route} style={{ justifySelf: 'start' }}>Open what exists</Link>}</Card>
-      <Card className="stack-sm"><h2 className="h-sm">Why it’s listed</h2><p className="muted">{u.basis}</p></Card>
-      {!u.route && <Card className="stack-sm"><InterestButton k={`universe:${u.id}`} on={u.interested} onChange={res.reload} /><p className="faint">{u.interestedCount} member{u.interestedCount === 1 ? '' : 's'} interested. Your interest is private and only counted.</p></Card>}</div>; }}</Async>;
-}
-
 const SOON: Record<string, { title: string; text: string; today?: { label: string; to: string } }> = {
   calls: { title: 'Calls', text: 'Voice and video calls aren’t built yet. Messaging is available now.', today: { label: 'Open Messages', to: '/messages' } },
   portfolios: { title: 'Portfolios', text: 'Full portfolios aren’t built yet. You can already add projects and highlights to your profile.', today: { label: 'Edit your highlights', to: '/me/profile' } },
-  marketplace: { title: 'Marketplace', text: 'A marketplace isn’t built. Payments, escrow and seller checks would need real design before launch.', today: { label: 'See opportunities', to: '/opportunities' } },
-  games: { title: 'Games', text: 'Games aren’t built. The FreePlay Universe is still a concept.', today: { label: 'See Universes', to: '/universes' } },
+  marketplace: { title: 'Marketplace', text: 'Payments, escrow and seller checks aren’t built. FreeMarket has listings and requests without payments.', today: { label: 'Open FreeMarket', to: '/universes/freemarket' } },
+  games: { title: 'Games', text: 'FreePlay now has single-player games you can play in the browser. Multiplayer isn’t built.', today: { label: 'Open FreePlay', to: '/universes/freeplay' } },
   watch: { title: 'Watch', text: 'Video hosting isn’t built. You can share video links in posts today.', today: { label: 'Go to the feed', to: '/home' } },
 };
 export function SoonPage({ params }: P) {

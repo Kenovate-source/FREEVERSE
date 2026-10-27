@@ -31,6 +31,11 @@ export interface PostView {
   createdAt: string;
   editedAt: string | null;
   data: Record<string, unknown>;
+  /** Set when the post lives in a Universe space (e.g. a FreeMarket listing). */
+  universe: string | null;
+  template: string | null;
+  /** Only for templates with an "I'm in" action. Members see a count; names go to the author through a separate call. */
+  participation: { count: number; joined: boolean } | null;
   media: PostMedia[];
   poll: PollView | null;
   counts: { comments: number; reactions: Partial<Record<ReactionKind, number>>; reactionTotal: number };

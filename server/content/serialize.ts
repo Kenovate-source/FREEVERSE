@@ -5,6 +5,7 @@ import { signedMediaUrl } from '../services/media-urls';
 import { aliasLabel } from './anonymity';
 import type { AuthorView, CommentView, PostView, PollView } from '../../shared/api/content';
 import type { ReactionKind } from '../../shared/constants';
+import { templateFor } from '../../shared/universe-spaces';
 
 const emptyCounts = () => ({ reactions: {} as Partial<Record<ReactionKind, number>>, reactionTotal: 0 });
 
@@ -48,6 +49,13 @@ export async function serializePosts(s: Services, viewerId: string, rows: any[])
   const saved = new Set((await s.db.query<{ ref_id: string }>(
     `SELECT ref_id FROM saved_items WHERE user_id = $1 AND kind = 'post' AND ref_id IN (${placeholders(2, ids.length)})`, [viewerId, ...ids])).map((r) => r.ref_id));
 
+  const partIds = rows.filter((r) => r.template && templateFor(r.universe, r.template)?.participation).map((r) => r.id as string);
+  const partCount = new Map<string, number>(); const partMine = new Set<string>();
+  if (partIds.length) {
+    for (const x of await s.db.query<{ post_id: string; n: number }>(`SELECT post_id, COUNT(*) AS n FROM post_participation WHERE post_id IN (${placeholders(1, partIds.length)}) GROUP BY post_id`, partIds)) partCount.set(x.post_id, Number(x.n));
+    for (const x of await s.db.query<{ post_id: string }>(`SELECT post_id FROM post_participation WHERE user_id = $1 AND post_id IN (${placeholders(2, partIds.length)})`, [viewerId, ...partIds])) partMine.add(x.post_id);
+  }
+
   const pollIds = rows.filter((r) => r.kind === 'poll').map((r) => r.id as string);
   const pollVotes = new Map<string, number[]>();
   const myVotes = new Map<string, number>();
@@ -87,6 +95,8 @@ export async function serializePosts(s: Services, viewerId: string, rows: any[])
       community: r.community_id ? { id: r.community_id, slug: r.c_slug, name: r.c_name } : null,
       author, status, notice, createdAt: r.created_at, editedAt: r.edited_at ?? null,
       data: shown ? publicData : {},
+      universe: r.universe ?? null, template: r.template ?? null,
+      participation: shown && partIds.includes(r.id) ? { count: partCount.get(r.id) ?? 0, joined: partMine.has(r.id) } : null,
       media: shown ? (mediaBy.get(r.id) ?? []).map((m) => ({ id: m.id, url: signedMediaUrl(s, viewerId, m.id), altText: m.alt_text ?? null, width: m.width ?? null, height: m.height ?? null })) : [],
       poll,
       counts: { comments: commentCounts.get(r.id) ?? 0, ...(counts.get(r.id) ?? emptyCounts()) },

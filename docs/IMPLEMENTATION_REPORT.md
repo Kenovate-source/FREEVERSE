@@ -8,7 +8,7 @@ Stage 2 is a real client–server application built on Stage 1's brand and struc
 ## 2. Implemented and tested
 | Area | Status |
 |---|---|
-| Landing, trust page, sign-up/in/recover, age gate (18–24, month+year, self-declared) | Implemented; server tests + browser |
+| Landing, trust page, sign-up/in/recover, age gate (18+, no upper limit, month+year, self-declared) | Implemented; server tests + browser |
 | Onboarding Path A and Path B, skippable/resumable; 15 archetypes; large interest catalogue with search/filter/custom/private-vs-public | Implemented; server tests + browser (skip path) |
 | Profiles: avatar builder, photo upload, cover presets/upload, sections/entries, suggestions, milestones, safe distinct default avatars | Implemented; server tests; browser loads every screen |
 | Settings (11 sections) and Privacy & visibility: presets, per-field audiences, per-feature audiences, plain-language effects, blocking/muting, notifications, messaging, accessibility (applied live), Nova data, export, delete | Implemented; server tests; browser |
@@ -75,3 +75,7 @@ Supabase project (auth + optional storage) and keys; a managed PostgreSQL `DATAB
 
 ## 9. Repository facts
 Generated references: `docs/api/ROUTES.md` (209 routes), `docs/SCHEMA.md` (66 tables). Architecture: `docs/architecture/*`. Decisions: `docs/adr/README.md`.
+
+
+## Addendum — Deployment repair, Universe activation and legal drafts (v0.2.1, 2026-10-24)
+See `docs/DEPLOYMENT_REPORT.md` for the root cause, deployment architecture, governance/anonymity decisions, legal placeholders and current results (246 tests pass on SQLite and PostgreSQL; 192/192 browser checks). The figures in section 3 above are from the earlier Stage 2 build and are superseded by that report. Live Vercel/Render/Supabase/PostgreSQL/AI services were not tested.

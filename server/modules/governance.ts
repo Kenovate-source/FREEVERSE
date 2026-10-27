@@ -26,8 +26,12 @@ export const governanceModule: ModuleDef = {
   name: 'governance',
   register(router, s) {
     router.get('/api/governance/public', { auth: 'active' }, async (c) => {
-      const seats = await c.db.query<any>('SELECT level, holder_user_id FROM governance_seats');
+      const seats = await c.db.query<any>('SELECT level, seat_no, title, scope, responsibilities, reports_to, boundaries, area, holder_user_id FROM governance_seats ORDER BY level, seat_no');
+      const lines = (v: string | null) => (v ? v.split('\n').filter(Boolean) : []);
       return {
+        // Seat definitions are public to members; who holds a seat is only ever shown as vacant/filled here.
+        definitions: GOVERNANCE_LEVELS.filter((l) => l.level >= 7).map((l) => ({ level: l.level, name: l.name, seats: seats.filter((x) => x.level === l.level).map((x) => ({ seatNo: x.seat_no, title: x.title, area: x.area ?? null, scope: x.scope ?? null, responsibilities: lines(x.responsibilities), reportsTo: x.reports_to ?? null, boundaries: lines(x.boundaries), vacant: !x.holder_user_id })) })),
+        defaultsNote: 'These are proposed default definitions. They are not constitutional text and the Founder can revise them through recorded governance workflows. A number is a responsibility group, not social status.',
         structure: GOVERNANCE_LEVELS.map((l) => ({ level: l.level, name: l.name, seats: l.seats, filled: seats.filter((x) => x.level === l.level && x.holder_user_id).length })),
         citizens: 'Everyone else is a Citizen: every member of FREEVERSE.',
         principles: [
@@ -40,10 +44,10 @@ export const governanceModule: ModuleDef = {
 
     router.get('/api/governance/structure', { auth: { perm: 'governance.view' } }, async (c) => {
       const rows = await c.db.query<any>(
-        `SELECT g.id, g.level, g.seat_no, g.title, g.responsibilities, g.appointed_at, u.handle, u.display_name, u.id AS uid FROM governance_seats g LEFT JOIN users u ON u.id = g.holder_user_id ORDER BY g.level, g.seat_no`);
+        `SELECT g.id, g.level, g.seat_no, g.title, g.responsibilities, g.scope, g.reports_to, g.boundaries, g.area, g.appointed_at, u.handle, u.display_name, u.id AS uid FROM governance_seats g LEFT JOIN users u ON u.id = g.holder_user_id ORDER BY g.level, g.seat_no`);
       return {
-        levels: GOVERNANCE_LEVELS.map((l) => ({ level: l.level, name: l.name, seats: rows.filter((r) => r.level === l.level).map((r) => ({ id: r.id, seatNo: r.seat_no, title: r.title, responsibilities: r.responsibilities, appointedAt: r.appointed_at, holder: r.uid ? { handle: r.handle, displayName: r.display_name } : null })) })),
-        note: 'Titles and responsibilities for the seven, twelve and twenty-four seats are not defined in Governance.md v2.0. They start vacant with generic names and are set by the Founder.',
+        levels: GOVERNANCE_LEVELS.map((l) => ({ level: l.level, name: l.name, seats: rows.filter((r) => r.level === l.level).map((r) => ({ id: r.id, seatNo: r.seat_no, title: r.title, responsibilities: r.responsibilities, scope: r.scope, reportsTo: r.reports_to, boundaries: r.boundaries, area: r.area, appointedAt: r.appointed_at, holder: r.uid ? { handle: r.handle, displayName: r.display_name } : null })) })),
+        note: 'Seats for the High Council, Directors and Guardians carry proposed default definitions (see docs/architecture/governance-and-authorization.md). They are editable by the Founder and every seat starts vacant. Governance.md v2.0 itself does not define them.',
       };
     });
 
