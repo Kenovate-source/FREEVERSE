@@ -28,6 +28,7 @@ import { identitiesModule } from './identities';
 import { onboardingModule } from './onboarding';
 import { homeModule } from './home';
 import { spacesModule } from './spaces';
+import { universeSpacesModule } from './universe-spaces';
 import { demoSeedModule } from './demo-seed';
 
 /** Every HTTP module, in registration order. Add new modules here. */
@@ -61,5 +62,6 @@ export const modules: ModuleDef[] = [
   onboardingModule,
   homeModule,
   spacesModule,
+  universeSpacesModule,
   demoSeedModule,
 ];

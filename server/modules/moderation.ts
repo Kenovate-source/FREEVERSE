@@ -55,6 +55,31 @@ export const moderationModule: ModuleDef = {
       return { case: { ...caseMeta(r), assignedToMe: r.assigned_to === c.me.userId, resolutionNote: r.resolution_note ?? null }, actions: actions.map((a) => ({ id: a.id, action: a.action, at: a.created_at, note: a.note })), contentAvailable: c.can('moderation.case.review_content') };
     });
 
+    // Oversight of anonymous-author reveals. Shows who revealed, on which case, why, and whether another person has reviewed it.
+    // It never shows the revealed identity: oversight judges whether the reveal was justified, not who the author was.
+    router.get('/api/moderation/reveals', { auth: { perm: 'audit.view' } }, async (c) => {
+      const rows = await c.db.query<any>(
+        `SELECT a.id, a.occurred_at, a.case_id, a.reason, a.target_type, u.handle, u.display_name, mc.category,
+                (SELECT r.reason FROM audit_events r WHERE r.action = 'moderation.reveal_reviewed' AND r.target_id = CAST(a.id AS TEXT) LIMIT 1) AS review_note,
+                (SELECT r.meta FROM audit_events r WHERE r.action = 'moderation.reveal_reviewed' AND r.target_id = CAST(a.id AS TEXT) LIMIT 1) AS review_meta
+           FROM audit_events a LEFT JOIN users u ON u.id = a.actor_id LEFT JOIN moderation_cases mc ON mc.id = a.case_id
+          WHERE a.action = 'moderation.anonymous_author_revealed' ORDER BY a.occurred_at DESC LIMIT 100`);
+      const denied = await c.db.get<{ n: number | string }>("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'moderation.reveal_denied'");
+      return {
+        items: rows.map((r) => ({ id: r.id, at: r.occurred_at, caseId: r.case_id, category: r.category ?? null, targetType: r.target_type, moderator: r.handle ? { handle: r.handle, displayName: r.display_name } : null, reason: r.reason, review: r.review_note ? { note: r.review_note, outcome: json<{ outcome?: string }>(r.review_meta, {}).outcome ?? 'appropriate' } : null })),
+        deniedAttempts: Number(denied?.n ?? 0),
+        note: 'Reveals need a live case, a prior recorded look at the material, a written reason and re-authentication. Each is reviewed here by someone other than the moderator who made it.',
+      };
+    });
+    router.post('/api/moderation/reveals/:id/review', { auth: { perm: 'audit.view' }, body: z.object({ outcome: z.enum(['appropriate', 'concern']), note: reason }).strict(), rate: { key: 'mod:reveal-review', limit: 60, windowMs: 3600_000 } }, async (c) => {
+      const ev = await c.db.get<any>("SELECT id, actor_id FROM audit_events WHERE id = $1 AND action = 'moderation.anonymous_author_revealed'", [id.parse(c.params.id)]);
+      if (!ev) throw notFound('Reveal not found.');
+      if (ev.actor_id === c.me.userId) throw forbidden('You made this reveal, so someone else must review it.', 'conflict_of_interest');
+      if (await c.db.get("SELECT 1 AS x FROM audit_events WHERE action = 'moderation.reveal_reviewed' AND target_id = $1", [ev.id])) throw conflict('This reveal has already been reviewed.', 'already_reviewed');
+      await audit(c.db, { actorId: c.me.userId, actorRole: roleLabel(c), action: 'moderation.reveal_reviewed', targetType: 'audit_event', targetId: ev.id, reason: c.body.note, meta: { outcome: c.body.outcome } }, c.now());
+      return { ok: true };
+    });
+
     router.post('/api/moderation/cases/:id/assign', { auth: { perm: 'moderation.case.act' } }, async (c) => {
       const r = await loadCase(c.db, id.parse(c.params.id));
       if (r.status === 'resolved' || r.status === 'dismissed') throw conflict('This case is closed.', 'case_closed');
@@ -80,7 +105,7 @@ export const moderationModule: ModuleDef = {
     }, async (c) => {
       const cs = await loadCase(c.db, id.parse(c.params.id));
       const b = c.body; const now = c.now(); const nowIso = now.toISOString();
-      if ((cs.status === 'resolved' || cs.status === 'dismissed') && b.action !== 'reveal_author') throw conflict('This case is closed.', 'case_closed');
+      if (cs.status === 'resolved' || cs.status === 'dismissed') throw conflict('This case is closed.', 'case_closed');
       const targetUser: string | null = cs.target_user_id ?? null;
       const actionId = uuid();
       let result: Record<string, unknown> = {};
@@ -125,10 +150,24 @@ export const moderationModule: ModuleDef = {
           await c.requireStepUp();
           if (b.note.length < 20) throw badRequest('Revealing an author needs a written reason of at least 20 characters.');
           if (cs.target_type !== 'post' && cs.target_type !== 'comment') throw badRequest('Only anonymous posts and comments have a hidden author.');
+          const deny = async (why: string, message: string, code: string) => { await audit(c.db, { actorId: c.me.userId, actorRole: roleLabel(c), action: 'moderation.reveal_denied', caseId: cs.id, outcome: 'denied', reason: why }, now); throw forbidden(message, code); };
+          // A reveal is only for a live, documented case in which the moderator has already looked at the reported material under a recorded reason.
+          // Conflict of interest: you cannot reveal your own content, nor the author of something you reported yourself.
+          const reporter = await c.db.get('SELECT 1 AS x FROM reports WHERE case_id = $1 AND reporter_id = $2', [cs.id, c.me.userId]);
+          if (reporter) await deny('moderator is a reporter on this case', 'You reported this content, so someone else must decide whether to reveal its author.', 'conflict_of_interest');
+          const recent = await c.db.get<{ n: number | string }>("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'moderation.anonymous_author_revealed' AND actor_id = $1 AND occurred_at > $2", [c.me.userId, new Date(now.getTime() - 24 * 3600_000).toISOString()]);
+          if (Number(recent?.n ?? 0) >= 5) await deny('daily reveal limit reached', 'You have reached the daily limit for author reveals. Ask a colleague or the Trust, Safety & Privacy lead.', 'reveal_limit');
           const authorId = await getAnonymousAuthor(c.db, cs.target_type, cs.target_id);
+          if (authorId && authorId === c.me.userId) await deny('moderator is the author', 'You are the author of this content, so you cannot reveal or act on its authorship.', 'conflict_of_interest');
+          if (cs.assigned_to && cs.assigned_to !== c.me.userId) await deny('case assigned to someone else', 'This case is assigned to another moderator.', 'case_assigned_elsewhere');
+          const looked = await c.db.get("SELECT 1 AS x FROM audit_events WHERE action = 'moderation.content_reviewed' AND case_id = $1 AND actor_id = $2 AND outcome = 'success'", [cs.id, c.me.userId]);
+          if (!looked) await deny('content not reviewed first', 'Review the reported material on this case (with a recorded reason) before asking to reveal its author.', 'review_required');
           const u = authorId ? await c.db.get<any>('SELECT handle, display_name FROM users WHERE id = $1', [authorId]) : null;
           await c.db.tx(async (t) => { await record(t, authorId); });
           await audit(c.db, { actorId: c.me.userId, actorRole: roleLabel(c), action: 'moderation.anonymous_author_revealed', targetType: cs.target_type, targetId: cs.target_id, caseId: cs.id, reason: b.note }, now);
+          // Oversight: the Council and Founder are told that a reveal happened (case and category only, never the identity) and can review it.
+          const overseers = await c.db.query<{ user_id: string }>("SELECT DISTINCT user_id FROM role_grants WHERE role IN ('council','founder') AND revoked_at IS NULL AND user_id <> $1", [c.me.userId]);
+          for (const o of overseers) await notify(c.db, { userId: o.user_id, type: 'system', data: { text: `An anonymous-author reveal was recorded on a ${cs.category.replace(/_/g, ' ')} case. Review it in Moderation → Reveal oversight.`, href: '#/moderation' } }, now);
           result = { author: u ? { handle: u.handle, displayName: u.display_name } : null, note: 'This reveal is recorded in the audit log together with your reason.' };
           return created({ actionId, ...result });
         }

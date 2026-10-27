@@ -8,7 +8,8 @@ import { audit } from '../services/audit';
 import { createStepUp } from '../authz/step-up';
 import { json, uuid } from '../db';
 import { randomBytes } from 'node:crypto';
-import { MAX_AGE, MIN_AGE, TERMS_VERSION } from '../../shared/constants';
+import { LEGAL_STATUS, LEGAL_VERSION, MAX_AGE, MIN_AGE, TERMS_VERSION } from '../../shared/constants';
+import { LEGAL_DOC_IDS } from '../../shared/legal';
 import { loadPrincipal } from '../authz/principal';
 import { publicConfigSummary } from '../config';
 import type { Services } from '../services';
@@ -52,15 +53,16 @@ export const authModule: ModuleDef = {
     router.get('/api/config', { auth: 'none' }, async () => ({
       app: { name: 'FREEVERSE', stage: 2 },
       auth: s.auth.describe(),
-      eligibility: { min: MIN_AGE, max: MAX_AGE, method: 'self_declared_birthdate', verified: false },
+      eligibility: { min: MIN_AGE, max: MAX_AGE, noUpperLimit: MAX_AGE === null, method: 'self_declared_birthdate', verified: false },
       terms: { version: TERMS_VERSION },
+      legal: { version: LEGAL_VERSION, status: LEGAL_STATUS, documents: LEGAL_DOC_IDS },
       features: { ...publicConfigSummary(s.config), anonymousPosting: s.config.anonymousPostingEnabled },
     }));
 
     router.post('/api/auth/signup', {
       auth: 'none',
       rate: { key: 'auth:signup', limit: 10, windowMs: 60 * 60_000, by: 'ip' },
-      body: z.object({ email, password, confirmAgeRange: z.literal(true, { message: 'Please confirm you are an adult aged 18–24.' }) }),
+      body: z.object({ email, password, confirmAgeRange: z.literal(true, { message: 'Please confirm you are an adult aged 18 or over.' }) }),
     }, async (c) => {
       const r = await providerCall(() => s.auth.signUp(c.body.email, c.body.password, { redirectTo: s.config.publicOrigin }));
       return { needsEmailConfirmation: r.needsEmailConfirmation, session: r.session ?? null, authProvider: s.auth.kind };
@@ -116,16 +118,15 @@ export const authModule: ModuleDef = {
       }),
     }, async (c) => {
       const me = c.me;
-      if (me.status === 'ineligible') throw forbidden('FREEVERSE is for adults aged 18–24 right now.', 'ineligible');
+      if (me.status === 'ineligible') throw forbidden('FREEVERSE is for adults aged 18 and over.', 'ineligible');
       if (me.status !== 'pending_eligibility') throw new HttpError(409, 'already_active', 'Your eligibility has already been confirmed.');
-      const u = await c.db.get<{ eligibility_exemption: string | null }>('SELECT eligibility_exemption FROM users WHERE id = $1', [me.userId]);
-      const res = checkEligibility({ month: c.body.birthMonth, day: c.body.birthDay, year: c.body.birthYear }, c.now(), { skipMax: u?.eligibility_exemption === 'founder' });
+      const res = checkEligibility({ month: c.body.birthMonth, day: c.body.birthDay, year: c.body.birthYear }, c.now());
       if (!res.eligible && res.reason === 'invalid_date') throw badRequest('That date is not valid. Please check it.', undefined, 'invalid_date');
       if (!res.eligible) {
-        // Deliberately the same message for too young and too old; nothing about the date is stored.
+        // Nothing about the date is stored.
         await c.db.run("UPDATE users SET status = 'ineligible', eligibility_attempts = eligibility_attempts + 1, updated_at = $2 WHERE id = $1", [me.userId, c.now().toISOString()]);
         await audit(c.db, { actorId: me.userId, action: 'account.ineligible', targetType: 'user', targetId: me.userId, meta: { method: 'self_declared_birthdate' } }, c.now());
-        throw forbidden('FREEVERSE is for adults aged 18–24 right now. We have not saved the date you entered.', 'ineligible');
+        throw forbidden('FREEVERSE is for adults aged 18 and over. We have not saved the date you entered.', 'ineligible');
       }
       const nowIso = c.now().toISOString();
       const handle = `member-${randomBytes(4).toString('hex')}`;
@@ -135,6 +136,9 @@ export const authModule: ModuleDef = {
              age_attested_at = $4, terms_version = $5, terms_accepted_at = $4, handle = $6, display_name = $7, eligibility_attempts = eligibility_attempts + 1, updated_at = $4
            WHERE id = $1 AND status = 'pending_eligibility'`,
           [me.userId, c.body.birthMonth, c.body.birthYear, nowIso, TERMS_VERSION, handle, 'New member']);
+        for (const doc of LEGAL_DOC_IDS) {
+          await t.run('INSERT INTO legal_acceptances (id, user_id, document, version, accepted_at) VALUES ($1,$2,$3,$4,$5)', [uuid(), me.userId, doc, LEGAL_VERSION, nowIso]);
+        }
         await t.run('INSERT INTO profiles (user_id, avatar_config, created_at, updated_at) VALUES ($1,$2,$3,$3)', [me.userId, defaultAvatarConfig(), nowIso]);
         await t.run('INSERT INTO user_privacy (user_id, updated_at) VALUES ($1,$2)', [me.userId, nowIso]);
         await t.run('INSERT INTO user_settings (user_id, updated_at) VALUES ($1,$2)', [me.userId, nowIso]);

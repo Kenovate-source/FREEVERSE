@@ -24,6 +24,10 @@ export interface Config {
   seedDemoData: boolean;
   logLevel: 'silent' | 'error' | 'warn' | 'info' | 'debug';
   staticDir: string;
+  /** How many reverse-proxy hops sit in front of the server (read from the right of X-Forwarded-For). */
+  trustProxyHops: number;
+  /** Shared secret that the Vercel API proxy sends so the server can trust its forwarded client IP. */
+  proxySecret?: string;
 }
 
 const truthy = (v: string | undefined, d: boolean) => (v === undefined || v === '' ? d : ['1', 'true', 'yes', 'on'].includes(v.toLowerCase()));
@@ -33,7 +37,8 @@ const isLoopback = (h: string) => ['127.0.0.1', 'localhost', '::1'].includes(h);
 export function loadConfig(e: Record<string, string | undefined> = process.env): Config {
   const env = (e.NODE_ENV === 'production' ? 'production' : e.NODE_ENV === 'test' ? 'test' : 'development') as Config['env'];
   const prod = env === 'production';
-  const host = e.HOST || '127.0.0.1';
+  // Containers must listen on all interfaces; binding to loopback makes the service unreachable from the host's router.
+  const host = e.HOST || (prod ? '0.0.0.0' : '127.0.0.1');
   const port = Number(e.PORT || 5173);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new ConfigError('PORT must be a valid port number.');
 
@@ -51,6 +56,19 @@ export function loadConfig(e: Record<string, string | undefined> = process.env):
   if (prod && !e.DATABASE_URL) {
     throw new ConfigError('SQLite is a development and test stand-in only. Production requires DATABASE_URL pointing at PostgreSQL.');
   }
+  if (prod) {
+    let u: URL | null = null;
+    try { u = new URL(e.PUBLIC_ORIGIN || ''); } catch { /* handled below */ }
+    if (!u || u.protocol !== 'https:' || isLoopback(u.hostname) || u.pathname !== '/') {
+      throw new ConfigError('Production requires PUBLIC_ORIGIN to be the public https:// origin of the website (for example https://your-site.vercel.app), with no path.');
+    }
+  }
+  if (prod && (e.STORAGE_DRIVER || 'local') === 'local' && !truthy(e.ALLOW_EPHEMERAL_STORAGE, false)) {
+    throw new ConfigError('Production uploads must not use local disk (hosts wipe it on redeploy). Set STORAGE_DRIVER=supabase, or set ALLOW_EPHEMERAL_STORAGE=true to accept that uploads can be lost.');
+  }
+  const hops = Number(e.TRUST_PROXY_HOPS ?? (prod ? 1 : 0));
+  if (!Number.isInteger(hops) || hops < 0 || hops > 5) throw new ConfigError('TRUST_PROXY_HOPS must be an integer from 0 to 5.');
+  if (e.PROXY_SHARED_SECRET && e.PROXY_SHARED_SECRET.length < 24) throw new ConfigError('PROXY_SHARED_SECRET must be at least 24 characters.');
   const aiProvider = (e.AI_PROVIDER || (e.ANTHROPIC_API_KEY ? 'anthropic' : 'demo')) as Config['ai']['provider'];
   if (aiProvider !== 'demo' && aiProvider !== 'anthropic') throw new ConfigError('AI_PROVIDER must be "demo" or "anthropic".');
   if (aiProvider === 'anthropic' && !e.ANTHROPIC_API_KEY) throw new ConfigError('AI_PROVIDER=anthropic requires ANTHROPIC_API_KEY.');
@@ -81,6 +99,8 @@ export function loadConfig(e: Record<string, string | undefined> = process.env):
     seedDemoData: truthy(e.SEED_DEMO_DATA, !prod),
     logLevel: (e.LOG_LEVEL as Config['logLevel']) || (env === 'test' ? 'silent' : 'info'),
     staticDir: resolve(e.STATIC_DIR || 'dist'),
+    trustProxyHops: hops,
+    proxySecret: e.PROXY_SHARED_SECRET || undefined,
   };
 }
 
