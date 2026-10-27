@@ -11,8 +11,8 @@ Stage 2 decisions, numbered after the project's original ADR set (ADR-001…ADR-
 ## ADR-S2-03 — Managed authentication; no homemade passwords
 **Decision.** Supabase Auth is the production identity provider; FREEVERSE keeps its own `users` row, eligibility, roles and privacy. A local development provider exists for honest demo mode, is labelled in the UI, and is refused in production. **Consequences.** Live auth is unverified until credentials exist (see report).
 
-## ADR-S2-04 — Age: self-attested month and year, 18–24 enforced on the server
-**Decision.** Store birth month and year only; the day is used for the check and discarded. Enforce 18–24 server-side. Never call it "verified"; age range is private by default. The Founder account has a recorded exemption from the upper bound. **Consequences.** Determined under-age or over-age users can lie; this is disclosed.
+## ADR-S2-04 — Age: self-attested month and year, 18 and over enforced on the server (revised Oct 2026)
+**Decision.** Store birth month and year only; the day is used for the check and discarded. Enforce 18 and over server-side; there is no upper limit (Founder decision, Oct 2026, superseding the earlier 18–24 range). Never call it "verified"; age range is private by default. The Founder account has a recorded exemption from the upper bound. **Consequences.** Determined under-age or over-age users can lie; this is disclosed.
 
 ## ADR-S2-05 — Authorization is permission-based and server-side; titles are not data access
 **Decision.** Roles map to named permissions (`server/authz`). Governance rank, operations, moderation and private-content access are separate. No role can read private messages, journals or Nova conversations. Sensitive actions require a short-lived step-up grant and are audited. **Consequences.** The UI hides what you can't do, but the server decides.

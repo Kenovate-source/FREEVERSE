@@ -40,3 +40,12 @@ The Founder starts a review, which snapshots every live grant (except the Founde
 
 ## Audit
 `audit_events` is append-only (database triggers on PostgreSQL; checked in tests). Entries record who, role, action, target, outcome and reason, **never content**. Readable with `audit.view`.
+
+## Default role definitions (Stage 2 deployment pass)
+Seats are proposed defaults in `shared/governance-defaults.ts`, editable by the Founder through `governance.seat_update` (high risk, step-up, audited). All are **vacant**; no names are invented.
+* **7 High Council:** Learning & Research; Work & Enterprise; Community & Citizen Experience; Technology & Infrastructure; AI & Innovation; Trust, Safety & Privacy; Partnerships & Ecosystem Growth.
+* **12 Directors:** one per Universe area plus Platform Engineering, Data & Security (FreeMedia, FreePlay & FreeEntertainment share one; FreeEvents, FreeVolunteer & FreeLabs share one).
+* **24 Guardians:** 8 areas x 3 seats (Community Care & Belonging; Learning & Research Communities; Work & Opportunity; Creators & Innovation; Trust, Safety & Privacy; Accessibility & Inclusion; Events & Volunteering; Regional & Community Liaison). Every Guardian keeps the core duties from Governance.md.
+
+## Anonymous posting policy
+**On by default** (Founder decision, Oct 2026): global `ANONYMOUS_POSTING_ENABLED` defaults to true and new communities allow it; each community can switch it off (its moderators may only turn it off; stewards with `config.manage` can turn it on or off); the global switch can be set false. Reveal is not a Founder power: it needs `moderation.reveal_anonymous`, a reviewed case, a reason of at least 20 characters, a fresh step-up, no conflict of interest (reporter/author/other assignee), a daily limit of 5, an audit record, and oversight review.
