@@ -8,7 +8,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:5199';
 const OUT = process.env.SHOTS || 'screenshots/stage2'; mkdirSync(OUT, { recursive: true });
 const SIZES = { phone: { width: 390, height: 844 }, tablet: { width: 820, height: 1100 }, desktop: { width: 1366, height: 900 } };
 const FOUNDER_ROUTES = ['/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/access', '/founder/communities', '/founder/universes', '/founder/council', '/founder/audit', '/founder/constitution', '/founder/priorities', '/governance', '/moderation'];
-const ROUTES = ['/home', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
+const ROUTES = ['/home', '/universes/freeconnect', '/universes/freelearn', '/universes/freework', '/universes/freebuild', '/universes/freemarket', '/universes/freeai', '/universes/freeresearch', '/universes/freehealth', '/universes/freefinance', '/universes/freemedia', '/universes/freeevents', '/universes/freevolunteer', '/universes/freelabs', '/universes/freeplay', '/universes/freeentertainment', '/universes/freeplay/games', '/universes/freefinance/tools', '/terms', '/privacy', '/rules', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
 const results = []; const problems = [];
 const stamp = Date.now();
 
@@ -19,6 +19,8 @@ async function run(size, who = 'member') {
   const step = async (name, fn) => { try { await fn(); results.push({ size, name, ok: true }); } catch (e) { results.push({ size, name, ok: false, err: String(e.message).split('\n')[0] }); console.log('FAIL', size, name, String(e.message).split('\n')[0]); } };
   await page.goto(`${BASE}/#/`); await page.waitForSelector('h1');
   await page.screenshot({ path: `${OUT}/${size}-landing.png` });
+  for (const lp of ['/terms', '/privacy', '/rules']) await step(`public ${lp}`, async () => { await page.goto(`${BASE}/#${lp}`); await page.waitForSelector('main h2'); if (!/Draft for legal review/.test(await page.locator('main').innerText())) throw new Error('draft notice missing'); if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow'); });
+  await page.goto(`${BASE}/#/`); await page.waitForSelector('h1');
   await step('sign up', async () => { await page.goto(`${BASE}/#/signup`); await page.getByLabel('Email').fill(email); await page.getByLabel('Password').fill('correct horse 12'); await page.getByLabel(/I’m an adult/).check(); await page.getByRole('button', { name: 'Create account' }).click(); await page.waitForURL(/#\/eligibility/); });
   await step('eligibility', async () => { await page.getByLabel('Month').selectOption('6'); await page.getByLabel('Day').selectOption('15'); await page.getByLabel('Year').selectOption(String(new Date().getFullYear() - 21)); await page.getByLabel(/accept the/).check(); await page.getByLabel(/date I entered/).check(); await page.getByRole('button', { name: 'Continue' }).click(); await page.waitForURL(/#\/onboarding/); await page.screenshot({ path: `${OUT}/${size}-onboarding.png` }); });
   await step('onboarding skip', async () => { await page.getByRole('button', { name: 'Skip setup for now' }).click(); await page.waitForURL(/#\/home/); });
@@ -29,7 +31,7 @@ async function run(size, who = 'member') {
       const bad = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
       if (bad) throw new Error('horizontal overflow');
       if (who === 'founder' && /isn’t open to your account/.test(await page.locator('main').innerText())) throw new Error('founder route forbidden');
-      if (['/home', '/settings/privacy', '/learn', '/founder'].includes(r) ) await page.screenshot({ path: `${OUT}/${size}-${r.replace(/\W+/g, '_')}.png` });
+      if (['/home', '/settings/privacy', '/learn', '/founder', '/universes/freeplay', '/universes/freefinance'].includes(r) ) await page.screenshot({ path: `${OUT}/${size}-${r.replace(/\W+/g, '_')}.png` });
     });
   }
   await step('keyboard: skip link is first tab stop', async () => { const p2 = await ctx.newPage(); await p2.goto(`${BASE}/#/home`); await p2.waitForSelector('main'); await p2.waitForTimeout(500); await p2.keyboard.press('Tab'); const t = await p2.evaluate(() => document.activeElement?.textContent ?? ''); await p2.close(); if (!/skip/i.test(t)) throw new Error(`first tab stop was "${t.slice(0, 40)}"`); });
