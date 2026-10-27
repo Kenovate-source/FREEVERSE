@@ -8,7 +8,7 @@ for (const dialect of DIALECTS) {
   describe(`catalog: Learn, opportunities, mentors, events, universes, search, explore [${dialect}]`, () => {
     let t: TestApp; let a: U, b: U, c: U;
     before(async () => {
-      t = await startTestApp(dialect, { SEED_DEMO_DATA: '1' });
+      t = await startTestApp(dialect, { SEED_DEMO_DATA: '1', ANONYMOUS_POSTING_ENABLED: 'true' });
       a = await t.member('a@example.com', { handle: 'alice', name: 'Alice' });
       b = await t.member('b@example.com', { handle: 'bob', name: 'Bob' });
       c = await t.member('c@example.com', { handle: 'carol', name: 'Carol' });
@@ -110,11 +110,13 @@ for (const dialect of DIALECTS) {
       assert.ok((await t.call('GET', '/api/events?when=past', { token: a.token })).json.items.length >= 1);
     });
 
-    test('universes: all fifteen with honest status; interest is private and removable; planned ones have no route', async () => {
+    test('universes: all fifteen are reachable with honest status; FreePlay stays visible; interest is private and removable', async () => {
       const u = await t.call('GET', '/api/universes', { token: a.token });
       assert.equal(u.json.items.length, 15);
       const by = Object.fromEntries(u.json.items.map((x: any) => [x.id, x]));
-      assert.equal(by.freemarket.route, null); assert.equal(by.freemarket.status, 'planned_v2');
+      assert.ok(u.json.items.every((x: any) => x.route === `/universes/${x.id}`), 'every Universe has its own page');
+      assert.equal(by.freemarket.status, 'partial'); assert.match(by.freemarket.basis, /No payments/);
+      assert.equal(by.freeplay.status, 'partial'); assert.match(by.freeplay.basis, /Founder decision/); assert.notEqual(by.freeplay.status, 'under_review');
       assert.ok(by.freelearn.route); assert.ok(u.json.items.every((x: any) => x.basis && x.statusLabel));
       assert.equal((await t.call('PUT', '/api/interest/universe:freemarket', { token: a.token })).json.interested, true);
       assert.equal((await t.call('PUT', '/api/interest/universe:freemarket', { token: a.token })).status, 200);

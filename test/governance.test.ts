@@ -32,12 +32,21 @@ for (const dialect of DIALECTS) {
       assert.ok(!other.roles.includes('founder'));
     });
 
-    test('hierarchy 1-3-7-12-24 exists with vacant generic seats and an honest note', async () => {
+    test('hierarchy 1-3-7-12-24 exists with vacant seats carrying proposed default definitions', async () => {
       const r = await t.call('GET', '/api/governance/structure', { token: founder.token });
       assert.deepEqual(r.json.levels.map((l: any) => [l.level, l.seats.length]), [[1, 1], [3, 3], [7, 7], [12, 12], [24, 24]]);
-      assert.match(r.json.note, /not defined in Governance\.md/);
+      assert.match(r.json.note, /proposed default definitions/);
+      const seats = (lv: number) => r.json.levels.find((l: any) => l.level === lv).seats;
+      assert.ok(r.json.levels.every((l: any) => l.seats.every((s: any) => l.level === 1 || !s.holder)), 'every seat below the Founder starts vacant');
+      assert.deepEqual(seats(7).map((s: any) => s.title.replace('High Council: ', '')), ['Learning & Research', 'Work & Enterprise', 'Community & Citizen Experience', 'Technology & Infrastructure', 'AI & Innovation', 'Trust, Safety & Privacy', 'Partnerships & Ecosystem Growth']);
+      assert.equal(seats(12).length, 12); assert.match(seats(12)[9].title, /FreeMedia, FreePlay & FreeEntertainment/); assert.match(seats(12)[11].title, /Platform Engineering, Data & Security/);
+      for (const s of [...seats(7), ...seats(12), ...seats(24)]) { assert.ok(s.scope && s.reportsTo && s.responsibilities && s.boundaries, `${s.title} fully defined`); assert.match(s.boundaries, /private messages/); }
+      const areas = new Map<string, number>(); for (const s of seats(24)) areas.set(s.area, (areas.get(s.area) ?? 0) + 1);
+      assert.equal(areas.size, 8); assert.ok([...areas.values()].every((n) => n === 3), 'three Guardian seats per area');
+      assert.ok(seats(24).every((s: any) => /Protect community health/.test(s.responsibilities) && /Recommend improvements/.test(s.responsibilities)), 'every Guardian keeps the core duties');
       const pub = await t.call('GET', '/api/governance/public', { token: a.token });
-      assert.equal(pub.status, 200); assert.match(pub.json.principles[0], /does not give access to anyone’s private messages/);
+      assert.equal(pub.status, 200); assert.equal(pub.json.definitions.find((d: any) => d.level === 24).seats.length, 24); assert.ok(pub.json.definitions.every((d: any) => d.seats.every((s: any) => s.vacant && !('holder' in s))));
+      assert.match(pub.json.principles[0], /does not give access to anyone’s private messages/);
       assert.equal((await t.call('GET', '/api/governance/structure', { token: a.token })).status, 403);
     });
 

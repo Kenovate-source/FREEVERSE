@@ -19,21 +19,22 @@ describe('config safety', () => {
   });
 });
 
-describe('eligibility maths (18–24, month+year stored only)', () => {
+describe('eligibility maths (18 and over, no upper limit, month+year stored only)', () => {
   const now = new Date('2026-10-15T12:00:00Z');
   test('boundaries', () => {
     assert.equal(checkEligibility({ year: 2008, month: 10, day: 15 }, now).eligible, true); // turns 18 today
     assert.deepEqual(checkEligibility({ year: 2008, month: 10, day: 16 }, now), { eligible: false, reason: 'too_young' });
-    assert.equal(checkEligibility({ year: 2001, month: 10, day: 16 }, now).eligible, true); // still 24 until 16 Oct 2026+1 day
-    assert.deepEqual(checkEligibility({ year: 2001, month: 10, day: 15 }, now), { eligible: false, reason: 'too_old' });
+    assert.equal(checkEligibility({ year: 2001, month: 10, day: 16 }, now).eligible, true);
+    assert.equal(checkEligibility({ year: 2001, month: 10, day: 15 }, now).eligible, true, 'turning 25 does not end eligibility');
     assert.deepEqual(checkEligibility({ year: 2003, month: 2, day: 30 }, now), { eligible: false, reason: 'invalid_date' });
     assert.deepEqual(checkEligibility({ year: 2030, month: 1, day: 1 }, now), { eligible: false, reason: 'invalid_date' });
   });
-  test('founder exemption only lifts the upper bound', () => {
-    assert.equal(checkEligibility({ year: 1990, month: 1, day: 1 }, now, { skipMax: true }).eligible, true);
-    assert.equal(checkEligibility({ year: 2012, month: 1, day: 1 }, now, { skipMax: true }).eligible, false);
+  test('no upper limit: adults of any realistic age are eligible; under 18 and typos are not', () => {
+    for (const year of [1999, 1990, 1975, 1960, 1940]) assert.equal(checkEligibility({ year, month: 1, day: 1 }, now).eligible, true, String(year));
+    assert.equal(checkEligibility({ year: 2012, month: 1, day: 1 }, now).eligible, false);
+    assert.deepEqual(checkEligibility({ year: 1900, month: 1, day: 1 }, now), { eligible: false, reason: 'invalid_date' }, 'implausible age is a typo, not a rule');
   });
-  test('age band', () => { assert.equal(ageBand(3, 2003, now), '21–24'); assert.equal(ageBand(3, 2007, now), '18–20'); });
+  test('age band', () => { assert.equal(ageBand(3, 2003, now), '18–24'); assert.equal(ageBand(3, 1995, now), '25–34'); assert.equal(ageBand(3, 1980, now), '35–49'); assert.equal(ageBand(3, 1950, now), '50+'); assert.equal(ageBand(3, 2012, now), null); });
 });
 
 test('rendered migrations are up to date', () => {
@@ -91,8 +92,8 @@ for (const dialect of DIALECTS) {
       assert.equal(JSON.stringify(events).includes('14'), false);
     });
 
-    test('under-18 and over-24 are refused server-side and nothing about the date is kept', async () => {
-      for (const [email, year] of [['young@example.com', 2012], ['old@example.com', 1995]] as const) {
+    test('under-18 is refused server-side and nothing about the date is kept', async () => {
+      for (const [email, year] of [['young@example.com', 2012], ['younger@example.com', 2015]] as const) {
         const a = await t.register(email);
         const r = await t.call('POST', '/api/me/eligibility', { token: a.token, body: { birthMonth: 6, birthDay: 6, birthYear: year, acceptTerms: true, confirmSelfDeclared: true } });
         assert.equal(r.status, 403); assert.equal(r.json.error.code, 'ineligible');
@@ -103,13 +104,13 @@ for (const dialect of DIALECTS) {
       }
     });
 
-    test('founder bootstrap grants exactly one founder and waives only the upper age bound', async () => {
+
+    test('founder bootstrap grants exactly one founder', async () => {
       const f = await t.register('founder@example.com');
       const r = await t.call('POST', '/api/me/eligibility', { token: f.token, body: { birthMonth: 1, birthDay: 1, birthYear: 1985, acceptTerms: true, confirmSelfDeclared: true } });
       assert.equal(r.status, 200);
       assert.ok(r.json.user.roles.includes('founder'));
       assert.ok(r.json.user.permissions.includes('founder.console'));
-      assert.equal(r.json.user.eligibility.exemption, 'founder');
       const seat = await t.db.get<any>('SELECT holder_user_id FROM governance_seats WHERE level = 1');
       assert.equal(seat.holder_user_id, f.userId);
       await assert.rejects(t.db.run("INSERT INTO role_grants (id, user_id, role, granted_at) VALUES ('11111111-1111-1111-1111-111111111111', $1, 'founder', $2)", [f.userId, new Date().toISOString()]), 'second live founder grant must violate the unique index');
