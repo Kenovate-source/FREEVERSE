@@ -25,6 +25,11 @@ async function request<T>(method: string, path: string, body?: unknown, o: Opts 
   catch (e) { if ((e as Error).name === 'AbortError') throw e; throw new ApiError(0, 'network', 'We couldn’t reach FREEVERSE. Check your connection and try again.'); }
   const ct = res.headers.get('content-type') ?? '';
   const data = ct.includes('application/json') ? await res.json().catch(() => null) : null;
+  // A 2xx that is not JSON means something other than the FREEVERSE API answered (for example a static host returning its home page
+  // because the API proxy is not configured). Say so plainly instead of pretending the call worked.
+  if (res.ok && res.status !== 204 && !ct.includes('application/json') && !o.raw && !path.startsWith('/api/media/')) {
+    throw new ApiError(502, 'bad_gateway', 'The FREEVERSE service returned an unexpected response. It may be misconfigured or starting up.');
+  }
   if (!res.ok) {
     const err = data?.error;
     if (res.status === 401 && token && err?.code === 'session_invalid') onUnauthorized?.();

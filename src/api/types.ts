@@ -6,7 +6,7 @@ export interface Me {
 export interface AppConfig {
   app: { name: string; stage: number };
   auth: { kind: 'dev' | 'supabase'; managed: boolean; note: string };
-  eligibility: { min: number; max: number; method: string; verified: boolean };
+  eligibility: { min: number; max: number | null; noUpperLimit?: boolean; method: string; verified: boolean };
   terms: { version: string };
   features: { env: string; authProvider: string; database: string; aiProvider: string; storage: string; anonymousPosting: boolean; anonymousPostingEnabled: boolean; novaFlagRetentionDays: number; devTools: boolean };
 }

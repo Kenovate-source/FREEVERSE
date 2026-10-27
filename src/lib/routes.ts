@@ -4,7 +4,9 @@ export interface RouteDef {
   id: string; path: string; title: string;
   /** Renders without the app shell and without a session. */
   public?: boolean;
-  /** Needs a signed-in session whose eligibility is still pending (the 18–24 step). */
+  /** Renders for everyone in every account state (legal documents, password-reset return). */
+  always?: boolean;
+  /** Needs a signed-in session whose eligibility is still pending (the 18+ step). */
   eligibility?: boolean;
   /** Needs this permission (server enforces it too; this only decides what the UI offers). */
   perm?: string;
@@ -13,8 +15,9 @@ export interface RouteDef {
 const R = (id: string, path: string, title: string, o: Partial<RouteDef> = {}): RouteDef => ({ id, path, title, ...o });
 
 export const ROUTES: RouteDef[] = [
-  R('landing', '/', 'FREEVERSE', { public: true }), R('trust', '/trust', 'How trust works', { public: true }),
-  R('signin', '/signin', 'Sign in', { public: true }), R('signup', '/signup', 'Create account', { public: true }), R('recover', '/recover', 'Reset password', { public: true }),
+  R('landing', '/', 'FREEVERSE', { public: true }), R('trust', '/trust', 'How trust works', { public: true, always: true }),
+  R('terms', '/terms', 'Terms of Service', { public: true, always: true }), R('privacy', '/privacy', 'Privacy Policy', { public: true, always: true }), R('rules', '/rules', 'Community rules', { public: true, always: true }),
+  R('signin', '/signin', 'Sign in', { public: true }), R('signup', '/signup', 'Create account', { public: true }), R('recover', '/recover', 'Reset password', { public: true }), R('reset-password', '/reset-password', 'Choose a new password', { public: true, always: true }),
   R('eligibility', '/eligibility', 'Confirm eligibility', { eligibility: true }), R('onboarding', '/onboarding', 'Welcome'),
   R('home', '/home', 'Home', { section: 'home' }), R('explore', '/explore', 'Explore', { section: 'explore' }), R('search', '/search', 'Search', { section: 'explore' }),
   R('communities', '/communities', 'Communities', { section: 'communities' }), R('community', '/communities/:slug', 'Community', { section: 'communities' }),
@@ -30,7 +33,7 @@ export const ROUTES: RouteDef[] = [
   R('identities', '/identities', 'Your identities', { section: 'identities' }), R('space', '/spaces/:archetype', 'Identity space', { section: 'identities' }),
   R('profile-edit', '/me/profile', 'Your profile', { section: 'profile' }),
   R('settings', '/settings', 'Settings', { section: 'settings' }), R('settings-section', '/settings/:section', 'Settings', { section: 'settings' }),
-  R('universes', '/universes', 'Universes', { section: 'universes' }), R('universe', '/universes/:id', 'Universe', { section: 'universes' }),
+  R('universes', '/universes', 'Universes', { section: 'universes' }), R('universe', '/universes/:id', 'Universe', { section: 'universes' }), R('universe-space', '/universes/:id/:space', 'Universe', { section: 'universes' }),
   R('soon', '/soon/:feature', 'Coming soon', { section: 'universes' }), R('help', '/help', 'Help & safety', { section: 'help' }),
   R('founder', '/founder', 'Founder Console', { perm: 'founder.console', section: 'founder' }), R('founder-section', '/founder/:section', 'Founder Console', { perm: 'founder.console', section: 'founder' }),
   R('governance', '/governance', 'Governance', { perm: 'governance.view', section: 'governance' }),
@@ -48,9 +51,8 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: 'grow', label: 'Learn & work', items: [
     { id: 'learn', label: 'Learn', path: '/learn', icon: 'learn' }, { id: 'opportunities', label: 'Opportunities', path: '/opportunities', icon: 'briefcase' },
     { id: 'mentors', label: 'Mentors', path: '/mentors', icon: 'compass2' }, { id: 'events', label: 'Events', path: '/events', icon: 'calendar' } ] },
-  { id: 'create', label: 'Create & play', items: [
-    { id: 'portfolios', label: 'Portfolios', path: '/soon/portfolios', icon: 'image', soon: true }, { id: 'marketplace', label: 'Marketplace', path: '/soon/marketplace', icon: 'store', soon: true },
-    { id: 'games', label: 'Games', path: '/soon/games', icon: 'game', soon: true }, { id: 'watch', label: 'Watch', path: '/soon/watch', icon: 'video', soon: true },
+  { id: 'create', label: 'Universes', items: [
+    { id: 'u-freeconnect', label: 'FreeConnect', path: '/universes/freeconnect', icon: 'users' }, { id: 'u-freelearn', label: 'FreeLearn', path: '/universes/freelearn', icon: 'learn' }, { id: 'u-freework', label: 'FreeWork', path: '/universes/freework', icon: 'briefcase' }, { id: 'u-freebuild', label: 'FreeBuild', path: '/universes/freebuild', icon: 'layers' }, { id: 'u-freemarket', label: 'FreeMarket', path: '/universes/freemarket', icon: 'store' }, { id: 'u-freeai', label: 'FreeAI', path: '/universes/freeai', icon: 'nova' }, { id: 'u-freeresearch', label: 'FreeResearch', path: '/universes/freeresearch', icon: 'search' }, { id: 'u-freehealth', label: 'FreeHealth', path: '/universes/freehealth', icon: 'heart' }, { id: 'u-freefinance', label: 'FreeFinance', path: '/universes/freefinance', icon: 'chart' }, { id: 'u-freemedia', label: 'FreeMedia', path: '/universes/freemedia', icon: 'video' }, { id: 'u-freeevents', label: 'FreeEvents', path: '/universes/freeevents', icon: 'calendar' }, { id: 'u-freevolunteer', label: 'FreeVolunteer', path: '/universes/freevolunteer', icon: 'heart' }, { id: 'u-freelabs', label: 'FreeLabs', path: '/universes/freelabs', icon: 'target' }, { id: 'u-freeplay', label: 'FreePlay', path: '/universes/freeplay', icon: 'game' }, { id: 'u-freeentertainment', label: 'FreeEntertainment', path: '/universes/freeentertainment', icon: 'play' },
     { id: 'universes', label: 'All Universes', path: '/universes', icon: 'grid' } ] },
   { id: 'ai', label: 'AI', items: [{ id: 'nova', label: 'Nova', path: '/ai', icon: 'nova' }, { id: 'council', label: 'AI Council', path: '/ai/council', icon: 'council' }] },
   { id: 'you', label: 'You', items: [
