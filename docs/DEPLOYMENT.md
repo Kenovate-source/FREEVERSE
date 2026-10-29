@@ -43,7 +43,11 @@ Vercel was hosting only static files. Nothing answered `/api/*`, so every call (
 2. **Authentication → URL configuration:** Site URL = your Vercel URL (e.g. `https://freeverse-weld.vercel.app`). Add Redirect URL `https://freeverse-weld.vercel.app/**`.
 3. **Authentication → Providers → Email:** enabled. Leave "Confirm email" **on** for production (the app handles confirmation: the link returns to the site and signs the member in; recovery links open the "Choose a new password" page).
 4. **Storage:** create a **private** bucket named `freeverse-media` (or set `SUPABASE_STORAGE_BUCKET`). Do not make it public: the backend serves files through signed, expiring links.
-5. Database: either Render's managed Postgres (`render.yaml` creates it) or Supabase's. If Supabase, copy the **connection string** (use the pooled/transaction string if you see connection limits) into `DATABASE_URL`.
+5. Database: either Render's managed Postgres (`render.yaml` creates it) or Supabase's. If Supabase, copy the **Session pooler** connection string into `DATABASE_URL`, then handle its certificate (next paragraph).
+
+   **Supabase's database certificate is signed by its own authority**, which Node does not trust by default, so the backend stops at start-up with `Error: self-signed certificate in certificate chain` (`SELF_SIGNED_CERT_IN_CHAIN`). Fix it one of two ways:
+   * **Recommended (stays verified):** in Supabase open **Project Settings → Database → SSL Configuration** and **Download certificate**. Open the downloaded file in a text editor, copy *all* of it (from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`) and paste it as the value of `DATABASE_SSL_CA` on the backend.
+   * **Quick, weaker:** set `DATABASE_SSL=no-verify`. The connection is still encrypted, but the server's identity is not checked. The backend logs a warning every start. Use only until you add the CA.
 
 ## 5. Backend on Render
 
@@ -103,6 +107,7 @@ It checks: site serves the app, security headers, site→backend health, databas
 | Confirmation link goes to the wrong site | Supabase Site URL / Redirect URLs not set to the Vercel origin. |
 | "Too many attempts" for everyone | `PROXY_SHARED_SECRET` differs between Vercel and Render, so all visitors share one IP. |
 | Images vanish after redeploy | Local storage in use; set `STORAGE_DRIVER=supabase` and the Supabase variables. |
+| Backend exits with `self-signed certificate in certificate chain` | Supabase's certificate authority is not trusted by Node. Set `DATABASE_SSL_CA` (recommended) or `DATABASE_SSL=no-verify`; see section 4. |
 | 503 on `/api/health/ready` | `DATABASE_URL` wrong or `DATABASE_SSL` needed. |
 
 ## 9. Redeploy and rollback
