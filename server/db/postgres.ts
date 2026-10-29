@@ -39,9 +39,21 @@ function wrap(q: Queryable, tx: (fn: (db: Db) => Promise<unknown>) => Promise<un
   };
 }
 
+/** TLS settings for the database connection: off, on with the system trust store, or on with explicit options. */
+export type PgSsl = boolean | { rejectUnauthorized: boolean; /** PEM text of the CA that signed the database certificate */ ca?: string };
+
+/** Maps the configured value to node-postgres' `ssl` option. Certificates are verified unless explicitly told not to. */
+export function pgSslOptions(ssl: PgSsl | undefined): false | { rejectUnauthorized: boolean; ca?: string } | undefined {
+  if (!ssl) return undefined;
+  if (ssl === true) return { rejectUnauthorized: true };
+  return ssl.ca ? { rejectUnauthorized: ssl.rejectUnauthorized, ca: ssl.ca } : { rejectUnauthorized: ssl.rejectUnauthorized };
+}
+
 /** Production adapter: node-postgres pool against DATABASE_URL (e.g. a Supabase Postgres connection string). */
-export function openPostgres(connectionString: string, opts: { ssl?: boolean; max?: number } = {}): Db {
-  const pool = new pg.Pool({ connectionString, max: opts.max ?? 10, ssl: opts.ssl ? { rejectUnauthorized: true } : undefined });
+export function openPostgres(connectionString: string, opts: { ssl?: PgSsl; max?: number } = {}): Db {
+  const ssl = pgSslOptions(opts.ssl);
+  if (ssl && ssl.rejectUnauthorized === false) console.warn('[db] DATABASE_SSL=no-verify: the connection is encrypted but the database certificate is NOT verified. Prefer DATABASE_SSL_CA (see docs/DEPLOYMENT.md).');
+  const pool = new pg.Pool({ connectionString, max: opts.max ?? 10, ssl });
   const asQueryable = (c: pg.Pool | pg.PoolClient): Queryable => ({
     query: (sql, params) => c.query(sql, params as unknown[]) as unknown as Promise<{ rows: Row[]; rowCount: number | null }>,
   });

@@ -9,7 +9,8 @@ export interface Config {
   port: number;
   publicOrigin: string;
   databaseUrl?: string;
-  dbSsl: boolean;
+  /** false = no TLS; true = TLS verified against the system trust store; object = explicit CA or (not recommended) no verification. */
+  dbSsl: boolean | { rejectUnauthorized: boolean; ca?: string };
   sqlitePath: string;
   authProvider: 'dev' | 'supabase';
   supabase: { url?: string; anonKey?: string; serviceRoleKey?: string };
@@ -78,6 +79,13 @@ export function loadConfig(e: Record<string, string | undefined> = process.env):
     throw new ConfigError('STORAGE_DRIVER=supabase requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server-side only).');
   }
   if (prod && !e.MEDIA_URL_SECRET) throw new ConfigError('Production requires MEDIA_URL_SECRET (a long random string used to sign media URLs).');
+  // Database TLS. Supabase's certificate chain is signed by its own CA, which Node does not trust by default, so either supply
+  // that CA (DATABASE_SSL_CA, verified and recommended) or knowingly skip verification (DATABASE_SSL=no-verify).
+  const sslMode = (e.DATABASE_SSL ?? '').trim().toLowerCase();
+  const sslCa = e.DATABASE_SSL_CA?.trim() ? e.DATABASE_SSL_CA.replace(/\\n/g, '\n').trim() : undefined;
+  if (sslCa && !/-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----/.test(sslCa)) throw new ConfigError('DATABASE_SSL_CA must contain a PEM certificate (the text from -----BEGIN CERTIFICATE----- to -----END CERTIFICATE-----).');
+  const sslOn = sslMode === 'no-verify' || truthy(e.DATABASE_SSL, prod);
+  const dbSsl: Config['dbSsl'] = !sslOn ? false : sslMode === 'no-verify' ? { rejectUnauthorized: false } : sslCa ? { rejectUnauthorized: true, ca: sslCa } : true;
   const retention = Number(e.NOVA_FLAG_RETENTION_DAYS || 30);
   if (!Number.isFinite(retention) || retention < 1 || retention > 365) throw new ConfigError('NOVA_FLAG_RETENTION_DAYS must be between 1 and 365.');
 
@@ -85,7 +93,7 @@ export function loadConfig(e: Record<string, string | undefined> = process.env):
     env, host, port,
     publicOrigin: e.PUBLIC_ORIGIN || `http://localhost:${port}`,
     databaseUrl: e.DATABASE_URL || undefined,
-    dbSsl: truthy(e.DATABASE_SSL, prod),
+    dbSsl,
     sqlitePath: resolve(e.SQLITE_PATH || '.data/freeverse.sqlite'),
     authProvider,
     supabase: { url: e.SUPABASE_URL?.replace(/\/+$/, ''), anonKey: e.SUPABASE_ANON_KEY, serviceRoleKey: e.SUPABASE_SERVICE_ROLE_KEY },

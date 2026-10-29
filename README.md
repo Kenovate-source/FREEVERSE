@@ -53,7 +53,7 @@ Names and safe placeholders are in `.env.example`. Nothing secret is committed, 
 | Variable | Purpose |
 |---|---|
 | `NODE_ENV`, `HOST`, `PORT`, `PUBLIC_ORIGIN`, `LOG_LEVEL` | Basics. |
-| `DATABASE_URL`, `DATABASE_SSL` | PostgreSQL connection. **Required in production.** |
+| `DATABASE_URL`, `DATABASE_SSL`, `DATABASE_SSL_CA` | PostgreSQL connection. **Required in production.** Supabase needs `DATABASE_SSL_CA` (its CA certificate) or, weaker, `DATABASE_SSL=no-verify`. |
 | `SQLITE_PATH` | SQLite file (dev/test only). |
 | `AUTH_PROVIDER`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Managed auth. Service-role key is server-only. |
 | `FOUNDER_EMAIL` | The account with this email receives the Founder role at sign-up. |
