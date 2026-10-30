@@ -1,5 +1,5 @@
 export interface Me {
-  id: string; status: string; handle: string | null; displayName: string | null; email: string | null; roles: string[]; permissions: string[]; seatLevel: number | null; createdAt: string | null;
+  id: string; avatar?: { mode: 'avatar' | 'photo' | 'both'; config: Record<string, unknown>; photoUrl: string | null }; status: string; handle: string | null; displayName: string | null; email: string | null; roles: string[]; permissions: string[]; seatLevel: number | null; createdAt: string | null;
   onboarding: { completed: boolean; path: 'identity_first' | 'guided_discovery' | null; step: string | null };
   eligibility: { status: string | null; method: string | null; attestedAt: string | null; ageBand: string | null; exemption: string | null };
 }

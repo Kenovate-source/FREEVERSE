@@ -15,12 +15,12 @@ const U = (id: string) => UNIVERSES.find((u) => u.id === id)!;
 const statusTone = (s: string) => (s === 'available' || s === 'partial' ? 'ok' : undefined);
 
 function MotionControl({ compact = false }: { compact?: boolean }) {
-  const m = useMotion(); const [pref, setPref] = useState<'full' | 'reduced' | 'off'>(() => getStoredA11y().decorativeMotion ?? 'full');
-  const set = (v: 'full' | 'reduced' | 'off') => { setPref(v); setDecorativeMotion(v); };
+  const m = useMotion();
+  const set = (v: 'auto' | 'full' | 'reduced' | 'off') => { setDecorativeMotion(v); };
   return (
     <div className={`motion-ctl${compact ? ' compact' : ''}`} role="group" aria-label="Decorative motion">
       <span className="motion-ctl-label">Motion</span>
-      {([['full', 'Full'], ['reduced', 'Less'], ['off', 'Off']] as const).map(([v, l]) => <button key={v} type="button" className="motion-opt" aria-pressed={pref === v} onClick={() => set(v)}>{l}</button>)}
+      {([['full', 'full', 'Full'], ['reduced', 'less', 'Less'], ['off', 'off', 'Off']] as const).map(([v, lv, l]) => <button key={v} type="button" className="motion-opt" data-level={lv} aria-pressed={m.level === lv} onClick={() => set(v)}>{l}</button>)}
       <span className="sr-only" role="status">{m.reason}</span>
     </div>
   );
@@ -43,7 +43,7 @@ export function Landing() {
     return () => { io.disconnect(); rv.disconnect(); root.classList.remove('js-reveal'); };
   }, []);
 
-  const go = (i: number) => { const el = journey.current?.querySelector<HTMLElement>(`:scope > [data-chapter="${i}"]`); el?.scrollIntoView({ behavior: motion.mode === 'reduced' ? 'auto' : 'smooth', block: 'start' }); };
+  const go = (i: number) => { const el = journey.current?.querySelector<HTMLElement>(`:scope > [data-chapter="${i}"]`); el?.scrollIntoView({ behavior: motion.mode === 'off' || motion.mode === 'calm' ? 'auto' : 'smooth', block: 'start' }); };
   const cta = signedIn ? <Link to="/home" className="btn btn-primary">Open FREEVERSE <Icon name="arrowRight" size={18} /></Link> : <Link to="/signup" className="btn btn-primary">Create your account <Icon name="arrowRight" size={18} /></Link>;
   const knowledge = ['freelearn', 'freeresearch', 'freelabs', 'freeai'].map(U);
   const work = ['freework', 'freebuild', 'freefinance', 'freemarket'].map(U);

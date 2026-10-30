@@ -13,7 +13,7 @@ const tone = (s: string) => (s === 'available' ? 'ok' : s === 'partial' ? 'cyan'
 export function OrbitMap({ items }: { items: UniverseView[] }) {
   const ref = useRef<HTMLDivElement>(null); const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
   const motion = useMotion();
-  const by = (dir: 1 | -1) => ref.current?.scrollBy({ left: dir * Math.max(240, (ref.current?.clientWidth ?? 600) * 0.8), behavior: motion.mode === 'reduced' || motion.mode === 'focus' ? 'auto' : 'smooth' });
+  const by = (dir: 1 | -1) => ref.current?.scrollBy({ left: dir * Math.max(240, (ref.current?.clientWidth ?? 600) * 0.8), behavior: motion.mode === 'off' || motion.mode === 'calm' || motion.mode === 'focus' ? 'auto' : 'smooth' });
   const onDown = (e: React.PointerEvent) => { if (e.pointerType !== 'mouse' || e.button !== 0 || !ref.current) return; drag.current = { x: e.clientX, left: ref.current.scrollLeft, moved: false }; };
   const onMove = (e: React.PointerEvent) => { const d = drag.current; if (!d || !ref.current) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 4) d.moved = true; ref.current.scrollLeft = d.left - dx; };
   const end = () => { const d = drag.current; drag.current = null; if (d?.moved) { const stop = (ev: Event) => { ev.preventDefault(); ev.stopPropagation(); }; window.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 0); } };

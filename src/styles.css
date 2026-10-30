@@ -538,3 +538,8 @@ ul.tight { margin: 0; padding-left: 1.1rem; display: grid; gap: 2px; font-size: 
 .land-top nav { flex-wrap: wrap; gap: .25rem 1rem; min-width: 0; }
 .prose { overflow-wrap: anywhere; }
 .eco-grid > li { margin: 0; }
+
+/* Sign out is always one tap away: a labelled button in the top bar (icon only on narrow screens) and in the mobile "More" sheet. */
+.signout-btn { white-space: nowrap; }
+@media (max-width: 720px) { .signout-label { display: none; } }
+.more-signout { margin-top: 1rem; }

@@ -5,7 +5,7 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 let focusZones = 0;
 let routeFocus = false;
-let pref: DecorativePref = 'full';
+let pref: DecorativePref = 'auto';
 let reduceAll = false;
 let hidden = typeof document !== 'undefined' ? document.hidden : false;
 let webglOverride: boolean | null = null;
@@ -35,11 +35,11 @@ function inputs(): MotionInputs {
 function apply(d: MotionDecision) {
   if (typeof document === 'undefined') return;
   const r = document.documentElement;
-  r.dataset.motionMode = d.mode; r.dataset.decor = d.decor; r.dataset.quality = d.quality;
+  r.dataset.motionMode = d.mode; r.dataset.motionLevel = d.level; r.dataset.decor = d.decor; r.dataset.quality = d.quality;
 }
 export function recompute() {
   const next = decideMotion(inputs());
-  const changed = !current || next.mode !== current.mode || next.decor !== current.decor || next.quality !== current.quality || next.scene3d !== current.scene3d;
+  const changed = !current || next.mode !== current.mode || next.decor !== current.decor || next.quality !== current.quality || next.scene3d !== current.scene3d || next.drift !== current.drift || next.scrollLinked !== current.scrollLinked;
   current = next; apply(next);
   if (changed) listeners.forEach((l) => l());
 }

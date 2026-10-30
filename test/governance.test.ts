@@ -224,6 +224,23 @@ for (const dialect of DIALECTS) {
       assert.ok(!(await t.call('GET', '/api/me', { token: mod.token })).json.user.roles.includes('moderator'));
     });
 
+    test('access review: a review can be cancelled with a reason, changes nothing, and stays openable in the history', async () => {
+      const start = await t.call('POST', '/api/governance/access-reviews', { token: founder.token }); assert.equal(start.status, 201);
+      const before = (await t.call('GET', '/api/governance/access', { token: founder.token })).json.grants.length;
+      assert.equal((await t.call('POST', `/api/governance/access-reviews/${start.json.id}/cancel`, { token: founder.token, body: { reason: 'x' } })).status, 400, 'a reason is required');
+      assert.equal((await t.call('POST', `/api/governance/access-reviews/${start.json.id}/cancel`, { token: mod.token, body: { reason: 'not allowed' } })).status, 403);
+      assert.equal((await t.call('POST', `/api/governance/access-reviews/${start.json.id}/cancel`, { token: founder.token, body: { reason: 'Started by mistake' } })).status, 200);
+      const rec = (await t.call('GET', `/api/governance/access-reviews/${start.json.id}`, { token: founder.token })).json.review;
+      assert.equal(rec.outcome, 'cancelled'); assert.equal(rec.cancelReason, 'Started by mistake'); assert.ok(rec.completedAt);
+      assert.equal((await t.call('GET', '/api/governance/access', { token: founder.token })).json.grants.length, before, 'no access changed');
+      assert.equal((await t.call('POST', `/api/governance/access-reviews/${start.json.id}/cancel`, { token: founder.token, body: { reason: 'Again' } })).status, 404, 'cannot cancel twice');
+      assert.equal((await t.call('POST', '/api/governance/access-reviews', { token: founder.token })).status, 201, 'a new review can start after cancelling');
+      const list = (await t.call('GET', '/api/governance/access', { token: founder.token })).json.reviews; assert.ok(list.some((r: any) => r.id === start.json.id && r.outcome === 'cancelled'));
+      // leave the new one open for any later test? close it so state is clean
+      const open = list.find((r: any) => r.status === 'open') ?? (await t.call('GET', '/api/governance/access', { token: founder.token })).json.reviews.find((r: any) => r.status === 'open');
+      if (open) await t.call('POST', `/api/governance/access-reviews/${open.id}/cancel`, { token: founder.token, body: { reason: 'Cleanup after test' } });
+    });
+
     test('constitutional amendment: high-risk, step-up, recorded, rollback-able', async () => {
       assert.equal((await direct('constitution.amend', { title: 'Amendment one', summary: 'Clarifies the Council’s role.', text: 'The Council of three advises the Founder on constitutional matters.' }, 'Amend', false)).status, 403);
       const r = await direct('constitution.amend', { title: 'Amendment one', summary: 'Clarifies the Council’s role.', text: 'The Council of three advises the Founder on constitutional matters.' }, 'Amend');

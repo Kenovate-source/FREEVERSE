@@ -142,17 +142,18 @@ function mount(o: SceneOptions): SceneHandle {
     pointer.sx = MathUtils.lerp(pointer.sx, pointer.x, 0.06); pointer.sy = MathUtils.lerp(pointer.sy, pointer.y, 0.06);
     cam.position.set(pointer.sx * 0.35, mk.camY - pointer.sy * 0.25, mk.camZ * (cam.aspect < 0.8 ? 1.5 : cam.aspect < 1.1 ? 1.15 : 1)); cam.lookAt(0, 0, 0);
     world.position.x = mk.x * 2.7 * wide; world.position.y = (mk.y ?? 0) + (cam.aspect < 0.9 ? 1.7 * (1 - L.nodes * 0.7) * (state.t < 1 ? 1 : 0.5) : 0);
-    world.rotation.y = mk.rotY + pointer.sx * 0.08; world.rotation.x = mk.rotX;
+    const T = (now / 1000) * (o.drift ?? 0); // continuous time-based motion, independent of scroll; 0 means none
+    world.rotation.y = mk.rotY + pointer.sx * 0.08 + T * 0.045; world.rotation.x = mk.rotX;
     const breathe = 1 + Math.sin(now / 1900) * 0.015; core.scale.setScalar(breathe * (1 + 0.05 * (1 - L.nodes)));
     coreMat.uniforms.glow!.value = L.glow; (halo.material as ShaderMaterial).uniforms.opacity!.value = 0.18 + 0.3 * L.glow;
-    emblemRing.rotation.z = 0.35 + state.t * 0.6; orbitNode.position.set(1.95, 0, 0); orbitNode.parent!.rotation.z = 0.35 + state.t * 0.6;
-    idRings.forEach((r, i) => { (r.material as MeshBasicMaterial).opacity = 0.55 * L.identity; r.scale.setScalar(0.6 + 0.4 * L.identity); r.rotation.z = i * 0.5 + state.t * 0.35 * (i % 2 ? 1 : -1); });
+    emblemRing.rotation.z = 0.35 + state.t * 0.6 + T * 0.22; orbitNode.position.set(1.95, 0, 0); orbitNode.parent!.rotation.z = 0.35 + state.t * 0.6 - T * 0.5; // ring and its orbiting node turn in opposite directions
+    idRings.forEach((r, i) => { (r.material as MeshBasicMaterial).opacity = 0.55 * L.identity; r.scale.setScalar(0.6 + 0.4 * L.identity); r.rotation.z = i * 0.5 + state.t * 0.35 * (i % 2 ? 1 : -1) + T * (0.1 + 0.06 * i) * (i % 2 ? -1 : 1); r.rotation.x += 0; });
     for (const n of o.nodes) { const m = nodeMesh.get(n.id)!, mat = nodeMats.get(n.id)!; const t = nodeTarget(n.id, n.group, mk); m.scale.setScalar(Math.max(0.001, t.scale)); mat.opacity = clamp01(t.opacity); }
     linkMat.opacity = 0.05 + 0.3 * L.links; linkMat.color.copy(BRAND.blue);
     for (const [g, l] of clusters) (l.material as LineBasicMaterial).opacity = 0.55 * mk.hl[g] + (hover ? 0 : 0);
     pathMat.opacity = 0.8 * L.paths; pathLines.forEach((ln) => ln.geometry.setDrawRange(0, Math.floor(41 * clamp01(L.paths * 1.1))));
     pulses.forEach(({ m, i }) => { const ph = ((1 - L.pulses) * 1.2 + i * 0.33) % 1; m.scale.setScalar(1.6 + ph * 3.8 * (L.pulses > 0.02 ? 1 : 0)); (m.material as MeshBasicMaterial).opacity = 0.5 * L.pulses * (1 - ph); });
-    shells.visible = L.shells > 0.01; shells.scale.setScalar(0.7 + 0.3 * L.shells);
+    shells.rotation.y = -T * 0.05; stars.rotation.y = T * 0.012; shells.visible = L.shells > 0.01; shells.scale.setScalar(0.7 + 0.3 * L.shells);
     shells.children.forEach((c) => { if ((c as Points).isPoints) ((c as Points).material as ShaderMaterial).uniforms.opacity!.value = 0.85 * L.shells; else ((c as Mesh).material as MeshBasicMaterial).opacity = 0.35 * L.shells; });
     // labels follow their nodes (DOM anchors stay real, focusable links)
     const lw = L.labels; const w = o.stage.clientWidth, h = o.stage.clientHeight; world.updateMatrixWorld(); cam.updateMatrixWorld();

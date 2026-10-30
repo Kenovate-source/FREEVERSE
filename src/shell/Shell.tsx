@@ -64,8 +64,9 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/notifications" className="icon-btn" aria-label={badges.notifications ? `Notifications, ${badges.notifications} unread` : 'Notifications'} style={{ position: 'relative' }}>
             <Icon name="bell" size={20} />{badges.notifications > 0 && <span className="dot" aria-hidden="true" />}
           </Link>
+          <button type="button" className="btn btn-ghost btn-sm signout-btn" onClick={() => void signOut()} aria-label="Sign out"><Icon name="logout" size={16} /><span className="signout-label"> Sign out</span></button>
           <div className="menu-wrap" ref={menuRef}>
-            <button type="button" className="icon-btn" aria-haspopup="menu" aria-expanded={menu} aria-label="Account menu" onClick={() => setMenu((v) => !v)}><Avatar size={34} name={me?.displayName ?? undefined} avatar={{ mode: 'avatar', config: { seed: me?.id ?? 'me' }, photoUrl: null }} /></button>
+            <button type="button" className="icon-btn" aria-haspopup="menu" aria-expanded={menu} aria-label="Account menu" onClick={() => setMenu((v) => !v)}><Avatar size={34} name={me?.displayName ?? undefined} avatar={me?.avatar ?? { mode: 'avatar', config: { seed: me?.id ?? 'me' }, photoUrl: null }} /></button>
             {menu && (
               <div className="menu" role="menu">
                 <div className="menu-head"><strong>{me?.displayName ?? 'Member'}</strong><span className="faint">{me?.handle ? `@${me.handle}` : me?.email}</span></div>
@@ -93,6 +94,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {g.items.map((i) => <NavLink key={i.id} item={i} current={isCurrent(i)} badge={badgeOf(i)} onClick={() => setMore(false)} />)}</div>
           ))}
         </nav>
+        <div className="more-signout"><button type="button" className="btn btn-secondary btn-block" onClick={() => { setMore(false); void signOut(); }}><Icon name="logout" size={16} /> Sign out</button></div>
       </Dialog>
     </div>
   );

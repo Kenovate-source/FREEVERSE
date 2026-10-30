@@ -36,6 +36,7 @@ function ConnectionBanner({ retry }: { retry: () => Promise<void> }) {
 }
 const Chrome = ({ children, signedIn }: { children: React.ReactNode; signedIn: boolean }) => (signedIn ? <Shell>{children}</Shell> : <div className="auth-wrap">{children}</div>);
 function NotFound() {
-  return <EmptyState icon="compass" title="We couldn’t find that page" action={<Link to="/" className="btn btn-primary">Go to the start</Link>}>The link may be old or mistyped. Nothing was lost.</EmptyState>;
+  const path = usePath();
+  return <EmptyState icon="compass" title="We couldn’t find that page" action={<span className="row-wrap"><Link to="/" className="btn btn-primary">Go to the start</Link><button type="button" className="btn btn-ghost" onClick={() => window.history.back()}>Go back</button></span>}>The link may be old or mistyped. Nothing was lost. <span className="faint">Address: <code>{path || '/'}</code></span></EmptyState>;
 }
 export { Button };

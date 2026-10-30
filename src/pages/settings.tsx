@@ -11,7 +11,7 @@ import { applyA11y } from '../state/a11y';
 import { AUDIENCE_LABEL, type Audience } from '../../shared/constants';
 import { FIELD_LABEL, PRESET_HELP, PROFILE_FIELDS, type ProfileField } from '../../shared/privacy';
 import type { PrivacyView, Settings } from '../../shared/api/settings';
-import type { BlockListResponse } from '../../shared/api/social';
+import type { BlockListResponse, MemberListItem } from '../../shared/api/social';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
 export const SECTIONS = [
@@ -46,7 +46,7 @@ function useSettings() { const res = useResource(() => api.get<{ settings: Setti
 
 function AccountS() {
   const { me, config } = useSession();
-  return <><H>Account</H><Card className="stack-sm"><dl className="kv"><dt>Email</dt><dd>{me?.email ?? '—'}</dd><dt>Handle</dt><dd>@{me?.handle ?? '—'}</dd><dt>Age check</dt><dd>{me?.eligibility.status === 'attested' ? 'You told us your birth month and year. This is self-declared, not verified.' : 'Not completed'}{me?.eligibility.ageBand ? ` (${me.eligibility.ageBand})` : ''}</dd><dt>Member since</dt><dd>{me?.createdAt ? new Date(me.createdAt).toLocaleDateString() : '—'}</dd></dl>
+  return <><H>Account</H><Card className="stack-sm"><dl className="kv"><dt>Email</dt><dd>{me?.email ?? '—'}</dd><dt>Handle</dt><dd>@{me?.handle ?? '—'}</dd><dt>Age check</dt><dd>{me?.eligibility.status === 'self_attested' || me?.eligibility.status === 'attested' ? 'Self-declared: you confirmed you are 18 or over using your date of birth. FREEVERSE has not verified it.' : me?.eligibility.status === 'verified' ? 'Verified' : 'Not completed'}{me?.eligibility.ageBand ? ` (${me.eligibility.ageBand})` : ''}</dd><dt>Member since</dt><dd>{me?.createdAt ? new Date(me.createdAt).toLocaleDateString() : '—'}</dd></dl>
     <p className="faint">FREEVERSE is for adults aged {config?.eligibility.min ?? 18} and over. We store only your birth month and year, keep it private, and don’t call it verified.</p>
     <div className="row-wrap"><Link to="/me/profile" className="btn btn-secondary btn-sm">Edit profile</Link><Link to="/identities" className="btn btn-secondary btn-sm">Identities</Link><Link to="/settings/data" className="btn btn-ghost btn-sm">Delete or export</Link></div></Card></>;
 }
@@ -91,11 +91,11 @@ function MsgS() {
   const { res, patch } = useSettings();
   return <><H>Messaging</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><Switch label="Read receipts" checked={s.messaging.readReceipts} onChange={(v) => void patch({ messaging: { readReceipts: v } })} hint="When off, others can’t see that you’ve read their messages, and you can’t see theirs." /><Switch label="Allow message requests" checked={s.messaging.allowMessageRequests} onChange={(v) => void patch({ messaging: { allowMessageRequests: v } })} hint="First messages from people you don’t follow go to Requests. Who can message you at all is under Privacy." /></Card>}</Async></>;
 }
-function MotionNote() { const m = useMotion(); return <p className="faint" role="status">Right now: <strong>{m.mode}</strong> mode. {m.reason}.</p>; }
+function MotionNote() { const m = useMotion(); return <p className="faint" role="status" data-testid="motion-note">Right now: <strong>{m.level === 'less' ? 'Less' : m.level === 'off' ? 'Off' : 'Full'}</strong> ({m.mode} mode). {m.reason}.</p>; }
 function A11yS() {
   const { res, patch } = useSettings(); const set = async (p: Partial<Settings['accessibility']>, cur: Settings['accessibility']) => { applyA11y({ ...cur, ...p }); await patch({ accessibility: p }, 'Updated'); };
   return <><H>Accessibility & appearance</H><Async res={res}>{({ settings: { accessibility: a } }) => <Card className="stack-sm"><SelectField label="Text size" value={a.textSize} onChange={(e) => void set({ textSize: e.target.value as Settings['accessibility']['textSize'] }, a)}><option value="sm">Smaller</option><option value="md">Default</option><option value="lg">Larger</option><option value="xl">Largest</option></SelectField>
-    <SelectField label="Decorative motion" value={a.decorativeMotion ?? 'full'} onChange={(e) => void set({ decorativeMotion: e.target.value as 'full' | 'reduced' | 'off' }, a)} hint="Controls the 3D scenes, scroll effects and ambient animation. FREEVERSE also pauses decorative motion automatically while you read, write or fill in forms, and follows your device’s reduced-motion setting."><option value="full">Full: spatial effects where they help</option><option value="reduced">Reduced: still images instead of 3D and scroll effects</option><option value="off">Off: no decorative motion at all</option></SelectField>
+    <SelectField label="Decorative motion" value={a.decorativeMotion ?? 'auto'} onChange={(e) => void set({ decorativeMotion: e.target.value as 'auto' | 'full' | 'reduced' | 'off' }, a)} hint="Full: a living 3D scene with scroll and pointer effects. Less: a calm, slowly drifting scene with no scroll or pointer effects. Off: no 3D and no animation. FREEVERSE also pauses decoration while you read or write."><option value="auto">Automatic: follow my device</option><option value="full">Full</option><option value="reduced">Less</option><option value="off">Off</option></SelectField>
     <MotionNote />
     <Switch label="Reduce motion" checked={a.reduceMotion} onChange={(v) => void set({ reduceMotion: v }, a)} hint="Turns off animations and transitions." /><Switch label="High contrast" checked={a.highContrast} onChange={(v) => void set({ highContrast: v }, a)} hint="Stronger text and border contrast." /><Switch label="Calm background" checked={a.calmBackground} onChange={(v) => void set({ calmBackground: v }, a)} hint="Removes the decorative glow." /><Switch label="Underline links" checked={a.underlineLinks} onChange={(v) => void set({ underlineLinks: v }, a)} /></Card>}</Async></>;
 }
@@ -110,9 +110,37 @@ function NovaS() {
     <Link to="/ai" className="btn btn-secondary" style={{ justifySelf: 'start' }} onClick={() => say('')}>Manage conversations</Link></>}</Async></>;
 }
 function BlockedS() {
-  const { say } = useToast(); const b = useResource(() => api.get<BlockListResponse>('/api/blocks'), []); const m = useResource(() => api.get<BlockListResponse>('/api/mutes'), []);
-  const list = (title: string, res: typeof b, path: string) => <Card className="stack-sm"><h3 className="h-sm">{title}</h3><Async res={res} empty={(d) => (d.items.length ? null : <p className="muted">No one.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((p) => <li key={p.id ?? p.displayName} className="person-row"><Avatar avatar={p.avatar} name={p.displayName} size={36} /><span className="grow">{p.displayName} {p.handle && <span className="faint">@{p.handle}</span>}</span><Button size="sm" onClick={async () => { try { await api.del(`/api/${path}/${p.handle}`); res.reload(); say('Done'); } catch (e) { say(errMsg(e), 'error'); } }}>{path === 'blocks' ? 'Unblock' : 'Unmute'}</Button></li>)}</ul>}</Async></Card>;
-  return <><H>Blocked & muted</H><p className="muted">Blocking hides you both from each other and stops messages. Muting just hides their posts from you; they aren’t told.</p>{list('Blocked', b, 'blocks')}{list('Muted', m, 'mutes')}</>;
+  const { say } = useToast();
+  const b = useResource(() => api.get<BlockListResponse>('/api/blocks'), []); const m = useResource(() => api.get<BlockListResponse>('/api/mutes'), []);
+  const [q, setQ] = useState(''); const [found, setFound] = useState<MemberListItem[] | null>(null); const [searching, setSearching] = useState(false);
+  const [ask, setAsk] = useState<{ kind: 'block' | 'mute' | 'unblock' | 'unmute'; handle: string; name: string } | null>(null);
+  const search = async () => {
+    const term = q.trim().replace(/^@/, ''); if (term.length < 2) { say('Type at least two letters of a name or handle.', 'error'); return; }
+    setSearching(true); try { const r = await api.get<{ items: MemberListItem[] }>(`/api/members?q=${encodeURIComponent(term)}&limit=10`); setFound(r.items); } catch (e) { say(errMsg(e), 'error'); } finally { setSearching(false); }
+  };
+  const run = async () => {
+    if (!ask) return; const { kind, handle } = ask;
+    try {
+      if (kind === 'block') await api.post(`/api/blocks/${handle}`, {}); else if (kind === 'mute') await api.post(`/api/mutes/${handle}`, {});
+      else if (kind === 'unblock') await api.del(`/api/blocks/${handle}`); else await api.del(`/api/mutes/${handle}`);
+      b.reload(); m.reload(); setFound(null); setQ(''); say(kind === 'block' ? 'Blocked' : kind === 'mute' ? 'Muted' : kind === 'unblock' ? 'Unblocked' : 'Unmuted');
+    } catch (e) { say(errMsg(e), 'error'); throw e; }
+  };
+  const copy: Record<string, { title: string; body: string; cta: string; danger?: boolean }> = {
+    block: { title: 'Block this member?', body: 'You will each stop seeing the other. Any follow between you is removed, and neither of you can message the other. They are not told. You can unblock them later, but follows are not restored.', cta: 'Block', danger: true },
+    mute: { title: 'Mute this member?', body: 'Their posts stop appearing in your feeds. They can still see you and message you, and they are not told. You can unmute any time.', cta: 'Mute' },
+    unblock: { title: 'Unblock this member?', body: 'You will be able to see and message each other again. Previous follows are not restored.', cta: 'Unblock' },
+    unmute: { title: 'Unmute this member?', body: 'Their posts will appear in your feeds again.', cta: 'Unmute' },
+  };
+  const list = (title: string, res: typeof b, kind: 'unblock' | 'unmute') => <Card className="stack-sm"><h3 className="h-sm">{title}</h3><Async res={res} empty={(d) => (d.items.length ? null : <p className="muted">No one.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((p) => <li key={p.id ?? p.displayName} className="person-row"><Avatar avatar={p.avatar} name={p.displayName} size={36} /><span className="grow">{p.displayName} {p.handle && <span className="faint">@{p.handle}</span>}</span>{p.handle && <Button size="sm" onClick={() => setAsk({ kind, handle: p.handle!, name: p.displayName })}>{kind === 'unblock' ? 'Unblock' : 'Unmute'}</Button>}</li>)}</ul>}</Async></Card>;
+  return <><H>Blocked & muted</H>
+    <Card className="stack-sm"><h3 className="h-sm">Block or mute someone</h3>
+      <p className="muted"><strong>Mute</strong> hides their posts from you, quietly. <strong>Block</strong> separates you completely: you can’t see or message each other. Neither tells them.</p>
+      <form className="row-wrap" role="search" onSubmit={(e) => { e.preventDefault(); void search(); }}><TextField label="Find a member by name or handle" value={q} onChange={(e) => setQ(e.target.value)} maxLength={60} /><Button type="submit" disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button></form>
+      {found && (found.length === 0 ? <p className="muted">No members found. Blocked members don’t appear in search.</p> : <ul className="plain stack-sm" aria-label="Search results">{found.filter((r) => r.person.handle && !r.person.isSelf).map((r) => { const p = r.person; return <li key={p.id ?? p.handle} className="person-row"><Avatar avatar={p.avatar} name={p.displayName} size={36} /><span className="grow">{p.displayName} <span className="faint">@{p.handle}</span></span><Button size="sm" onClick={() => setAsk({ kind: 'mute', handle: p.handle!, name: p.displayName })}>Mute</Button><Button size="sm" variant="danger" onClick={() => setAsk({ kind: 'block', handle: p.handle!, name: p.displayName })}>Block</Button></li>; })}</ul>)}
+    </Card>
+    {list('Blocked', b, 'unblock')}{list('Muted', m, 'unmute')}
+    {ask && <Confirm open title={`${copy[ask.kind]!.title.replace('this member', ask.name)}`} confirmLabel={copy[ask.kind]!.cta} danger={copy[ask.kind]!.danger} onConfirm={run} onClose={() => setAsk(null)}><p>{copy[ask.kind]!.body}</p></Confirm>}</>;
 }
 function DataS() {
   const { say } = useToast(); const stepUp = useStepUp(); const { signOut } = useSession(); const info = useResource(() => api.get<{ retainedAfterDeletion: string[]; note: string }>('/api/account/data-summary'), []); const [del, setDel] = useState(false); const [txt, setTxt] = useState('');
