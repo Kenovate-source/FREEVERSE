@@ -85,6 +85,16 @@ export const profilesModule: ModuleDef = {
   register(router, s) {
     router.get('/api/profile', { auth: 'active' }, async (c) => ({ profile: await myProfile(s, c.me.userId) }));
 
+    // Live availability check for the handle field. Rate-limited so it cannot be used to enumerate members.
+    router.get('/api/handles/check', { auth: 'active', query: z.object({ handle: z.string().max(40) }), rate: { key: 'handle:check', limit: 60, windowMs: 10 * 60_000 } }, async (c) => {
+      const h = handleSchema.safeParse(c.query.handle);
+      if (!h.success) return { available: false, reason: h.error.issues[0]?.message ?? 'That handle isn’t valid.' };
+      const mine = await c.db.get('SELECT 1 AS x FROM users WHERE handle = $1 AND id = $2', [h.data, c.me.userId]);
+      if (mine) return { available: true, reason: 'This is your current handle.' };
+      const taken = await c.db.get('SELECT 1 AS x FROM users WHERE handle = $1', [h.data]);
+      return taken ? { available: false, reason: 'That handle is already taken.' } : { available: true, reason: 'Available.' };
+    });
+
     router.patch('/api/profile', { auth: 'active', body: profilePatch, rate: { key: 'profile:patch', limit: 60, windowMs: 10 * 60_000 } }, async (c) => {
       const b = c.body as z.infer<typeof profilePatch>;
       const now = c.now().toISOString();

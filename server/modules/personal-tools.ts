@@ -21,6 +21,14 @@ async function need(c: Ctx<any, any>, tool: Tool, label: string) {
 }
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const today = (c: Ctx<any, any>) => c.now().toISOString().slice(0, 10);
+// Habit schedules are evaluated in the time zone they were set in, so "today" and "due" mean the person's own day.
+const validTz = (tz: string) => { try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); return true; } catch { return false; } };
+export function localParts(now: Date, tz: string): { date: string; weekday: number; minutes: number } {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: validTz(tz) ? tz : 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23' });
+  const p = Object.fromEntries(f.formatToParts(now).map((x) => [x.type, x.value])); const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(String(p.weekday));
+  return { date: `${p.year}-${p.month}-${p.day}`, weekday: wd, minutes: Number(p.hour) * 60 + Number(p.minute) };
+}
+const habitSchedule = { days: z.array(z.number().int().min(0).max(6)).max(7).default([]), timeOfDay: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a time like 18:30.').nullable().default(null), timezone: z.string().max(64).refine(validTz, 'Unknown time zone.').default('UTC'), reminder: z.boolean().default(false) };
 
 function streak(days: string[], todayStr: string): { current: number; best: number } {
   const set = new Set(days);
@@ -116,28 +124,42 @@ export const personalToolsModule: ModuleDef = {
     // ───────── habits ─────────
     const habitOut = async (c: Ctx<any, any>, h: any) => {
       const days = (await c.db.query<{ day: string }>('SELECT day FROM habit_checkins WHERE habit_id = $1 ORDER BY day DESC LIMIT 400', [h.id])).map((d) => d.day);
-      const t = today(c); const weekAgo = new Date(new Date(t).getTime() - 6 * 86400_000).toISOString().slice(0, 10);
-      return { id: h.id, title: h.title, cadence: h.cadence, targetPerWeek: Number(h.target_per_week), archived: !!h.archived_at, doneToday: days.includes(t), last7: days.filter((d) => d >= weekAgo).length, ...streak(days, t), recent: days.slice(0, 14) };
+      const tz = String(h.timezone ?? 'UTC'); const lp = localParts(c.now(), tz); const t = lp.date;
+      const weekAgo = new Date(new Date(t).getTime() - 6 * 86400_000).toISOString().slice(0, 10);
+      const sched: number[] = String(h.days ?? '').split(',').filter((x: string) => x !== '').map(Number); const timeOfDay: string | null = h.time_of_day ?? null;
+      const scheduledToday = sched.length === 0 || sched.includes(lp.weekday); const doneToday = days.includes(t);
+      const due = timeOfDay ? Number(timeOfDay.slice(0, 2)) * 60 + Number(timeOfDay.slice(3)) : 0;
+      return { id: h.id, title: h.title, cadence: h.cadence, targetPerWeek: Number(h.target_per_week), archived: !!h.archived_at, doneToday, last7: days.filter((d) => d >= weekAgo).length, ...streak(days, t), recent: days.slice(0, 14),
+        days: sched, timeOfDay, timezone: tz, reminder: !!h.reminder, scheduledToday,
+        // "due" is evaluated on the server in the habit's own time zone. Reminders are shown inside FREEVERSE; push/email delivery is not built.
+        dueNow: !!h.reminder && scheduledToday && !doneToday && lp.minutes >= due };
     };
     router.get('/api/habits', { auth: 'active' }, async (c) => {
       await need(c, 'habitsEnabled', 'habits');
       const rows = await c.db.query<any>('SELECT * FROM habits WHERE user_id = $1 AND archived_at IS NULL ORDER BY created_at LIMIT 50', [c.me.userId]);
       return { items: await Promise.all(rows.map((h) => habitOut(c, h))) };
     });
-    router.post('/api/habits', { auth: 'active', body: z.object({ title: z.string().trim().min(2).max(80), cadence: z.enum(['daily', 'weekly']).default('daily'), targetPerWeek: z.number().int().min(1).max(7).default(7) }).strict() }, async (c) => {
+    router.post('/api/habits', { auth: 'active', body: z.object({ title: z.string().trim().min(2).max(80), cadence: z.enum(['daily', 'weekly']).default('daily'), targetPerWeek: z.number().int().min(1).max(7).default(7), ...habitSchedule }).strict() }, async (c) => {
       await need(c, 'habitsEnabled', 'habits');
       const n = await c.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM habits WHERE user_id = $1 AND archived_at IS NULL', [c.me.userId]);
       if (Number(n?.n) >= 20) throw conflict('That is plenty of habits. Archive one before adding another.', 'quota_exceeded');
       const hid = uuid();
-      await c.db.run('INSERT INTO habits (id, user_id, title, cadence, target_per_week, created_at) VALUES ($1,$2,$3,$4,$5,$6)', [hid, c.me.userId, c.body.title, c.body.cadence, c.body.cadence === 'weekly' ? Math.min(c.body.targetPerWeek, 7) : c.body.targetPerWeek, c.now().toISOString()]);
+      await c.db.run('INSERT INTO habits (id, user_id, title, cadence, target_per_week, created_at, days, time_of_day, timezone, reminder) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [hid, c.me.userId, c.body.title, c.body.cadence, c.body.cadence === 'weekly' ? Math.min(c.body.targetPerWeek, 7) : c.body.targetPerWeek, c.now().toISOString(), [...new Set(c.body.days)].sort().join(','), c.body.timeOfDay, c.body.timezone, c.body.reminder]);
       return created({ habit: await habitOut(c, await c.db.get('SELECT * FROM habits WHERE id = $1', [hid])) });
+    });
+    router.patch('/api/habits/:id', { auth: 'active', body: z.object({ title: z.string().trim().min(2).max(80).optional(), days: habitSchedule.days.optional(), timeOfDay: habitSchedule.timeOfDay.optional(), timezone: habitSchedule.timezone.optional(), reminder: z.boolean().optional() }).strict() }, async (c) => {
+      await need(c, 'habitsEnabled', 'habits');
+      const h = await c.db.get<any>('SELECT * FROM habits WHERE id = $1 AND user_id = $2 AND archived_at IS NULL', [id.safeParse(c.params.id).data ?? '', c.me.userId]);
+      if (!h) throw notFound();
+      const b = c.body;
+      await c.db.run('UPDATE habits SET title = $2, days = $3, time_of_day = $4, timezone = $5, reminder = $6 WHERE id = $1', [h.id, b.title ?? h.title, b.days !== undefined ? [...new Set(b.days)].sort().join(',') : h.days, b.timeOfDay !== undefined ? b.timeOfDay : h.time_of_day, b.timezone ?? h.timezone, b.reminder !== undefined ? b.reminder : !!h.reminder]);
+      return { habit: await habitOut(c, await c.db.get('SELECT * FROM habits WHERE id = $1', [h.id])) };
     });
     router.post('/api/habits/:id/checkin', { auth: 'active', body: z.object({ day: day.optional(), undo: z.boolean().default(false) }).strict() }, async (c) => {
       await need(c, 'habitsEnabled', 'habits');
       const h = await c.db.get<any>('SELECT * FROM habits WHERE id = $1 AND user_id = $2', [id.safeParse(c.params.id).data ?? '', c.me.userId]);
       if (!h) throw notFound();
-      const d = c.body.day ?? today(c);
-      const t = today(c);
+      const t = localParts(c.now(), String(h.timezone ?? 'UTC')).date; const d = c.body.day ?? t;
       if (d > t) throw conflict('You can’t check in for a day that hasn’t happened yet.', 'future_day');
       if (new Date(t).getTime() - new Date(d).getTime() > 7 * 86400_000) throw conflict('You can fix check-ins up to a week back.', 'too_old');
       if (c.body.undo) await c.db.run('DELETE FROM habit_checkins WHERE habit_id = $1 AND day = $2', [h.id, d]);

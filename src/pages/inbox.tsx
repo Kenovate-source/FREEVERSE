@@ -28,6 +28,7 @@ export function MessagesPage(_: P) {
 export function ConversationPage({ params }: P) {
   const { say } = useToast(); const conv = useResource(() => api.get<{ conversation: ConversationView }>(`/api/conversations/${params.id}`), [params.id]);
   const msgs = useResource(() => api.get<{ items: MessageView[]; pendingRequest: boolean }>(`/api/conversations/${params.id}/messages`), [params.id]);
+  const prefs = useResource(() => api.get<{ settings: { messaging: { enterToSend: boolean; density: 'comfortable' | 'compact' } } }>('/api/settings'), []); const mp = prefs.data?.settings.messaging;
   const [text, setText] = useState(''); const [busy, setBusy] = useState(false); const [rep, setRep] = useState(false); const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs.data?.items.length]);
   useEffect(() => { const t = setInterval(() => msgs.reload(), 15000); return () => clearInterval(t); /* eslint-disable-next-line */ }, [params.id]);
@@ -38,11 +39,11 @@ export function ConversationPage({ params }: P) {
       <PageHead title={c.other.displayName} back={{ to: '/messages', label: 'Messages' }} actions={<>{c.other.handle && <Link className="btn btn-ghost btn-sm" to={`/u/${c.other.handle}`}>Profile</Link>}<Button size="sm" variant="ghost" onClick={() => setRep(true)}><Icon name="flag" size={14} /> Report</Button></>} />
       {c.status === 'request' && <Notice tone="warn" title="Message request">Replying accepts it. Declining hides it.<div className="row-wrap"><Button size="sm" variant="primary" onClick={() => void act('accept')}>Accept</Button><Button size="sm" onClick={() => void act('decline')}>Decline</Button></div></Notice>}
       {c.awaitingAcceptance && <Notice>{c.other.displayName} hasn’t accepted yet. They’ll see your message as a request.</Notice>}
-      <div className="thread" role="log" aria-live="polite" aria-label="Messages">
+      <div className="thread" data-density={mp?.density ?? 'comfortable'} role="log" aria-live="polite" aria-label="Messages">
         {msgs.data?.items.map((m) => <div key={m.id} className={`bubble ${m.mine ? 'mine' : 'theirs'}`}>{m.deleted ? <em className="faint">Message deleted</em> : m.body}<div className="faint small">{timeAgo(m.at, Date.now())}{m.mine && m.seen ? ' · Seen' : ''}{m.mine && !m.deleted && <> · <button type="button" className="linkish" onClick={async () => { await api.del(`/api/messages/${m.id}`); msgs.reload(); }}>Delete</button></>}</div></div>)}
         <div ref={end} />
       </div>
-      {c.canSend ? <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void send(); }}><TextArea label="Message" value={text} onChange={(e) => setText(e.target.value)} maxLength={MESSAGE_LIMITS.bodyMax} rows={2} /><Button type="submit" variant="primary" busy={busy} disabled={!text.trim()}>Send</Button></form> : <Notice>{c.cannotSendReason ?? 'You can’t send messages here.'}</Notice>}
+      {c.canSend ? <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void send(); }}><TextArea label="Message" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (mp?.enterToSend && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (text.trim() && !busy) void send(); } }} maxLength={MESSAGE_LIMITS.bodyMax} rows={2} /><Button type="submit" variant="primary" busy={busy} disabled={!text.trim()}>Send</Button></form> : <Notice>{c.cannotSendReason ?? 'You can’t send messages here.'}</Notice>}
       <ReportDialog target={rep && msgs.data?.items.length ? { type: 'user', id: c.other.id ?? '' } : null} onClose={() => setRep(false)} />
     </div>)}</Async>;
 }

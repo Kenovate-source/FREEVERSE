@@ -34,6 +34,14 @@ function Shell({ id, label, hint, error, optional, children }: FieldShell & { id
 }
 const aria = (id: string, hint: unknown, error: unknown) => ({ 'aria-invalid': error ? true : undefined, 'aria-describedby': [hint ? `${id}-h` : '', error ? `${id}-e` : ''].filter(Boolean).join(' ') || undefined });
 export function TextField({ label, hint, error, optional, ...r }: FieldShell & InputHTMLAttributes<HTMLInputElement>) { const id = useId(); return <Shell {...{ id, label, hint, error, optional }}><input id={id} className="input" {...aria(id, hint, error)} {...r} /></Shell>; }
+/** Password input with a show/hide control. `rules` adds a live checklist (only rules the server really enforces). */
+export function PasswordField({ label, hint, error, rules, ...r }: FieldShell & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { rules?: { label: string; ok: boolean }[] }) {
+  const id = useId(); const [show, setShow] = useState(false);
+  return <Shell {...{ id, label, hint, error, optional: false }}>
+    <div className="pw-wrap"><input id={id} className="input" {...aria(id, hint, error)} {...r} type={show ? 'text' : 'password'} /><button type="button" className="pw-toggle" aria-pressed={show} aria-controls={id} onClick={() => setShow((v) => !v)}>{show ? 'Hide' : 'Show'}<span className="sr-only"> password</span></button></div>
+    {rules && <ul className="pw-rules" aria-label="Password requirements">{rules.map((x) => <li key={x.label} data-ok={x.ok}><span aria-hidden="true">{x.ok ? '✓' : '○'}</span> {x.label}<span className="sr-only">{x.ok ? ' (met)' : ' (not met yet)'}</span></li>)}</ul>}
+  </Shell>;
+}
 export function TextArea({ label, hint, error, optional, ...r }: FieldShell & TextareaHTMLAttributes<HTMLTextAreaElement>) { const id = useId(); return <Shell {...{ id, label, hint, error, optional }}><textarea id={id} className="textarea" {...aria(id, hint, error)} {...r} /></Shell>; }
 export function SelectField({ label, hint, error, optional, children, ...r }: FieldShell & SelectHTMLAttributes<HTMLSelectElement>) { const id = useId(); return <Shell {...{ id, label, hint, error, optional }}><select id={id} className="select" {...aria(id, hint, error)} {...r}>{children}</select></Shell>; }
 export function Check({ label, hint, ...r }: { label: ReactNode; hint?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) { const id = useId(); return <div className="check"><input id={id} type="checkbox" {...r} /><label htmlFor={id}><span>{label}</span>{hint && <span className="hint" style={{ display: 'block' }}>{hint}</span>}</label></div>; }

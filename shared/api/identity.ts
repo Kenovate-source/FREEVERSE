@@ -8,7 +8,7 @@ export interface SuggestionView { id: string; kind: EntryKind; draft: { title: s
 export interface AchievementView { id: string; archetype: Archetype; label: string; description: string; earned: boolean; progress: number; target: number }
 
 export type OnboardingPath = 'identity_first' | 'guided_discovery';
-export type OnboardingStep = { id: string; kind: 'path' | 'intents' | 'suggest' | 'identities' | 'identity' | 'interests' | 'privacy' | 'finish'; title: string; archetype?: Archetype; optional: boolean; quick?: boolean };
+export type OnboardingStep = { id: string; kind: 'path' | 'intents' | 'suggest' | 'identities' | 'identity' | 'profile' | 'interests' | 'privacy' | 'finish'; title: string; archetype?: Archetype; optional: boolean; quick?: boolean };
 export interface OnboardingState { completed: boolean; path: OnboardingPath | null; step: string | null; intents: string[]; selected: Archetype[]; primary: Archetype | null; steps: OnboardingStep[]; suggestions: { archetype: Archetype; because: string[] }[]; answers: Record<string, Record<string, unknown>> }
 
 export interface WidgetData { id: string; title: string; source: string; wide: boolean; href: string | null; empty: string; items: { title: string; subtitle: string | null; href: string | null; progress?: number }[]; planned: boolean }

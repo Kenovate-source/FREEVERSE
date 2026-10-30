@@ -15,7 +15,7 @@ const MAX_PICK = 4;
 export function buildSteps(path: OnboardingPath | null, selected: Archetype[]): OnboardingStep[] {
   if (!path) return [];
   const identitySteps = (quick: boolean): OnboardingStep[] => selected.map((a) => ({ id: `identity:${a}`, kind: 'identity', title: `About you as a ${ARCHETYPE_DEFS[a].label.toLowerCase()}`, archetype: a, optional: true, quick }));
-  const tail: OnboardingStep[] = [{ id: 'interests', kind: 'interests', title: 'Interests', optional: true }, { id: 'privacy', kind: 'privacy', title: 'Your privacy', optional: true }, { id: 'finish', kind: 'finish', title: 'All set', optional: false }];
+  const tail: OnboardingStep[] = [{ id: 'profile', kind: 'profile', title: 'Your name and handle', optional: true }, { id: 'interests', kind: 'interests', title: 'Interests', optional: true }, { id: 'privacy', kind: 'privacy', title: 'Your privacy', optional: true }, { id: 'finish', kind: 'finish', title: 'All set', optional: false }];
   // Path A leads with who you are and asks every question for each identity. Path B leads with what you want to do,
   // suggests identities from that, and keeps the follow-ups short. Same account, same data, different journey.
   if (path === 'identity_first') return [{ id: 'identities', kind: 'identities', title: 'Who are you here as?', optional: true }, ...identitySteps(false), ...tail];
