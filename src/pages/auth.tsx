@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, navigate, useQuery } from '../lib/router';
 import { useSession } from '../state/session';
 import { api } from '../api/client';
-import { Button, Check, TextField, SelectField, Notice, errMsg, fieldErrors } from '../ui/kit';
+import { Button, Check, PasswordField, TextField, SelectField, Notice, errMsg, fieldErrors } from '../ui/kit';
 import { validateEmail, validatePassword } from '../lib/validate';
 
 function AuthFrame({ title, intro, children }: { title: string; intro?: string; children: React.ReactNode }) {
@@ -30,7 +30,7 @@ export function SignIn() {
         {noticeText && <Notice tone="warn">{noticeText}</Notice>}
         {err && <Notice tone="warn">{err}</Notice>}
         <TextField label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fe.email} />
-        <TextField label="Password" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} error={fe.pw} />
+        <PasswordField label="Password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} error={fe.pw} />
         <Button type="submit" variant="primary" block busy={busy}>Sign in</Button>
         <p className="muted center"><Link to="/recover">Forgot your password?</Link></p>
       </form>
@@ -40,9 +40,9 @@ export function SignIn() {
 }
 
 export function SignUp() {
-  const { signUp, config } = useSession(); const [email, setEmail] = useState(''); const [pw, setPw] = useState(''); const [age, setAge] = useState(false); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [fe, setFe] = useState<Record<string, string>>({}); const [sent, setSent] = useState(false);
+  const { signUp, config } = useSession(); const [email, setEmail] = useState(''); const [pw, setPw] = useState(''); const [pw2, setPw2] = useState(''); const [age, setAge] = useState(false); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [fe, setFe] = useState<Record<string, string>>({}); const [sent, setSent] = useState(false);
   const submit = async (e: FormEvent) => {
-    e.preventDefault(); const f: Record<string, string> = {}; const a = validateEmail(email); const b = validatePassword(pw); if (a) f.email = a; if (b) f.pw = b; if (!age) f.age = `Please confirm you are an adult aged ${config?.eligibility.min ?? 18} or over.`; setFe(f); if (Object.keys(f).length) return;
+    e.preventDefault(); const f: Record<string, string> = {}; const a = validateEmail(email); const b = validatePassword(pw); if (a) f.email = a; if (b) f.pw = b; else if (pw2 !== pw) f.pw2 = 'The two passwords don’t match.'; if (!age) f.age = `Please confirm you are an adult aged ${config?.eligibility.min ?? 18} or over.`; setFe(f); if (Object.keys(f).length) return;
     setBusy(true); setErr(null);
     try { const r = await signUp(email.trim(), pw); if (r.needsEmailConfirmation) setSent(true); else navigate('/eligibility'); } catch (x) { setErr(errMsg(x)); setFe((p) => ({ ...p, ...fieldErrors(x) })); } finally { setBusy(false); }
   };
@@ -52,7 +52,8 @@ export function SignUp() {
       <form className="stack" onSubmit={submit} noValidate>
         {err && <Notice tone="warn">{err}</Notice>}
         <TextField label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fe.email} />
-        <TextField label="Password" type="password" autoComplete="new-password" hint="At least 8 characters. We never store it ourselves; a managed sign-in service does." value={pw} onChange={(e) => setPw(e.target.value)} error={fe.pw ?? fe.password} />
+        <PasswordField label="Password" autoComplete="new-password" hint="We never store it ourselves; a managed sign-in service does." rules={[{ label: 'At least 8 characters', ok: pw.length >= 8 }]} value={pw} onChange={(e) => setPw(e.target.value)} error={fe.pw ?? fe.password} />
+        <PasswordField label="Confirm password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} error={fe.pw2} rules={pw2 ? [{ label: 'Matches your password', ok: pw2 === pw }] : undefined} />
         <div><Check label={`I’m an adult aged ${config?.eligibility.min ?? 18} or over`} checked={age} onChange={(e) => setAge(e.target.checked)} aria-invalid={fe.age ? true : undefined} />{fe.age && <p className="error-text" role="alert">{fe.age}</p>}</div>
         <Button type="submit" variant="primary" block busy={busy}>Create account</Button>
       </form>
@@ -121,7 +122,7 @@ export function ResetPassword() {
     <AuthFrame title="Choose a new password" intro="Pick a password you don’t use anywhere else.">
       <form className="stack" onSubmit={submit} noValidate>
         {err && <Notice tone="warn">{err}</Notice>}
-        <TextField label="New password" type="password" autoComplete="new-password" hint="At least 8 characters." value={pw} onChange={(e) => setPw(e.target.value)} />
+        <PasswordField label="New password" autoComplete="new-password" rules={[{ label: 'At least 8 characters', ok: pw.length >= 8 }]} value={pw} onChange={(e) => setPw(e.target.value)} />
         <Button type="submit" variant="primary" block busy={busy}>Update password</Button>
         <p className="muted center"><button type="button" className="link-btn" onClick={() => void signOut()}>Cancel and sign out</button></p>
       </form>

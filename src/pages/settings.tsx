@@ -89,7 +89,10 @@ function NotifS() {
 }
 function MsgS() {
   const { res, patch } = useSettings();
-  return <><H>Messaging</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><Switch label="Read receipts" checked={s.messaging.readReceipts} onChange={(v) => void patch({ messaging: { readReceipts: v } })} hint="When off, others can’t see that you’ve read their messages, and you can’t see theirs." /><Switch label="Allow message requests" checked={s.messaging.allowMessageRequests} onChange={(v) => void patch({ messaging: { allowMessageRequests: v } })} hint="First messages from people you don’t follow go to Requests. Who can message you at all is under Privacy." /></Card>}</Async></>;
+  return <><H>Messaging</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><Switch label="Read receipts" checked={s.messaging.readReceipts} onChange={(v) => void patch({ messaging: { readReceipts: v } })} hint="When off, others can’t see that you’ve read their messages, and you can’t see theirs." /><Switch label="Allow message requests" checked={s.messaging.allowMessageRequests} onChange={(v) => void patch({ messaging: { allowMessageRequests: v } })} hint="First messages from people you don’t follow go to Requests." />
+    <p className="hint">Who can message you at all (anyone, only connections, or no one) is set in <Link to="/settings/privacy">Privacy & visibility</Link>.</p>
+    <Switch label="Press Enter to send" checked={s.messaging.enterToSend} onChange={(v) => void patch({ messaging: { enterToSend: v } })} hint="Shift+Enter adds a new line. Off by default so a message is never sent by accident." />
+    <SelectField label="Conversation density" value={s.messaging.density} onChange={(e) => void patch({ messaging: { density: e.target.value as 'comfortable' | 'compact' } })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></SelectField></Card>}</Async></>;
 }
 function MotionNote() { const m = useMotion(); return <p className="faint" role="status" data-testid="motion-note">Right now: <strong>{m.level === 'less' ? 'Less' : m.level === 'off' ? 'Off' : 'Full'}</strong> ({m.mode} mode). {m.reason}.</p>; }
 function A11yS() {

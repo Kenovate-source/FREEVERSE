@@ -44,3 +44,18 @@ for (const dialect of DIALECTS) {
     });
   });
 }
+
+// Handle availability (used live by the onboarding step).
+describe('handle availability', () => {
+  let t: TestApp; let a: { token: string };
+  before(async () => { t = await startTestApp('sqlite'); a = await t.member('h1@example.com', { handle: 'taken_one', name: 'H One' }); await t.member('h2@example.com', { handle: 'other_two', name: 'H Two' }); });
+  after(async () => { await t.close(); });
+  test('reports available, taken, own, invalid and reserved handles, and needs sign-in', async () => {
+    const q = (h: string, tok = a.token) => t.call('GET', `/api/handles/check?handle=${encodeURIComponent(h)}`, { token: tok });
+    assert.equal((await q('fresh_name')).json.available, true);
+    assert.equal((await q('other_two')).json.available, false);
+    assert.equal((await q('taken_one')).json.available, true, 'own handle counts as available');
+    assert.equal((await q('x')).json.available, false); assert.equal((await q('admin')).json.available, false);
+    assert.equal((await t.call('GET', '/api/handles/check?handle=abc')).status, 401);
+  });
+});

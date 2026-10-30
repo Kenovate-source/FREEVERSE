@@ -58,7 +58,7 @@ for (const dialect of DIALECTS) {
       assert.equal(pa.steps[0].kind, 'identities'); assert.equal(pb.steps[0].kind, 'intents'); assert.equal(pb.steps[1].kind, 'suggest');
       // Path A: pick identities → every question for each
       const sa = (await t.call('PUT', '/api/onboarding/identities', { token: a.token, body: { archetypes: ['student', 'creator'], primary: 'creator' } })).json.state;
-      assert.deepEqual(sa.steps.map((x: any) => x.id), ['identities', 'identity:creator', 'identity:student', 'interests', 'privacy', 'finish']);
+      assert.deepEqual(sa.steps.map((x: any) => x.id), ['identities', 'identity:creator', 'identity:student', 'profile', 'interests', 'privacy', 'finish']);
       assert.equal(sa.primary, 'creator'); assert.ok(sa.steps.filter((x: any) => x.kind === 'identity').every((x: any) => x.quick === false));
       // Path B: intents → suggestions → quick follow-ups
       const ib = (await t.call('PUT', '/api/onboarding/intents', { token: b.token, body: { intents: ['build', 'work', 'bogus'] } })).json.state;

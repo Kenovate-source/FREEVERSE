@@ -36,6 +36,17 @@ export const Widget = ({ w }: { w: WidgetData }) => (
 );
 
 // ───────── Home ─────────
+/** "What needs me now": only real, current signals. Nothing is shown for a tool the person hasn't switched on. */
+function TodayCard() {
+  const { badges } = useSession();
+  const habits = useResource(async () => { const st = await api.get<{ settings: { nova: { habitsEnabled: boolean } } }>('/api/settings').catch(() => null); if (!st?.settings.nova.habitsEnabled) return { items: [] as { id: string; title: string; dueNow: boolean; doneToday: boolean; scheduledToday: boolean }[] }; return api.get<{ items: { id: string; title: string; dueNow: boolean; doneToday: boolean; scheduledToday: boolean }[] }>('/api/habits').catch(() => ({ items: [] })); }, []);
+  const due = habits.data?.items.filter((h) => h.dueNow) ?? []; const todo = habits.data?.items.filter((h) => h.scheduledToday && !h.doneToday) ?? [];
+  const rows: { key: string; to: string; text: string }[] = [];
+  if (badges.messages > 0) rows.push({ key: 'm', to: '/messages', text: `${badges.messages} unread message${badges.messages > 1 ? 's' : ''}` });
+  if (badges.notifications > 0) rows.push({ key: 'n', to: '/notifications', text: `${badges.notifications} unread notification${badges.notifications > 1 ? 's' : ''}` });
+  if (due.length) rows.push({ key: 'd', to: '/ai/habits', text: `Due now: ${due.map((h) => h.title).join(', ')}` }); else if (todo.length) rows.push({ key: 't', to: '/ai/habits', text: `${todo.length} habit${todo.length > 1 ? 's' : ''} to do today` });
+  return <Card aria-label="Today"><h2 className="h-sm">Today</h2>{rows.length === 0 ? <p className="muted">You’re all caught up.</p> : <ul className="plain stack-sm">{rows.map((r) => <li key={r.key}><Link to={r.to}>{r.text}</Link></li>)}</ul>}</Card>;
+}
 export function HomePage(_: P) {
   const home = useResource(() => api.get<HomeView>('/api/home'), []); const comms = useResource(() => api.get<{ items: CommunityView[] }>('/api/communities?joined=1'), []);
   const [sort, setSort] = useState<'recent' | 'relevant' | 'following'>('recent'); const { n, bump } = useFeedReload();
@@ -44,6 +55,7 @@ export function HomePage(_: P) {
       <Async res={home}>{(h) => (<>
         <PageHead title={h.greeting}>{h.mode === 'identity' ? 'Your home adapts to the identities you’ve chosen. Change them any time.' : 'Pick an identity to get a home shaped around what you do.'}</PageHead>
         {h.identities.length > 0 && <div className="row-wrap" aria-label="Your identities">{h.identities.map((i) => <Link key={i.id} to={`/spaces/${i.archetype}`} className="chip chip-link"><Icon name={i.icon} size={14} /> {i.label}</Link>)}</div>}
+        <TodayCard />
         {h.nextSteps.length > 0 && <Card><h2 className="h-sm">Next steps</h2><ul className="plain stack-sm">{h.nextSteps.map((s) => <li key={s.id}><Link to={s.href}><strong>{s.title}</strong></Link><div className="muted">{s.description}</div></li>)}</ul></Card>}
         {h.widgets.length > 0 && <div className="grid-cards">{h.widgets.map((w) => <Widget key={w.id} w={w} />)}</div>}
       </>)}</Async>

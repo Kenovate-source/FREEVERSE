@@ -62,6 +62,7 @@ export function Onboarding() {
         {step.kind === 'intents' && <Intents {...props} />}
         {step.kind === 'suggest' && <Suggest {...props} />}
         {step.kind === 'identity' && step.archetype && <IdentityQuestions key={step.id} arch={step.archetype} quick={!!step.quick} {...props} />}
+        {step.kind === 'profile' && <ProfileStep {...props} />}
         {step.kind === 'interests' && <Interests {...props} suggested={st.selected.flatMap((a) => ARCHETYPE_DEFS[a].suggestTags)} />}
         {step.kind === 'privacy' && <PrivacyStep {...props} />}
         {step.kind === 'finish' && <Finish st={st} onDone={finish} busy={busy} />}
@@ -167,6 +168,30 @@ function Interests({ run, busy, next, suggested }: P & { suggested: string[] }) 
   );
 }
 
+function ProfileStep({ run, busy, next }: P) {
+  const res = useResource(() => api.get<{ profile: { displayName: string; handle: string; bio: string | null } }>('/api/profile'), []);
+  const [f, setF] = useState<{ displayName: string; handle: string; bio: string } | null>(null);
+  const [chk, setChk] = useState<{ available: boolean; reason: string } | null>(null); const [fe, setFe] = useState<Record<string, string>>({});
+  useEffect(() => { if (res.data && !f) setF({ displayName: res.data.profile.displayName, handle: res.data.profile.handle ?? '', bio: res.data.profile.bio ?? '' }); }, [res.data, f]);
+  // debounced availability check as the person types
+  useEffect(() => {
+    if (!f || !f.handle || f.handle === res.data?.profile.handle) { setChk(f?.handle ? { available: true, reason: 'This is your current handle.' } : null); return; }
+    const t = window.setTimeout(() => { api.get<{ available: boolean; reason: string }>(`/api/handles/check?handle=${encodeURIComponent(f.handle)}`).then(setChk).catch(() => setChk(null)); }, 400);
+    return () => clearTimeout(t);
+  }, [f?.handle, res.data?.profile.handle]);
+  if (!f) return <Loading rows={2} />;
+  const save = async () => {
+    const errs: Record<string, string> = {}; if (f.displayName.trim().length < 2) errs.displayName = 'Use at least 2 characters.'; if (chk && !chk.available) errs.handle = chk.reason; setFe(errs); if (Object.keys(errs).length) return;
+    const r = await run(() => api.patch('/api/profile', { displayName: f.displayName, handle: f.handle.toLowerCase(), bio: f.bio || null })); if (r) next();
+  };
+  return (
+    <section className="stack-lg"><header className="stack-sm"><h1 id="page-title" tabIndex={-1}>What should we call you?</h1><p className="muted">Your display name and handle are how people find you. Your photo, avatar and the rest of your profile can wait: you can finish them any time from your profile.</p></header>
+      <TextField label="Display name" value={f.displayName} maxLength={60} autoComplete="nickname" onChange={(e) => setF({ ...f, displayName: e.target.value })} error={fe.displayName} />
+      <TextField label="Handle" value={f.handle} maxLength={24} autoComplete="off" autoCapitalize="none" spellCheck={false} onChange={(e) => setF({ ...f, handle: e.target.value.replace(/^@/, '') })} error={fe.handle} hint={chk ? <span role="status" data-ok={chk.available}>{chk.available ? '✓ ' : '✗ '}{chk.reason}</span> : '3–24 letters, numbers, dots or underscores.'} />
+      <TextField label="A line about you" optional value={f.bio} maxLength={500} onChange={(e) => setF({ ...f, bio: e.target.value })} hint="Optional. Shown on your profile, never required." />
+      <div className="row-wrap"><Button variant="primary" onClick={() => void save()} busy={busy}>Continue</Button><Button variant="ghost" onClick={next}>Skip for now</Button></div></section>
+  );
+}
 function PrivacyStep({ run, busy, next }: P) {
   const [p, setP] = useState<'open' | 'balanced' | 'private'>('balanced');
   const save = async () => { const r = await run(() => api.post('/api/privacy/preset', { preset: p })); if (r) next(); };

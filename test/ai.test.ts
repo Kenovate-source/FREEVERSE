@@ -84,6 +84,26 @@ for (const dialect of DIALECTS) {
       } finally { await capped.close(); }
     });
 
+    test('habit schedules: days, 24-hour time, time zone, due logic, edit and delete', async () => {
+      t.clock.set('2026-10-15T12:00:00.000Z'); // a Thursday; pinned so the weekday and time-zone maths are exact
+      await t.call('PATCH', '/api/settings', { token: a.token, body: { nova: { habitsEnabled: true } } });
+      const bad = (body: object) => t.call('POST', '/api/habits', { token: a.token, body: { title: 'Stretch', ...body } });
+      assert.equal((await bad({ timeOfDay: '6:30 PM' })).status, 400, 'ambiguous 12-hour text is refused');
+      assert.equal((await bad({ timeOfDay: '25:00' })).status, 400); assert.equal((await bad({ days: [7] })).status, 400); assert.equal((await bad({ timezone: 'Mars/Base' })).status, 400);
+      // Clock is 2026-10-15 12:00Z, a Thursday. Lagos is UTC+1, so it is 13:00 there; Kiritimati (+14) is already Friday 02:00.
+      const lagos = (await bad({ title: 'Evening walk', days: [4], timeOfDay: '18:30', timezone: 'Africa/Lagos', reminder: true })).json.habit;
+      assert.deepEqual(lagos.days, [4]); assert.equal(lagos.timeOfDay, '18:30'); assert.equal(lagos.scheduledToday, true); assert.equal(lagos.dueNow, false, '18:30 has not passed at 13:00');
+      const early = (await bad({ title: 'Morning', days: [4], timeOfDay: '08:00', timezone: 'Africa/Lagos', reminder: true })).json.habit; assert.equal(early.dueNow, true);
+      const noRem = (await bad({ title: 'Quiet', timeOfDay: '08:00', timezone: 'Africa/Lagos' })).json.habit; assert.equal(noRem.dueNow, false, 'no reminder, never due');
+      const kiri = (await bad({ title: 'Island', days: [4], timezone: 'Pacific/Kiritimati' })).json.habit; assert.equal(kiri.scheduledToday, false, 'it is Friday there');
+      const edited = (await t.call('PATCH', `/api/habits/${lagos.id}`, { token: a.token, body: { timeOfDay: '07:15', days: [1, 3] } })).json.habit; assert.equal(edited.timeOfDay, '07:15'); assert.deepEqual(edited.days, [1, 3]); assert.equal(edited.scheduledToday, false);
+      const done = (await t.call('POST', `/api/habits/${early.id}/checkin`, { token: a.token, body: {} })).json.habit; assert.equal(done.doneToday, true); assert.equal(done.dueNow, false, 'done habits are not due');
+      await t.call('PATCH', '/api/settings', { token: b.token, body: { nova: { habitsEnabled: true } } });
+      assert.equal((await t.call('PATCH', `/api/habits/${lagos.id}`, { token: b.token, body: { title: 'hijack' } })).status, 404, 'not someone else’s habit');
+      assert.equal((await t.call('DELETE', `/api/habits/${lagos.id}`, { token: a.token })).status, 200);
+      assert.ok(!(await t.call('GET', '/api/habits', { token: a.token })).json.items.some((h: any) => h.id === lagos.id));
+    });
+
     test('personal tools are opt-in, private, and unreadable by moderators and the Founder', async () => {
       assert.equal((await t.call('GET', '/api/journal', { token: a.token })).status, 409); // off by default
       await t.call('PATCH', '/api/settings', { token: a.token, body: { nova: { journalEnabled: true, goalsEnabled: true, habitsEnabled: true } } });
