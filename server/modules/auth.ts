@@ -1,3 +1,4 @@
+import { signedMediaUrl } from '../services/media-urls';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { Router } from '../http/router';
@@ -28,6 +29,13 @@ function defaultAvatarConfig() {
   return { seed: randomBytes(6).toString('hex') };
 }
 
+/** The person's own avatar, exactly as they configured it, so the account menu matches what others see. */
+async function ownAvatar(s: Services, userId: string) {
+  const r = await s.db.get<any>('SELECT avatar_mode, avatar_config, avatar_media_id FROM profiles WHERE user_id = $1', [userId]);
+  const mode = (r?.avatar_mode ?? 'avatar') as 'avatar' | 'photo' | 'both'; const hasPhoto = !!r?.avatar_media_id && mode !== 'avatar';
+  let config: Record<string, unknown> = {}; try { config = typeof r?.avatar_config === 'string' ? JSON.parse(r.avatar_config) : (r?.avatar_config ?? {}); } catch { config = {}; }
+  return { mode: hasPhoto ? mode : 'avatar', config, photoUrl: hasPhoto ? signedMediaUrl(s, userId, r.avatar_media_id) : null };
+}
 export async function meView(s: Services, userId: string) {
   const p = await loadPrincipal(s.db, userId);
   if (!p) return null;
@@ -36,7 +44,7 @@ export async function meView(s: Services, userId: string) {
   const band = u && u.birth_month && u.birth_year ? ageBand(Number(u.birth_month), Number(u.birth_year), s.now()) : null;
   return {
     user: {
-      id: p.userId, status: p.status, handle: p.handle, displayName: p.displayName, email: p.email,
+      id: p.userId, status: p.status, handle: p.handle, displayName: p.displayName, email: p.email, avatar: await ownAvatar(s, p.userId),
       roles: p.roles, permissions: [...p.permissions].sort(), seatLevel: p.seatLevel,
       createdAt: u?.created_at ?? null,
       onboarding: { completed: p.onboardingCompleted, path: u?.onboarding_path ?? null, step: u?.onboarding_step ?? null },

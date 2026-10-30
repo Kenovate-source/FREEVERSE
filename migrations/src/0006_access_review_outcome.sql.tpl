@@ -1,0 +1,4 @@
+-- Access reviews: a review that is closed without applying its decisions is recorded as ended with outcome 'cancelled'.
+-- (status stays 'open' | 'completed' so existing constraints and history are untouched.)
+ALTER TABLE access_reviews ADD COLUMN outcome TEXT;
+ALTER TABLE access_reviews ADD COLUMN cancel_reason TEXT;

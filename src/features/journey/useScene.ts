@@ -28,7 +28,7 @@ export function useScene(stage: React.RefObject<HTMLElement | null>, journey: Re
     const run = () => loadImmersive().then((api) => {
       if (cancelled || !stage.current || !journey.current) return;
       handle.current = api.mount({
-        stage: stage.current, journey: journey.current, nodes: sceneNodes(), identityColors: identityColors(), labels: labels.current ?? {}, quality: m.quality, scrollLinked: m.scrollLinked, pointer: m.pointer,
+        stage: stage.current, journey: journey.current, nodes: sceneNodes(), identityColors: identityColors(), labels: labels.current ?? {}, quality: m.quality, scrollLinked: m.scrollLinked, pointer: m.pointer, drift: m.drift,
         onReady: () => { if (!cancelled) setState('ready'); },
         onError: (e) => { handle.current?.dispose(); handle.current = null; setState('error'); forceWebglUnavailable(e instanceof Error ? e.message : 'scene error'); },
       });
@@ -36,6 +36,6 @@ export function useScene(stage: React.RefObject<HTMLElement | null>, journey: Re
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
     const id = ric ? ric(run, { timeout: 1200 }) : window.setTimeout(run, 250);
     return () => { cancelled = true; if (ric) (window as unknown as { cancelIdleCallback?: (n: number) => void }).cancelIdleCallback?.(id); else clearTimeout(id); handle.current?.dispose(); handle.current = null; };
-  }, [m.scene3d, m.quality, m.scrollLinked, m.pointer, stage, journey, labels]);
+  }, [m.scene3d, m.quality, m.scrollLinked, m.pointer, m.drift, stage, journey, labels]);
   return { state, setHover: (id: string | null) => handle.current?.setHover(id), handle };
 }

@@ -116,7 +116,7 @@ export const governanceModule: ModuleDef = {
     // ───────── access ─────────
     router.get('/api/governance/access', { auth: { perm: 'access_review.view' } }, async (c) => {
       const rows = await c.db.query<any>(`SELECT g.id, g.role, g.granted_at, g.reason, g.seat_id, u.handle, u.display_name, gb.handle AS by_handle FROM role_grants g JOIN users u ON u.id = g.user_id LEFT JOIN users gb ON gb.id = g.granted_by WHERE g.revoked_at IS NULL ORDER BY g.role, g.granted_at`);
-      return { grants: rows.map((r) => ({ id: r.id, role: r.role, grantedAt: r.granted_at, reason: r.reason, holder: { handle: r.handle, displayName: r.display_name }, grantedBy: r.by_handle ?? null, seat: !!r.seat_id })), reviews: (await c.db.query<any>('SELECT id, status, started_at, completed_at FROM access_reviews ORDER BY started_at DESC LIMIT 20')).map((r) => ({ id: r.id, status: r.status, startedAt: r.started_at, completedAt: r.completed_at })) };
+      return { grants: rows.map((r) => ({ id: r.id, role: r.role, grantedAt: r.granted_at, reason: r.reason, holder: { handle: r.handle, displayName: r.display_name }, grantedBy: r.by_handle ?? null, seat: !!r.seat_id })), reviews: (await c.db.query<any>('SELECT id, status, outcome, started_at, completed_at FROM access_reviews ORDER BY started_at DESC LIMIT 20')).map((r) => ({ id: r.id, status: r.status, outcome: r.outcome ?? (r.status === 'completed' ? 'completed' : 'open'), startedAt: r.started_at, completedAt: r.completed_at })) };
     });
 
     router.post('/api/governance/access-reviews', { auth: { perm: 'access_review.run' } }, async (c) => {
@@ -135,12 +135,22 @@ export const governanceModule: ModuleDef = {
       const r = await c.db.get<any>('SELECT * FROM access_reviews WHERE id = $1', [id.safeParse(c.params.id).data ?? '']);
       if (!r) throw notFound();
       const items = await c.db.query<any>('SELECT i.id, i.role, i.decision, i.note, u.handle, u.display_name FROM access_review_items i LEFT JOIN users u ON u.id = i.user_id WHERE i.review_id = $1 ORDER BY i.role', [r.id]);
-      return { review: { id: r.id, status: r.status, startedAt: r.started_at }, items: items.map((i) => ({ id: i.id, role: i.role, decision: i.decision, note: i.note, holder: { handle: i.handle, displayName: i.display_name } })) };
+      const starter = r.started_by ? await c.db.get<any>('SELECT handle FROM users WHERE id = $1', [r.started_by]) : null;
+      return { review: { id: r.id, status: r.status, outcome: r.outcome ?? (r.status === 'completed' ? 'completed' : 'open'), startedAt: r.started_at, completedAt: r.completed_at ?? null, startedBy: starter?.handle ?? null, cancelReason: r.cancel_reason ?? null, decided: items.filter((i) => i.decision !== 'pending').length, total: items.length }, items: items.map((i) => ({ id: i.id, role: i.role, decision: i.decision, note: i.note, holder: { handle: i.handle, displayName: i.display_name } })) };
     });
 
     router.patch('/api/governance/access-reviews/:id/items/:itemId', { auth: { perm: 'access_review.run' }, body: z.object({ decision: z.enum(['keep', 'revoke']), note: z.string().trim().max(300).optional() }).strict() }, async (c) => {
       const r = await c.db.run("UPDATE access_review_items SET decision = $3, note = $4, decided_at = $5 WHERE id = $2 AND review_id = $1 AND EXISTS (SELECT 1 FROM access_reviews a WHERE a.id = $1 AND a.status = 'open')", [c.params.id, c.params.itemId, c.body.decision, c.body.note ?? null, c.now().toISOString()]);
       if (!r.changes) throw notFound();
+      return { ok: true };
+    });
+
+    router.post('/api/governance/access-reviews/:id/cancel', { auth: { perm: 'access_review.run' }, body: z.object({ reason: z.string().trim().min(5).max(300) }).strict() }, async (c) => {
+      const rv = await c.db.get<any>("SELECT * FROM access_reviews WHERE id = $1 AND status = 'open'", [id.safeParse(c.params.id).data ?? '']);
+      if (!rv) throw notFound('That review is not open.');
+      // Nothing is revoked or changed: cancelling only closes the record, which stays openable in the history.
+      await c.db.run("UPDATE access_reviews SET status = 'completed', outcome = 'cancelled', cancel_reason = $2, completed_at = $3 WHERE id = $1", [rv.id, c.body.reason, c.now().toISOString()]);
+      await audit(c.db, { actorId: c.me.userId, actorRole: roleName(c), action: 'access_review.cancelled', targetType: 'access_review', targetId: rv.id }, c.now());
       return { ok: true };
     });
 
@@ -159,7 +169,7 @@ export const governanceModule: ModuleDef = {
         const d = await wf(() => decide(s, p.id, { userId: c.me.userId, role: roleName(c), canDecide: c.can('proposals.decide') }, 'approve', 'Decided in access review.'));
         results.push({ role: i.role, status: d.status });
       }
-      await c.db.run("UPDATE access_reviews SET status = 'completed', completed_at = $2 WHERE id = $1", [rv.id, c.now().toISOString()]);
+      await c.db.run("UPDATE access_reviews SET status = 'completed', outcome = 'completed', completed_at = $2 WHERE id = $1", [rv.id, c.now().toISOString()]);
       await audit(c.db, { actorId: c.me.userId, actorRole: roleName(c), action: 'access_review.completed', targetType: 'access_review', targetId: rv.id, meta: { kept: items.length - revokes.length, revoked: revokes.length } }, c.now());
       return { ok: true, results };
     });

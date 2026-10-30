@@ -2,8 +2,20 @@
    Principles: native scrolling only; nothing pinned; decorative layers never sit above text; every effect has a still alternative. */
 
 /* ---------- motion modes (set on <html> by src/motion/store.ts) ---------- */
-html[data-motion-mode="reduced"] *, html[data-motion-mode="reduced"] *::before, html[data-motion-mode="reduced"] *::after { scroll-behavior: auto !important; }
+/* Off: nothing moves. No animation, no transition, content is visible immediately, decoration is hidden. */
+html[data-motion-mode="off"] *, html[data-motion-mode="off"] *::before, html[data-motion-mode="off"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+/* Less ("calm"): decoration drifts slowly; transitions are short opacity fades; no scroll-linked or pointer motion. */
+html[data-motion-mode="calm"] *, html[data-motion-mode="calm"] *::before, html[data-motion-mode="calm"] *::after { scroll-behavior: auto !important; }
+html[data-motion-mode="calm"] .spatial, html[data-motion-mode="calm"] [data-depth] { transform: none !important; }
 html[data-decor="still"] .decor-anim, html[data-decor="none"] .decor-anim { animation: none !important; }
+html[data-decor="slow"] .decor-anim { animation-duration: 40s !important; }
+/* Continuous rotation of the SVG version of the scene (the 3D scene has its own drift). Independent, opposing rings. */
+@keyframes oa-spin { to { transform: rotate(360deg); } } @keyframes oa-spin-rev { to { transform: rotate(-360deg); } }
+.orbit-art .oa-shells, .orbit-art .oa-identity { transform-box: view-box; transform-origin: 400px 400px; }
+html[data-decor="full"] .orbit-art .oa-shells { animation: oa-spin 240s linear infinite; }
+html[data-decor="full"] .orbit-art .oa-identity { animation: oa-spin-rev 150s linear infinite; }
+html[data-decor="slow"] .orbit-art .oa-shells { animation: oa-spin 600s linear infinite; }
+html[data-decor="slow"] .orbit-art .oa-identity { animation: oa-spin-rev 420s linear infinite; }
 html[data-decor="none"] .decor { display: none !important; }
 html[data-motion-mode="focus"] .decor { opacity: 0.35; }
 
@@ -80,7 +92,8 @@ html[data-decor="full"] .oa-core { animation: oa-float 9s ease-in-out infinite a
 /* reveal on scroll: visible by default; only hidden when JS is running and motion is allowed */
 .js-reveal .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 0.8, 0.2, 1); }
 .js-reveal .reveal.in { opacity: 1; transform: none; }
-html[data-motion-mode="reduced"] .reveal, html[data-motion="reduce"] .reveal, html[data-motion-mode="focus"] .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+html[data-motion-mode="calm"] .js-reveal .reveal { transform: none; transition: opacity 0.5s ease; }
+html[data-motion-mode="off"] .reveal, html[data-motion="reduce"] .reveal, html[data-motion-mode="focus"] .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 
 .scroll-cue { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; background: none; border: 0; color: var(--text-muted); font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.4rem 0; min-height: 44px; }
 .scene-labels { position: fixed; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
@@ -130,7 +143,7 @@ html[data-motion-mode="reduced"] .reveal, html[data-motion="reduce"] .reveal, ht
 
 /* ---------- spatial interaction primitives for the application ---------- */
 .spatial { transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.2, 1), box-shadow 0.28s, border-color 0.28s; }
-@media (hover: hover) { html:not([data-motion-mode="reduced"]):not([data-motion-mode="focus"]) .spatial:hover { transform: translateY(-3px); } }
+@media (hover: hover) { html:not([data-motion-mode="off"]):not([data-motion-mode="calm"]):not([data-motion-mode="focus"]) .spatial:hover { transform: translateY(-3px); } }
 .spatial:active { transform: translateY(0) scale(0.99); }
 
 /* ---------- Universe identity: hero artwork, layout rhythm and motion language ---------- */

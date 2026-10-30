@@ -12,17 +12,36 @@ const base: MotionInputs = { osReduce: false, pref: 'full', reduceAll: false, we
 
 describe('decideMotion', () => {
   test('full experience by default', () => { const d = decideMotion(base); assert.equal(d.mode, 'exploration'); assert.ok(d.scene3d && d.scrollLinked && d.pointer); assert.equal(d.quality, 'high'); });
-  test('OS reduce-motion: no 3D, no scroll-linking, no pointer effects', () => { const d = decideMotion({ ...base, osReduce: true }); assert.equal(d.mode, 'reduced'); assert.ok(!d.scene3d && !d.scrollLinked && !d.pointer); assert.equal(d.decor, 'still'); });
-  test('Settings "off" hides decoration entirely; "reduced" keeps it still', () => { assert.equal(decideMotion({ ...base, pref: 'off' }).decor, 'none'); assert.equal(decideMotion({ ...base, pref: 'reduced' }).decor, 'still'); });
-  test('reduce-all wins over everything', () => { assert.equal(decideMotion({ ...base, reduceAll: true, focus: true, webgl: false }).mode, 'reduced'); });
+  test('Full, Less and Off are three genuinely different configurations', () => {
+    const f = decideMotion({ ...base, pref: 'full' }), l = decideMotion({ ...base, pref: 'reduced' }), o = decideMotion({ ...base, pref: 'off' });
+    assert.deepEqual([f.level, l.level, o.level], ['full', 'less', 'off']); assert.deepEqual([f.mode, l.mode, o.mode], ['exploration', 'calm', 'off']);
+    // Full: everything. Less: calm 3D only. Off: nothing.
+    assert.ok(f.scene3d && f.scrollLinked && f.pointer && f.drift === 1 && f.decor === 'full');
+    assert.ok(l.scene3d && !l.scrollLinked && !l.pointer && l.drift > 0 && l.drift < f.drift && l.decor === 'slow' && l.quality === 'low');
+    assert.ok(!o.scene3d && !o.scrollLinked && !o.pointer && o.drift === 0 && o.decor === 'none');
+    // no two levels share the same configuration
+    const key = (d: typeof f) => JSON.stringify([d.scene3d, d.scrollLinked, d.pointer, d.drift, d.decor, d.quality]);
+    assert.equal(new Set([key(f), key(l), key(o)]).size, 3);
+  });
+  test('device reduced-motion: the default is Off, Full is capped to Less, and Less stays still', () => {
+    assert.equal(decideMotion({ ...base, pref: 'auto', osReduce: true }).level, 'off'); assert.equal(decideMotion({ ...base, pref: 'auto' }).level, 'full');
+    const capped = decideMotion({ ...base, pref: 'full', osReduce: true }); assert.equal(capped.level, 'less'); assert.ok(!capped.scrollLinked && !capped.pointer);
+    const less = decideMotion({ ...base, pref: 'reduced', osReduce: true }); assert.equal(less.mode, 'calm'); assert.equal(less.drift, 0); assert.equal(less.decor, 'still');
+    assert.equal(decideMotion({ ...base, pref: 'off', osReduce: true }).level, 'off');
+  });
+  test('Less is also lighter than Full when WebGL is missing; Off is never overridden by anything', () => {
+    assert.equal(decideMotion({ ...base, pref: 'reduced', webgl: false }).pointer, false);
+    for (const x of [{ focus: true }, { webgl: false }, { lowPower: true }]) assert.equal(decideMotion({ ...base, pref: 'off', ...x }).mode, 'off');
+  });
+  test('reduce-all wins over everything', () => { assert.equal(decideMotion({ ...base, reduceAll: true, focus: true, webgl: false }).mode, 'off'); });
   test('focus beats fallback, low and exploration', () => { for (const x of [{}, { webgl: false }, { lowPower: true }]) assert.equal(decideMotion({ ...base, ...x, focus: true }).mode, 'focus'); assert.ok(!decideMotion({ ...base, focus: true }).scene3d); });
   test('no WebGL: fallback with the CSS scene', () => { const d = decideMotion({ ...base, webgl: false }); assert.equal(d.mode, 'fallback'); assert.ok(!d.scene3d); });
   test('constrained devices get the same story at lower quality, not nothing', () => { const d = decideMotion({ ...base, lowPower: true }); assert.equal(d.mode, 'low'); assert.ok(d.scene3d); assert.equal(d.quality, 'low'); assert.ok(!d.pointer); assert.equal(decideMotion({ ...base, smallScreen: true }).quality, 'medium'); });
-  test('priority is reduced > focus > fallback > low > exploration', () => {
-    const order = [decideMotion({ ...base, osReduce: true, focus: true }), decideMotion({ ...base, focus: true, webgl: false }), decideMotion({ ...base, webgl: false, lowPower: true }), decideMotion({ ...base, lowPower: true })].map((d) => d.mode);
-    assert.deepEqual(order, ['reduced', 'focus', 'fallback', 'low']);
+  test('priority is off > focus > fallback > low > exploration', () => {
+    const order = [decideMotion({ ...base, reduceAll: true, focus: true }), decideMotion({ ...base, focus: true, webgl: false }), decideMotion({ ...base, webgl: false, lowPower: true }), decideMotion({ ...base, lowPower: true })].map((d) => d.mode);
+    assert.deepEqual(order, ['off', 'focus', 'fallback', 'low']);
   });
-  test('every decision explains itself', () => { for (const x of [{}, { osReduce: true }, { focus: true }, { webgl: false }, { lowPower: true }, { pref: 'off' as const }]) assert.ok(decideMotion({ ...base, ...x }).reason.length > 5); });
+  test('every decision explains itself', () => { for (const x of [{}, { osReduce: true }, { focus: true }, { webgl: false }, { lowPower: true }, { pref: 'off' as const }, { pref: 'reduced' as const }]) assert.ok(decideMotion({ ...base, ...x }).reason.length > 5); });
 });
 
 describe('focus routes', () => {

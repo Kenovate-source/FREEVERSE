@@ -57,9 +57,21 @@ async function land(page) { await page.goto(`${BASE}/#/`); await page.waitForSel
   });
   await check('3d', 'Settings "Off" tears the scene down completely and persists across reload', async () => {
     await page.evaluate(() => scrollTo(0, 0)); await page.getByRole('group', { name: 'Decorative motion' }).first().getByRole('button', { name: 'Off' }).click(); await sleep(500);
-    eq(await attr(page, 'data-motion-mode'), 'reduced', 'mode'); eq(await page.locator('.journey-stage canvas').count(), 0, 'canvas removed'); eq(await page.evaluate(() => window.FreeverseImmersive.liveStats()), null, 'scene disposed');
-    await page.reload(); await page.waitForSelector('h1'); await sleep(800); eq(await attr(page, 'data-motion-mode'), 'reduced', 'persisted'); eq(await page.locator('canvas').count(), 0, 'no canvas after reload');
+    eq(await attr(page, 'data-motion-mode'), 'off', 'mode'); eq(await attr(page, 'data-decor'), 'none', 'decor hidden'); eq(await page.locator('.journey-stage canvas').count(), 0, 'canvas removed'); eq(await page.evaluate(() => window.FreeverseImmersive.liveStats()), null, 'scene disposed');
+    await page.reload(); await page.waitForSelector('h1'); await sleep(800); eq(await attr(page, 'data-motion-mode'), 'off', 'persisted'); eq(await page.locator('canvas').count(), 0, 'no canvas after reload');
     await page.getByRole('group', { name: 'Decorative motion' }).first().getByRole('button', { name: 'Full' }).click(); await sleep(300);
+  });
+  await check('3d', 'Settings "Less" is visibly different from both Full and Off: a calm scene that still drifts, with no scroll or pointer motion', async () => {
+    await page.evaluate(() => scrollTo(0, 0)); const grp = () => page.getByRole('group', { name: 'Decorative motion' }).first();
+    await grp().getByRole('button', { name: 'Full' }).click(); await page.waitForFunction(() => document.documentElement.dataset.motionMode === 'exploration', null, { timeout: 8000 });
+    await grp().getByRole('button', { name: 'Less' }).click(); await sleep(500);
+    eq(await attr(page, 'data-motion-mode'), 'calm', 'mode'); eq(await attr(page, 'data-decor'), 'slow', 'decor slow'); eq(await attr(page, 'data-quality'), 'low', 'quality');
+    await page.waitForFunction(() => window.FreeverseImmersive?.liveStats?.() != null, null, { timeout: 25000 });
+    ok(await page.locator('.journey-stage canvas').count() === 1, 'Less keeps a (calm) 3D scene, unlike Off');
+    const a = await page.evaluate(() => window.FreeverseImmersive.liveStats()); await sleep(1500); const b = await page.evaluate(() => window.FreeverseImmersive.liveStats()); ok(b.frames > a.frames, 'the calm scene keeps drifting (frames ' + a.frames + '->' + b.frames + ')');
+    eq(await page.evaluate(() => (window.__fvMotion.get().scrollLinked || window.__fvMotion.get().pointer)), false, 'no scroll-linked or pointer motion');
+    ok(await page.getByRole('group', { name: 'Decorative motion' }).first().getByRole('button', { name: 'Less' }).getAttribute('aria-pressed') === 'true', 'Less shows as selected');
+    await page.reload(); await page.waitForSelector('h1'); await sleep(800); eq(await attr(page, 'data-motion-mode'), 'calm', 'persisted'); await grp().getByRole('button', { name: 'Full' }).click(); await sleep(300);
   });
   await check('3d', 'leaving the landing disposes the scene; returning remounts it', async () => {
     await page.waitForFunction(() => document.querySelector('[data-scene]')?.getAttribute('data-scene') === 'ready', null, { timeout: 25000 });
@@ -81,7 +93,7 @@ async function land(page) { await page.goto(`${BASE}/#/`); await page.waitForSel
   const { browser, page, errs } = await open({ reducedMotion: 'reduce' });
   await check('modes', 'OS reduce-motion: static art, no canvas, no 3D bundle fetched, content fully visible', async () => {
     const reqs = []; page.on('request', (r) => reqs.push(r.url())); await land(page); await sleep(1500);
-    eq(await attr(page, 'data-motion-mode'), 'reduced', 'mode'); eq(await page.locator('canvas').count(), 0, 'canvas'); ok(await page.locator('svg.orbit-art').count() === 1, 'static SVG art'); ok(!reqs.some((u) => u.includes('immersive.js')), 'immersive.js should not load');
+    eq(await attr(page, 'data-motion-mode'), 'off', 'mode'); eq(await page.locator('canvas').count(), 0, 'canvas'); ok(await page.locator('svg.orbit-art').count() === 1, 'static SVG art'); ok(!reqs.some((u) => u.includes('immersive.js')), 'immersive.js should not load');
     const hidden = await page.evaluate(() => [...document.querySelectorAll('.reveal')].filter((e) => getComputedStyle(e).opacity !== '1').length); eq(hidden, 0, 'reveal elements still hidden');
   });
   await check('modes', 'reduced mode keeps every chapter and its call to action reachable', async () => { eq(await page.locator('[data-chapter]').count() >= 9, true, 'chapters'); ok(await page.getByRole('link', { name: /Create your account|Join|Get started/i }).first().isVisible(), 'CTA visible'); });

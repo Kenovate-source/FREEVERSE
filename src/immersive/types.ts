@@ -14,6 +14,8 @@ export interface SceneOptions {
   /** Allow scroll-linked camera movement and pointer parallax. */
   scrollLinked: boolean;
   pointer: boolean;
+  /** Continuous, time-based rotation speed multiplier (rings, shells, stars). 0 = still; 1 = full; ~0.3 = calm. */
+  drift?: number;
   /** Called after a failure, so the app can fall back to the CSS version. */
   onError(e: unknown): void;
   /** Called once the first frame has been drawn. */

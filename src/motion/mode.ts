@@ -3,14 +3,16 @@
 //
 //   exploration  rich spatial effects and scroll-linked storytelling
 //   focus        the person is reading, writing or acting: decorative motion is paused or greatly reduced
-//   reduced      the OS or the person asked for less motion: no scroll-linked or 3D motion, static alternatives
+//   calm         "Less": a gentle, low-quality 3D scene with slow drift only; no scroll-linked camera or parallax
+//   off          "Off" or the device asks for it: no 3D, no animation, decoration hidden
 //   low          constrained device: the same story at lower quality (fewer objects, lower pixel ratio, capped frame rate)
 //   fallback     WebGL (or JavaScript for the 3D bundle) is unavailable: a CSS/SVG version of the same scene
 //
-// Priority: reduced > focus > fallback > low > exploration.
+// Priority: off > focus > fallback > calm > low > exploration.
 
-export type MotionMode = 'exploration' | 'focus' | 'reduced' | 'low' | 'fallback';
-export type DecorativePref = 'full' | 'reduced' | 'off';
+export type MotionMode = 'exploration' | 'focus' | 'calm' | 'off' | 'low' | 'fallback';
+/** 'auto' follows the device: Off when it asks for reduced motion, Full otherwise. 'reduced' is shown to people as "Less". */
+export type DecorativePref = 'auto' | 'full' | 'reduced' | 'off';
 export type Quality = 'high' | 'medium' | 'low';
 
 export interface MotionInputs {
@@ -32,26 +34,45 @@ export interface MotionInputs {
 
 export interface MotionDecision {
   mode: MotionMode;
+  /** The level the person ends up with after the device preference is applied: what they see in Settings. */
+  level: 'full' | 'less' | 'off';
   /** Mount the 3D scene at all */
   scene3d: boolean;
   /** Scroll-linked storytelling (GSAP ScrollTrigger scrub) */
   scrollLinked: boolean;
   /** Pointer-driven spatial response (tilt, parallax) */
   pointer: boolean;
-  /** Ambient CSS decoration: 'full' animates, 'still' is static, 'none' hides it */
-  decor: 'full' | 'still' | 'none';
+  /** Continuous rotation speed of the 3D scene: 0 still, ~0.3 calm, 1 full */
+  drift: number;
+  /** Ambient CSS decoration: 'full' animates, 'slow' animates gently, 'still' is static, 'none' hides it */
+  decor: 'full' | 'slow' | 'still' | 'none';
   quality: Quality;
   /** Human-readable reason, shown in the diagnostics line of Settings */
   reason: string;
 }
 
+/** The three levels people choose between, resolved against the device preference. */
+export function resolveLevel(pref: DecorativePref, osReduce: boolean, reduceAll: boolean): { level: 'full' | 'less' | 'off'; why: string } {
+  if (reduceAll) return { level: 'off', why: 'Reduce motion is on in Settings' };
+  if (pref === 'off') return { level: 'off', why: 'Decorative motion is off in Settings' };
+  if (pref === 'reduced') return { level: 'less', why: 'Decorative motion is set to Less' };
+  if (pref === 'full') return osReduce ? { level: 'less', why: 'You chose Full, but your device asks for reduced motion, so it is limited to Less' } : { level: 'full', why: 'Full experience' };
+  return osReduce ? { level: 'off', why: 'Your device asks for reduced motion' } : { level: 'full', why: 'Full experience' };
+}
+
+// What each level means, so they are genuinely different (and testable):
+//   Full  3D scene, scroll-linked camera, pointer parallax, continuous rotation, animated decoration.
+//   Less  calm 3D scene at low quality: slow drift only, no scroll-linked camera, no parallax, slow decoration.
+//         (When the device also asks for reduced motion the scene is drawn, but still.)
+//   Off   no 3D, no animation or transitions, decoration hidden, content shown immediately.
 export function decideMotion(i: MotionInputs): MotionDecision {
-  if (i.reduceAll || i.pref === 'off') return { mode: 'reduced', scene3d: false, scrollLinked: false, pointer: false, decor: 'none', quality: 'low', reason: i.reduceAll ? 'Reduce motion is on in Settings' : 'Decorative motion is off in Settings' };
-  if (i.osReduce || i.pref === 'reduced') return { mode: 'reduced', scene3d: false, scrollLinked: false, pointer: false, decor: 'still', quality: 'low', reason: i.osReduce ? 'Your device asks for reduced motion' : 'Decorative motion is reduced in Settings' };
-  if (i.focus) return { mode: 'focus', scene3d: false, scrollLinked: false, pointer: false, decor: 'still', quality: 'low', reason: 'Focus mode: decorative motion is paused while you read or write' };
-  if (!i.webgl) return { mode: 'fallback', scene3d: false, scrollLinked: false, pointer: true, decor: 'full', quality: 'low', reason: 'WebGL is not available, showing the lightweight version' };
-  if (i.lowPower || i.smallScreen) return { mode: 'low', scene3d: true, scrollLinked: true, pointer: false, decor: 'full', quality: i.lowPower ? 'low' : 'medium', reason: i.lowPower ? 'Reduced quality for this device' : 'Lighter scene for small screens' };
-  return { mode: 'exploration', scene3d: true, scrollLinked: true, pointer: true, decor: 'full', quality: 'high', reason: 'Full experience' };
+  const { level, why } = resolveLevel(i.pref, i.osReduce, i.reduceAll);
+  if (level === 'off') return { mode: 'off', level, scene3d: false, scrollLinked: false, pointer: false, drift: 0, decor: 'none', quality: 'low', reason: why };
+  if (i.focus) return { mode: 'focus', level, scene3d: false, scrollLinked: false, pointer: false, drift: 0, decor: 'still', quality: 'low', reason: 'Focus mode: decorative motion is paused while you read or write' };
+  if (!i.webgl) return { mode: 'fallback', level, scene3d: false, scrollLinked: false, pointer: level === 'full', drift: 0, decor: level === 'full' ? 'full' : 'slow', quality: 'low', reason: 'WebGL is not available, showing the lightweight version' };
+  if (level === 'less') return { mode: 'calm', level, scene3d: true, scrollLinked: false, pointer: false, drift: i.osReduce ? 0 : 0.3, decor: i.osReduce ? 'still' : 'slow', quality: 'low', reason: why };
+  if (i.lowPower || i.smallScreen) return { mode: 'low', level, scene3d: true, scrollLinked: true, pointer: false, drift: 0.7, decor: 'full', quality: i.lowPower ? 'low' : 'medium', reason: i.lowPower ? 'Reduced quality for this device' : 'Lighter scene for small screens' };
+  return { mode: 'exploration', level, scene3d: true, scrollLinked: true, pointer: true, drift: 1, decor: 'full', quality: 'high', reason: why };
 }
 
 /** Routes where the task matters more than atmosphere. Everything else is exploration unless a component asks for focus. */

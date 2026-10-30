@@ -10,7 +10,7 @@ import { setPrefs } from '../motion/store';
 export function applyA11y(a: Partial<AccessibilitySettings>) {
   const r = document.documentElement;
   r.dataset.text = a.textSize ?? 'md'; r.dataset.motion = a.reduceMotion ? 'reduce' : 'full'; r.dataset.contrast = a.highContrast ? 'high' : 'normal';
-  setPrefs({ pref: a.decorativeMotion ?? 'full', reduceAll: !!a.reduceMotion });
+  setPrefs({ pref: a.decorativeMotion ?? 'auto', reduceAll: !!a.reduceMotion });
   r.dataset.calm = a.calmBackground ? 'on' : 'off'; r.dataset.links = a.underlineLinks ? 'underline' : 'default';
   try { kv.set('a11y', JSON.stringify(a)); } catch { /* storage unavailable: the server copy still applies */ }
 }
@@ -23,4 +23,4 @@ export function A11yApplier() {
 
 /** The visitor's stored accessibility choices (also used before sign-in, so the landing page can offer a motion control). */
 export function getStoredA11y(): Partial<AccessibilitySettings> { try { const v = kv.get('a11y'); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-export function setDecorativeMotion(v: 'full' | 'reduced' | 'off') { const next = { ...getStoredA11y(), decorativeMotion: v }; applyA11y(next); return next; }
+export function setDecorativeMotion(v: 'auto' | 'full' | 'reduced' | 'off') { const next = { ...getStoredA11y(), decorativeMotion: v }; applyA11y(next); return next; }
