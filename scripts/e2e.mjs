@@ -25,6 +25,27 @@ async function run(size, who = 'member') {
   await step('eligibility', async () => { await page.getByLabel('Month').selectOption('6'); await page.getByLabel('Day').selectOption('15'); await page.getByLabel('Year').selectOption(String(new Date().getFullYear() - 21)); await page.getByLabel(/accept the/).check(); await page.getByLabel(/date I entered/).check(); await page.getByRole('button', { name: 'Continue' }).click(); await page.waitForURL(/#\/onboarding/); await page.screenshot({ path: `${OUT}/${size}-onboarding.png` }); });
   await step('onboarding skip', async () => { await page.getByRole('button', { name: 'Skip setup for now' }).click(); await page.waitForURL(/#\/home/); });
   if (who === 'member') await step('post (text)', async () => { await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
+  if (who === 'member') await step('communities: create, then post with an image and two links', async () => {
+    await page.goto(`${BASE}/#/communities`); await page.waitForSelector('main h1');
+    await page.getByRole('button', { name: 'Start a community' }).click();
+    const nm = `E2E Club ${stamp}${size}`.slice(0, 48);
+    await page.getByLabel('Name', { exact: true }).fill(nm); await page.getByLabel('What is it for?').fill('A community created by the browser test.');
+    await page.getByRole('button', { name: 'Create community' }).click(); await page.waitForURL(/#\/communities\/e2e-club/, { timeout: 8000 });
+    await page.getByRole('heading', { name: 'Community health' }).waitFor({ timeout: 8000 });
+    await page.getByRole('button', { name: /Share something/ }).click();
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await page.locator('input[type=file][multiple]').setInputFiles([{ name: 'a.png', mimeType: 'image/png', buffer: png }, { name: 'b.png', mimeType: 'image/png', buffer: png }]);
+    await page.getByRole('list', { name: /Images, in the order/ }).waitFor({ timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll('.attach-item img').length === 2, null, { timeout: 10000 }).catch(() => { throw new Error('expected 2 uploaded images'); });
+    await page.getByRole('button', { name: 'Move image 2 up' }).click(); await page.getByRole('button', { name: 'Remove image 2' }).click();
+    if ((await page.locator('.attach-item img').count()) !== 1) throw new Error('remove did not work');
+    for (const u of ['https://example.com/one', 'https://news.example.org/two']) { await page.getByLabel('Add a link').fill(u); await page.getByRole('button', { name: 'Add link' }).click(); }
+    await page.getByLabel('Add a link').fill('not a link'); await page.getByRole('button', { name: 'Add link' }).click(); await page.getByText(/full web address/).waitFor();
+    await page.getByLabel('What would you like to say?').fill('Attachments from the browser test');
+    await page.getByRole('region', { name: 'New post' }).getByRole('button', { name: 'Post', exact: true }).last().click();
+    await page.getByRole('list', { name: 'Links in this post' }).first().waitFor({ timeout: 8000 });
+    const hosts = await page.locator('[aria-label="Links in this post"] li').allInnerTexts(); if (!hosts.join(' ').includes('news.example.org')) throw new Error('links not shown: ' + hosts);
+  });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {
       await page.goto(`${BASE}/#${r}`); await page.waitForSelector('main h1, main h2, [role="alert"]', { timeout: 8000 }); await page.waitForTimeout(250);

@@ -43,6 +43,20 @@ export const api = {
   put: <T>(p: string, b?: unknown, o?: Opts) => request<T>('PUT', p, b ?? {}, o),
   patch: <T>(p: string, b?: unknown, o?: Opts) => request<T>('PATCH', p, b ?? {}, o),
   del: <T>(p: string, o?: Opts) => request<T>('DELETE', p, undefined, o),
+  /** Like `upload`, but reports progress (0 to 1) while the file is sent. */
+  uploadWithProgress: <T>(p: string, file: Blob, onProgress: (f: number) => void): Promise<T> => new Promise<T>((resolve, reject) => {
+    const x = new XMLHttpRequest(); x.open('POST', p); x.setRequestHeader('accept', 'application/json'); x.setRequestHeader('content-type', file.type || 'application/octet-stream');
+    const token = getToken(); if (token) x.setRequestHeader('authorization', `Bearer ${token}`);
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onerror = () => reject(new ApiError(0, 'network', 'We couldn’t reach FREEVERSE. Check your connection and try again.'));
+    x.onload = () => {
+      let data: any = null; try { data = JSON.parse(x.responseText); } catch { /* not JSON */ }
+      if (x.status >= 200 && x.status < 300) { onProgress(1); resolve(data as T); return; }
+      if (x.status === 401 && token && data?.error?.code === 'session_invalid') onUnauthorized?.();
+      reject(new ApiError(x.status, data?.error?.code ?? 'error', data?.error?.message ?? 'The upload failed. Please try again.', data?.error?.details));
+    };
+    x.send(file);
+  }),
   upload: <T>(p: string, file: Blob) => request<T>('POST', p, undefined, { raw: { body: file, contentType: file.type || 'application/octet-stream' } }),
 };
 export const qs = (o: Record<string, string | number | boolean | null | undefined>): string => {
