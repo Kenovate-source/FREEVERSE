@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { Link, navigate } from '../lib/router';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
-import { Async, Badge, Button, Card, Chip, Confirm, DemoBadge, EmptyState, Notice, PageHead, SelectField, TextArea, TextField, errMsg, fieldErrors, useResource } from '../ui/kit';
+import { Async, Badge, Button, Card, Chip, Confirm, DemoBadge, EmptyState, Notice, PageHead, SelectField, Switch, TextArea, TextField, errMsg, fieldErrors, useResource } from '../ui/kit';
 import { useToast } from '../state/toast';
 import { useSession } from '../state/session';
 import { Widget } from './social';
@@ -130,7 +130,8 @@ function Entries() {
     <Confirm open={!!del} danger title="Delete this entry?" confirmLabel="Delete" onConfirm={async () => { await api.del(`/api/me/entries/${del!.id}`); res.reload(); }} onClose={() => setDel(null)}>This removes it from your profile.</Confirm></Card>;
 }
 function Achievements() {
+  const { say } = useToast();
   const res = useResource(() => api.get<{ items: AchievementView[] }>('/api/me/achievements'), []);
-  return <Card className="stack-sm" aria-labelledby="ac"><h2 id="ac" className="h-sm">Milestones</h2><Async res={res}>{(d) => d.items.length === 0 ? <p className="muted">Add an identity to see milestones.</p> : <ul className="plain stack-sm">{d.items.map((a) => <li key={a.id}><strong>{a.label}</strong> {a.earned ? <Badge tone="ok">Earned</Badge> : <span className="faint">{a.progress}/{a.target}</span>}<div className="muted">{a.description}</div></li>)}</ul>}</Async></Card>;
+  return <Card className="stack-sm" aria-labelledby="ac"><h2 id="ac" className="h-sm">Milestones</h2><Async res={res}>{(d) => d.items.length === 0 ? <p className="muted">Add an identity to see milestones.</p> : <ul className="plain stack-sm">{d.items.map((a) => <li key={a.id}><strong>{a.label}</strong> {a.earned ? <Badge tone="ok">Earned</Badge> : <span className="faint">{a.progress}/{a.target}</span>} <span className="faint">Recorded by FREEVERSE</span><div className="muted">{a.description}</div>{a.earned && <Switch label="Show on my profile" checked={!!a.public} onChange={async (v) => { try { await api.put(`/api/me/achievements/${encodeURIComponent(a.id)}/display`, { public: v }); res.reload(); } catch (e) { say(errMsg(e), 'error'); } }} hint={a.public ? 'Others who can open your profile can see this. Hiding it keeps your record.' : 'Private to you.'} />}</li>)}</ul>}</Async></Card>;
 }
 export { navigate, DemoBadge };

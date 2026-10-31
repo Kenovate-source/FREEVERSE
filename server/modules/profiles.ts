@@ -1,3 +1,6 @@
+import { userStats, evaluate } from '../identity/stats';
+import { myIdentities } from './identities';
+import { ARCHETYPE_DEFS } from '../../shared/archetypes';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { badRequest, conflict, notFound } from '../http/errors';
@@ -223,6 +226,14 @@ export const profilesModule: ModuleDef = {
       if (can('cover')) out.cover = { mode: row.cover_mode, presetId: row.cover_preset ?? null, imageUrl: row.cover_mode === 'image' && row.cover_media_id ? signedMediaUrl(s, viewer, row.cover_media_id) : null };
       if (can('interests')) {
         out.interests = (await c.db.query<any>("SELECT key, label, category FROM user_tags WHERE user_id = $1 AND kind = 'interest' ORDER BY created_at, key", [u.id])).map((r) => ({ key: r.key, label: r.label, category: r.category ?? null }));
+      }
+      {
+        const shown = (await c.db.query<{ achievement_id: string }>('SELECT achievement_id FROM achievement_display WHERE user_id = $1 AND is_public = $2', [u.id, true])).map((r) => r.achievement_id);
+        if (shown.length) {
+          const st = await userStats(c.db, u.id); const list: NonNullable<MemberProfile['achievements']> = [];
+          for (const i of await myIdentities(c.db, u.id)) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) { const e = evaluate(a, st, i.archetype); if (e.earned && shown.includes(e.id)) list.push({ id: e.id, label: e.label, description: e.description, evidence: 'platform_recorded' }); }
+          if (list.length) out.achievements = list;
+        }
       }
       if (can('connections')) {
         const n = async (sql: string) => Number((await c.db.get<{ n: number }>(sql, [u.id]))?.n ?? 0);

@@ -37,6 +37,8 @@ export interface MemberProfile {
   interests?: { key: string; label: string; category: string | null }[];
   counts?: { followers: number; following: number; connections: number };
   online?: boolean;
+  /** Milestones this person chose to show. Recorded by the platform from their activity; not verified credentials. */
+  achievements?: { id: string; label: string; description: string; evidence: 'platform_recorded' }[];
   /** Which of your own fields this person could see is not exposed; this is only what they can see of theirs. */
   accent?: string | null;
 }

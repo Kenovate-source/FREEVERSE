@@ -5,7 +5,7 @@ import type { Audience } from '../constants';
 export interface IdentityView { id: string; archetype: Archetype; status: 'active' | 'paused' | 'removed'; isPrimary: boolean; headline: string | null; visibility: Audience; answers: Record<string, unknown>; createdAt: string }
 export interface EntryView { id: string; kind: EntryKind; identityId: string | null; title: string; description: string | null; link: string | null; mediaUrl: string | null; occurredOn: string | null; evidence: 'self_declared' | 'platform_recorded' | 'verified'; visibility: Audience; pinned: boolean; createdAt: string }
 export interface SuggestionView { id: string; kind: EntryKind; draft: { title: string; description?: string; occurredOn?: string }; reason: string; evidenceRef: string; createdAt: string }
-export interface AchievementView { id: string; archetype: Archetype; label: string; description: string; earned: boolean; progress: number; target: number }
+export interface AchievementView { id: string; archetype: Archetype; label: string; description: string; earned: boolean; progress: number; target: number; /** shown on the person's profile */ public?: boolean; evidence?: 'platform_recorded' }
 
 export type OnboardingPath = 'identity_first' | 'guided_discovery';
 export type OnboardingStep = { id: string; kind: 'path' | 'intents' | 'suggest' | 'identities' | 'identity' | 'profile' | 'interests' | 'privacy' | 'finish'; title: string; archetype?: Archetype; optional: boolean; quick?: boolean };
