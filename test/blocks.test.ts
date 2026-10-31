@@ -58,4 +58,11 @@ describe('handle availability', () => {
     assert.equal((await q('x')).json.available, false); assert.equal((await q('admin')).json.available, false);
     assert.equal((await t.call('GET', '/api/handles/check?handle=abc')).status, 401);
   });
+  test('abusive custom labels, headlines and names are refused by the server (and told why); ordinary ones are kept', async () => {
+    const put = (label: string) => t.call('PUT', '/api/personalization', { token: a.token, body: { kind: 'interest', items: [{ label, isCustom: true }] } });
+    const bad = await put('n1gger'); assert.equal(bad.status, 400); assert.equal(bad.json.error.code, 'label_not_allowed');
+    assert.equal((await put('Urban beekeeping')).status, 200);
+    assert.equal((await t.call('PATCH', '/api/profile', { token: a.token, body: { headline: 'f4ggot' } })).status, 400);
+    assert.equal((await t.call('PATCH', '/api/profile', { token: a.token, body: { headline: 'Beekeeper and carer' } })).status, 200);
+  });
 });

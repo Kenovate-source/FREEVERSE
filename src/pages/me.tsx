@@ -9,7 +9,7 @@ import { useSession } from '../state/session';
 import { Widget } from './social';
 import { ARCHETYPE_DEFS, ARCHETYPE_LIST, visibleQuestions, type EntryKind } from '../../shared/archetypes';
 import { AUDIENCE_LABEL, type Archetype, type Audience } from '../../shared/constants';
-import { AVATAR_EXTRAS, AVATAR_EYES, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_SHAPES, COVER_PRESETS, type AvatarConfig } from '../../shared/avatar';
+import { AVATAR_BROWS, AVATAR_EXTRAS, AVATAR_EYES, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_PATTERNS, AVATAR_SHAPES, COVER_PRESETS, type AvatarConfig } from '../../shared/avatar';
 import { GENDER_OPTIONS, type MyProfile } from '../../shared/api/profile';
 import type { AchievementView, EntryView, IdentityView, SpaceView, SuggestionView } from '../../shared/api/identity';
 import type { MediaItem } from '../../shared/api/media';
@@ -95,7 +95,7 @@ function AvatarBuilder({ p, onSaved }: { p: MyProfile; onSaved: () => void }) {
   return <Card className="stack-sm" aria-labelledby="av"><h2 id="av" className="h-sm">Avatar</h2><p className="muted">Build one, or upload a photo. Everyone starts with a unique avatar, so you never need a photo.</p>
     <div className="row"><Avatar avatar={{ mode, config: cfg as Record<string, unknown>, photoUrl: photo.url }} size={96} name={p.displayName} /><div className="row-wrap" role="group" aria-label="Avatar type">{(['avatar', 'photo', 'both'] as const).map((m) => <Chip key={m} on={mode === m} onClick={() => setMode(m)} disabled={m !== 'avatar' && !photo.id}>{m === 'avatar' ? 'Built avatar' : m === 'photo' ? 'Photo' : 'Photo with avatar'}</Chip>)}</div></div>
     <fieldset className="fieldset"><legend>Colours</legend><div className="row-wrap">{AVATAR_PALETTES.map((pl) => <button key={pl.id} type="button" className="swatch" aria-label={pl.id} aria-pressed={cfg.palette === pl.id} style={{ background: `linear-gradient(135deg, ${pl.a}, ${pl.b})` }} onClick={() => setCfg({ ...cfg, palette: pl.id })} />)}</div></fieldset>
-    <div className="grid-3">{opt('shape', AVATAR_SHAPES, 'Shape')}{opt('eyes', AVATAR_EYES, 'Eyes')}{opt('mouth', AVATAR_MOUTHS, 'Mouth')}{opt('extra', AVATAR_EXTRAS, 'Extra')}</div>
+    <div className="grid-3">{opt('shape', AVATAR_SHAPES, 'Shape')}{opt('eyes', AVATAR_EYES, 'Eyes')}{opt('mouth', AVATAR_MOUTHS, 'Mouth')}{opt('extra', AVATAR_EXTRAS, 'Extra')}{opt('brows', AVATAR_BROWS, 'Brows')}{opt('pattern', AVATAR_PATTERNS, 'Pattern')}</div>
     <div className="row-wrap"><label className="btn btn-secondary btn-sm"><Icon name="image" size={16} /> Upload a photo<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; try { const m = await uploadImage(f, 'avatar'); setPhoto({ id: m.id, url: m.url }); setMode('photo'); } catch (er) { say(errMsg(er), 'error'); } }} /></label>
       <Button size="sm" variant="ghost" onClick={() => setCfg({ seed: String(Math.random()) } as AvatarConfig)}>Surprise me</Button></div>
     <Button variant="primary" busy={busy} onClick={() => void save()} style={{ justifySelf: 'start' }}>Save avatar</Button></Card>;

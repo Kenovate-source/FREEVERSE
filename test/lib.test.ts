@@ -72,3 +72,8 @@ test('time helpers', () => {
   assert.equal(timeAgo('2026-10-15T09:00:00Z', now), '3h ago');
   assert.equal(daysUntil('2026-10-18T12:00:00Z', now), 3);
 });
+
+import { screenLabel } from '../shared/label-screen';
+test('ordinary and edge-case words pass', () => { for (const ok of ['Skyscraper architect', 'Scunthorpe', 'Flame retardant research', 'Analyst', 'Kyoto', 'Class of 2026', 'Poet & carer', 'Nazir']) assert.equal(screenLabel(ok), null, ok); });
+test('clear abuse is refused, including simple obfuscation', () => { for (const bad of ['n i g g e r', 'f4gg0t', 'ret@rd', 'k.y.s', 'NAZI', 'you are a whore']) assert.ok(screenLabel(bad), bad); });
+

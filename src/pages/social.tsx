@@ -128,6 +128,7 @@ export function MemberPage({ params }: P) {
         {p.restricted ? <Notice>This profile isn’t open to you. Its owner controls who can see it.</Notice> : <>
           {p.bio && <p className="prose">{p.bio}</p>}
           <div className="row-wrap">{p.ageBand && <Badge>Age {p.ageBand}</Badge>}{p.counts && <><Badge>{p.counts.followers} followers</Badge><Badge>{p.counts.following} following</Badge><Badge>{p.counts.connections} connections</Badge></>}</div>
+          {p.achievements && p.achievements.length > 0 && <Card><h2 className="h-sm">Milestones</h2><ul className="plain stack-sm">{p.achievements.map((a) => <li key={a.id}><strong>{a.label}</strong> <Badge>Recorded by FREEVERSE</Badge><div className="muted">{a.description}</div></li>)}</ul><p className="faint small">Recorded from activity on FREEVERSE; not a verified credential.</p></Card>}
           {p.interests && p.interests.length > 0 && <Card><h2 className="h-sm">Interests</h2><div className="row-wrap">{p.interests.map((i) => <span key={i.key} className="chip chip-static">{i.label}</span>)}</div></Card>}
           {living.data && (living.data.identities.length > 0 || living.data.entries.length > 0) && <Card><h2 className="h-sm">Identities & highlights</h2>
             <div className="row-wrap">{living.data.identities.map((i) => <Badge key={i.archetype} tone="cyan">{i.label}</Badge>)}</div>

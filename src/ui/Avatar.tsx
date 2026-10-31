@@ -27,6 +27,26 @@ const mouth = (k: string, ink: string) => {
     default: return <path d="M38 62q12 12 24 0" stroke={ink} strokeWidth="4" strokeLinecap="round" fill="none" />;
   }
 };
+const brows = (k: string, ink: string) => {
+  const st = { stroke: ink, strokeWidth: 3.5, strokeLinecap: 'round' as const, fill: 'none' };
+  switch (k) {
+    case 'soft': return <g {...st}><path d="M26 33q10-5 20 0" /><path d="M54 33q10-5 20 0" /></g>;
+    case 'bold': return <g {...st} strokeWidth={5}><path d="M26 34h20" /><path d="M54 34h20" /></g>;
+    case 'raised': return <g {...st}><path d="M26 32q10-9 20-2" /><path d="M54 30q10-7 20 2" /></g>;
+    case 'worried': return <g {...st}><path d="M26 36l20-5" /><path d="M54 31l20 5" /></g>;
+    default: return null;
+  }
+};
+const pattern = (k: string, id: string) => {
+  const c = { fill: '#fff', opacity: 0.28 };
+  switch (k) {
+    case 'dots': return <g clipPath={`url(#${id})`} {...c}>{[20, 40, 60, 80].flatMap((x) => [24, 48, 72].map((y) => <circle key={`${x}${y}`} cx={x + (y % 2 ? 6 : 0)} cy={y} r="3.2" />))}</g>;
+    case 'rings': return <g clipPath={`url(#${id})`} fill="none" stroke="#fff" strokeWidth="3" opacity=".25"><circle cx="50" cy="52" r="26" /><circle cx="50" cy="52" r="40" /></g>;
+    case 'stripes': return <g clipPath={`url(#${id})`} stroke="#fff" strokeWidth="6" opacity=".22">{[-20, 0, 20, 40, 60, 80].map((x) => <path key={x} d={`M${x} 100L${x + 60} 0`} />)}</g>;
+    case 'sparkle': return <g clipPath={`url(#${id})`} fill="#fff" opacity=".6">{[[22, 70], [76, 28], [70, 78], [30, 24]].map(([x, y]) => <path key={`${x}${y}`} d={`M${x} ${y! - 5}l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5z`} />)}</g>;
+    default: return null;
+  }
+};
 const extra = (k: string, ink: string) => {
   switch (k) {
     case 'glasses': return <g fill="none" stroke={ink} strokeWidth="3"><circle cx="36" cy="46" r="11" /><circle cx="64" cy="46" r="11" /><path d="M47 46h6" /></g>;
@@ -46,7 +66,9 @@ export function AvatarArt({ config, size = 44, label }: { config: Record<string,
   return (
     <svg width={size} height={size} viewBox="0 -8 100 112" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true} focusable="false" style={{ display: 'block', overflow: 'visible' }}>
       <defs><linearGradient id={gid} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={pal.a} /><stop offset="1" stopColor={pal.b} /></linearGradient></defs>
+      <clipPath id={`${gid}c`}><path d={SHAPES[c.shape] ?? SHAPES.blob} /></clipPath>
       <path d={SHAPES[c.shape] ?? SHAPES.blob} fill={`url(#${gid})`} />
+      {pattern(c.pattern, `${gid}c`)}{brows(c.brows, pal.ink)}
       {eyes(c.eyes, pal.ink)}{mouth(c.mouth, pal.ink)}{extra(c.extra, pal.ink)}
     </svg>
   );

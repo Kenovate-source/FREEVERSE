@@ -1,3 +1,4 @@
+import { screenLabel } from '../../shared/label-screen';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { badRequest, conflict, notFound } from '../http/errors';
@@ -55,6 +56,7 @@ export const identitiesModule: ModuleDef = {
 
     router.get('/api/identities', { auth: 'active' }, async (c) => ({ items: await myIdentities(c.db, c.me.userId, true) }));
     router.post('/api/identities', { auth: 'active', body: z.object({ archetype: z.enum(ARCHETYPES), headline: z.string().trim().max(120).nullable().optional(), answers, primary: z.boolean().optional() }).strict(), rate: { key: 'identity:add', limit: 30, windowMs: 3600_000 } }, async (c) => {
+      { const bad = c.body.headline ? screenLabel(c.body.headline) : null; if (bad) throw badRequest(bad, { headline: 'label_not_allowed' }, 'label_not_allowed'); }
       // A removed identity can come back: it is reactivated rather than duplicated, with its old answers kept.
       const old = await c.db.get<any>("SELECT id FROM user_identities WHERE user_id = $1 AND archetype = $2 AND status = 'removed'", [c.me.userId, c.body.archetype]);
       if (old) await c.db.run('DELETE FROM user_identities WHERE id = $1', [old.id]);
@@ -64,6 +66,7 @@ export const identitiesModule: ModuleDef = {
     router.patch('/api/identities/:id', { auth: 'active', body: z.object({ status: z.enum(['active', 'paused']).optional(), headline: z.string().trim().max(120).nullable().optional(), visibility: aud.optional(), answers: answers.optional(), primary: z.literal(true).optional() }).strict() }, async (c) => {
       const r = await c.db.get<any>("SELECT * FROM user_identities WHERE id = $1 AND user_id = $2 AND status <> 'removed'", [c.params.id, c.me.userId]);
       if (!r) throw notFound('We couldn’t find that identity.');
+      { const bad = typeof c.body.headline === 'string' ? screenLabel(c.body.headline) : null; if (bad) throw badRequest(bad, { headline: 'label_not_allowed' }, 'label_not_allowed'); }
       const sets: string[] = []; const p: unknown[] = [r.id]; const add = (col: string, v: unknown) => { p.push(v); sets.push(`${col} = $${p.length}`); };
       if (c.body.status) { if (c.body.status === 'paused' && bool(r.is_primary) && c.body.primary !== true) { const other = await c.db.get("SELECT 1 AS x FROM user_identities WHERE user_id = $1 AND status = 'active' AND id <> $2", [c.me.userId, r.id]); if (!other) throw conflict('Keep at least one active identity, or remove this one.', 'last_identity'); } add('status', c.body.status); }
       if (c.body.headline !== undefined) add('headline', c.body.headline);

@@ -16,6 +16,8 @@ export const AVATAR_PALETTES = [
 export const AVATAR_SHAPES = ['blob', 'circle', 'squircle', 'drop', 'star', 'cloud', 'hex', 'moon'] as const;
 export const AVATAR_EYES = ['dots', 'happy', 'sleepy', 'wide', 'wink', 'star', 'lashes', 'visor'] as const;
 export const AVATAR_MOUTHS = ['smile', 'grin', 'o', 'flat', 'tongue', 'smirk'] as const;
+export const AVATAR_BROWS = ['none', 'soft', 'bold', 'raised', 'worried'] as const;
+export const AVATAR_PATTERNS = ['none', 'dots', 'rings', 'stripes', 'sparkle'] as const;
 export const AVATAR_EXTRAS = ['none', 'glasses', 'headphones', 'cap', 'flower', 'antenna', 'halo', 'scarf'] as const;
 
 export interface AvatarConfig {
@@ -25,6 +27,8 @@ export interface AvatarConfig {
   eyes?: (typeof AVATAR_EYES)[number];
   mouth?: (typeof AVATAR_MOUTHS)[number];
   extra?: (typeof AVATAR_EXTRAS)[number];
+  brows?: (typeof AVATAR_BROWS)[number];
+  pattern?: (typeof AVATAR_PATTERNS)[number];
 }
 
 export const COVER_PRESETS = [
@@ -58,5 +62,8 @@ export function resolveAvatar(cfg: AvatarConfig | Record<string, unknown> | null
     eyes: c.eyes ?? pick(AVATAR_EYES, h >>> 7),
     mouth: c.mouth ?? pick(AVATAR_MOUTHS, h >>> 11),
     extra: c.extra ?? pick(AVATAR_EXTRAS, h >>> 15),
+    // The newer layers default to none, so avatars made before they existed look exactly as they did.
+    brows: c.brows ?? 'none',
+    pattern: c.pattern ?? 'none',
   };
 }

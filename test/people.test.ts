@@ -35,6 +35,9 @@ for (const dialect of DIALECTS) {
       assert.equal(ok.status, 200); assert.equal(ok.json.profile.avatar.config.shape, 'squircle');
       assert.equal((await t.call('PUT', '/api/profile/avatar', { token: a.token, body: { mode: 'photo' } })).status, 400);
       assert.equal((await t.call('PUT', '/api/profile/avatar', { token: a.token, body: { mode: 'avatar', config: { shape: 'dragon' } } })).status, 400);
+      const layered = await t.call('PUT', '/api/profile/avatar', { token: a.token, body: { mode: 'avatar', config: { shape: 'hex', brows: 'raised', pattern: 'sparkle' } } });
+      assert.equal(layered.status, 200); assert.equal(layered.json.profile.avatar.config.pattern, 'sparkle');
+      assert.equal((await t.call('PUT', '/api/profile/avatar', { token: a.token, body: { mode: 'avatar', config: { pattern: 'flames' } } })).status, 400);
       // every new member gets a distinct default avatar seed
       const sa = (await t.call('GET', '/api/profile', { token: a.token })).json.profile.avatar.config.seed;
       const sb = (await t.call('GET', '/api/profile', { token: b.token })).json.profile.avatar.config.seed;
