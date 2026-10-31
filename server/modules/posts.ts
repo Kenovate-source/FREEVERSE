@@ -42,6 +42,8 @@ const createBody = z.object({
   tags: tagList,
   mediaIds: z.array(id).max(POST_LIMITS.mediaMax).default([]),
   url: urlField.optional(),
+  // Extra links shown with the post (any kind). Each is validated like the main link and shown by its domain; nothing is fetched.
+  links: z.array(urlField).max(POST_LIMITS.linksMax).default([]),
   pollOptions: z.array(z.string().trim().min(1).max(POST_LIMITS.pollOptionMax)).min(POST_LIMITS.pollOptionsMin).max(POST_LIMITS.pollOptionsMax).optional(),
   pollDays: z.number().int().min(1).max(30).optional(),
   startsAt: z.string().datetime().optional(),
@@ -207,10 +209,13 @@ export const postsModule: ModuleDef = {
       }
       let community: any = null;
       if (b.communityId) {
-        community = await c.db.get<any>("SELECT id, allow_anonymous FROM communities WHERE id = $1 AND status = 'active'", [b.communityId]);
+        community = await c.db.get<any>("SELECT id, allow_anonymous, post_policy, allow_links FROM communities WHERE id = $1 AND status = 'active'", [b.communityId]);
         if (!community) throw notFound('We couldn’t find that community.');
         if (!(await isMember(c.db, community.id, me))) throw forbidden('Join this community to post in it.', 'not_a_member');
+        if (community.post_policy === 'moderators' && !(await c.db.get("SELECT 1 AS x FROM community_members WHERE community_id = $1 AND user_id = $2 AND role = 'moderator'", [community.id, me]))) throw forbidden('Only this community’s moderators can post here.', 'posting_restricted');
+        if (!bool(community.allow_links) && (b.url || b.links.length || b.kind === 'link' || b.kind === 'video_link')) throw unprocessable('This community doesn’t allow external links in posts.', undefined, 'links_not_allowed');
       }
+      if (b.links.length) { const extra = [...new Set(b.links)].filter((u) => u !== b.url); if (extra.length) v.data.links = extra.map((u) => ({ url: u, host: new URL(u).hostname.replace(/^www\./, '') })); }
       if (b.anonymous) {
         if (!s.config.anonymousPostingEnabled) throw conflict('Anonymous posting is switched off.', 'anonymous_disabled');
         if (!community || !bool(community.allow_anonymous)) throw conflict('This community does not allow anonymous posts.', 'anonymous_not_allowed');
@@ -325,6 +330,10 @@ export const postsModule: ModuleDef = {
       if (!post) throw notFound('We couldn’t find that post.');
       const text = clean(c.body.body);
       if (!text) throw unprocessable('Write a comment first.', undefined, 'validation_failed');
+      if (post.community_id) {
+        const cp = await c.db.get<any>('SELECT comment_policy FROM communities WHERE id = $1', [post.community_id]);
+        if (cp?.comment_policy === 'moderators' && !(await c.db.get("SELECT 1 AS x FROM community_members WHERE community_id = $1 AND user_id = $2 AND role = 'moderator'", [post.community_id, me]))) throw forbidden('Only this community’s moderators can comment here.', 'commenting_restricted');
+      }
       let anonymous = c.body.anonymous;
       const ownAnonPost = bool(post.is_anonymous) && post.author_id === me;
       if (ownAnonPost) anonymous = true; // replying under your own name to your anonymous post would unmask it

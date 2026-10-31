@@ -5,8 +5,15 @@ import type { PostKind, ReactionKind, Audience } from '../constants';
 export interface CommunityView {
   id: string; slug: string; name: string; description: string; category: string; accent: string | null;
   allowAnonymous: boolean; rules: string[]; isDemo: boolean; memberCount: number; postCount: number;
-  viewer: { member: boolean; role: 'member' | 'moderator' | null; showOnProfile: boolean };
+  viewer: { member: boolean; role: 'member' | 'moderator' | null; showOnProfile: boolean; /** 'pending' when a join request awaits a moderator */ joinRequest?: 'pending' | null };
+  settings: CommunitySettings;
+  /** Posts in the last 30 days: a cheap, real activity signal for discovery. */
+  posts30d: number;
+  /** Only on the detail view. All numbers come from real activity; nothing is estimated. */
+  health?: CommunityHealth;
 }
+export interface CommunitySettings { joinPolicy: 'open' | 'approval'; postPolicy: 'members' | 'moderators'; commentPolicy: 'members' | 'moderators'; allowLinks: boolean; discoverable: boolean; pinnedNote: string | null }
+export interface CommunityHealth { posts30d: number; comments30d: number; activePosters30d: number; newMembers30d: number; memberCount: number; openReports: number | null; pendingJoinRequests: number | null; basis: string }
 
 /** What a viewer sees in place of an author. For anonymous content this carries NO account identifier, ever. */
 export type AuthorView =
@@ -58,7 +65,7 @@ export interface CommentView {
 export interface FeedResponse { items: PostView[]; nextCursor: string | null; sort: 'recent' | 'relevant' | 'following'; explanation: string }
 export interface CommentsResponse { items: CommentView[]; total: number }
 
-export const POST_LIMITS = { titleMax: 140, bodyMax: 5000, commentMax: 2000, tagsMax: 5, tagMax: 24, pollOptionsMin: 2, pollOptionsMax: 6, pollOptionMax: 80, mediaMax: 4, maxDepth: 3 } as const;
+export const POST_LIMITS = { titleMax: 140, bodyMax: 5000, commentMax: 2000, tagsMax: 5, tagMax: 24, pollOptionsMin: 2, pollOptionsMax: 6, pollOptionMax: 80, mediaMax: 8, linksMax: 5, maxDepth: 3 } as const;
 
 export const REACTION_LABEL: Record<ReactionKind, string> = { like: 'Like', love: 'Love', insightful: 'Insightful', celebrate: 'Celebrate', support: 'Support' };
 

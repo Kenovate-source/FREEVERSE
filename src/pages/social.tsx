@@ -1,3 +1,4 @@
+import { CreateCommunity, CommunityHealthCard, ManageCommunity, DiscoveryFilters } from '../features/communities';
 import { useState } from 'react';
 import { api, qs } from '../api/client';
 import { Link, navigate, setQuery } from '../lib/router';
@@ -70,29 +71,35 @@ export function HomePage(_: P) {
 // ───────── Communities ─────────
 export function CommunitiesPage({ query }: P) {
   const q = query.get('q') ?? ''; const cat = query.get('category') ?? ''; const joined = query.get('joined') === '1'; const [text, setText] = useState(q);
-  const res = useResource(() => api.get<{ items: CommunityView[]; categories: string[] }>(`/api/communities${qs({ q: q || undefined, category: cat || undefined, joined: joined ? '1' : undefined })}`), [q, cat, joined]);
+  const extra = ['sort', 'anonymous', 'open', 'active', 'size'].map((k) => [k, query.get(k)] as const).filter(([, v]) => v);
+  const res = useResource(() => api.get<{ items: CommunityView[]; categories: string[] }>(`/api/communities${qs({ q: q || undefined, category: cat || undefined, joined: joined ? '1' : undefined, ...Object.fromEntries(extra) })}`), [q, cat, joined, extra.join()]);
   return (
-    <div className="stack-lg"><PageHead title="Communities">Spaces around shared interests. Each shows its rules and whether anonymous posting is allowed before you join.</PageHead>
+    <div className="stack-lg"><PageHead title="Communities">Spaces around shared interests. Each shows its rules, who can join and whether anonymous posting is allowed before you join.</PageHead>
+      <CreateCommunity />
       <form className="row-wrap" role="search" onSubmit={(e) => { e.preventDefault(); setQuery({ q: text || null }); }}><TextField label="Search communities" value={text} onChange={(e) => setText(e.target.value)} /><Button type="submit">Search</Button></form>
-      <div className="row-wrap" role="group" aria-label="Filters"><Chip on={!cat && !joined} onClick={() => setQuery({ category: null, joined: null })}>All</Chip><Chip on={joined} onClick={() => setQuery({ joined: joined ? null : '1' })}>Joined</Chip>{res.data?.categories.map((c) => <Chip key={c} on={cat === c} onClick={() => setQuery({ category: cat === c ? null : c })}>{c}</Chip>)}</div>
-      <Async res={res} empty={(d) => (d.items.length ? null : <EmptyState title="No communities match" icon="users">Try a different search or clear the filters.</EmptyState>)}>{(d) => <div className="grid-cards">{d.items.map((c) => <CommunityCard key={c.id} c={c} />)}</div>}</Async>
+      <div className="row-wrap" role="group" aria-label="Categories"><Chip on={!cat && !joined} onClick={() => setQuery({ category: null, joined: null })}>All</Chip><Chip on={joined} onClick={() => setQuery({ joined: joined ? null : '1' })}>Joined</Chip>{res.data?.categories.map((c) => <Chip key={c} on={cat === c} onClick={() => setQuery({ category: cat === c ? null : c })}>{c}</Chip>)}</div>
+      <DiscoveryFilters q={query} set={setQuery} />
+      <Async res={res} empty={(d) => (d.items.length ? null : <EmptyState title="No communities match" icon="users">Try a different search or clear the filters, or start one yourself.</EmptyState>)}>{(d) => <div className="grid-cards">{d.items.map((c) => <CommunityCard key={c.id} c={c} />)}</div>}</Async>
     </div>
   );
 }
 function CommunityCard({ c }: { c: CommunityView }) {
-  return <Card as="article" className="community"><div className="spread"><h2 className="h-sm"><Link to={`/communities/${c.slug}`}>{c.name}</Link></h2>{c.isDemo && <DemoBadge label="Demo community" />}</div><p className="muted">{c.description}</p><div className="row-wrap"><Badge>{c.category}</Badge>{c.allowAnonymous && <Badge tone="violet">Anonymous posting allowed</Badge>}{c.viewer.member && <Badge tone="ok">Joined</Badge>}</div><p className="faint">{c.memberCount} members · {c.postCount} posts</p></Card>;
+  return <Card as="article" className="community"><div className="spread"><h2 className="h-sm"><Link to={`/communities/${c.slug}`}>{c.name}</Link></h2>{c.isDemo && <DemoBadge label="Demo community" />}</div><p className="muted">{c.description}</p><div className="row-wrap"><Badge>{c.category}</Badge>{c.allowAnonymous && <Badge tone="violet">Anonymous posting allowed</Badge>}{c.settings.joinPolicy === 'approval' && <Badge>Approval to join</Badge>}{c.posts30d > 0 && <Badge>{c.posts30d} post{c.posts30d > 1 ? 's' : ''} this month</Badge>}{c.viewer.member && <Badge tone="ok">Joined</Badge>}</div><p className="faint">{c.memberCount} members · {c.postCount} posts</p></Card>;
 }
 
 export function CommunityPage({ params }: P) {
   const { say } = useToast(); const res = useResource(() => api.get<{ community: CommunityView }>(`/api/communities/${params.slug}`), [params.slug]); const { n, bump } = useFeedReload(); const [busy, setBusy] = useState(false);
-  const toggle = async (c: CommunityView) => { setBusy(true); try { if (c.viewer.member) await api.del(`/api/communities/${c.slug}/join`); else await api.post(`/api/communities/${c.slug}/join`); res.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  const toggle = async (c: CommunityView) => { setBusy(true); try { if (c.viewer.member || c.viewer.joinRequest) await api.del(`/api/communities/${c.slug}/join`); else { const r = await api.post<{ status: string }>(`/api/communities/${c.slug}/join`); if (r.status === 'pending') say('Request sent. A moderator will decide.'); } res.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
   return <Async res={res}>{({ community: c }) => (
-    <div className="stack-lg"><PageHead title={c.name} back={{ to: '/communities', label: 'Communities' }} actions={<Button variant={c.viewer.member ? 'secondary' : 'primary'} busy={busy} onClick={() => void toggle(c)}>{c.viewer.member ? 'Leave' : 'Join'}</Button>}>{c.description}</PageHead>
+    <div className="stack-lg"><PageHead title={c.name} back={{ to: '/communities', label: 'Communities' }} actions={<Button variant={c.viewer.member || c.viewer.joinRequest ? 'secondary' : 'primary'} busy={busy} onClick={() => void toggle(c)}>{c.viewer.member ? 'Leave' : c.viewer.joinRequest ? 'Withdraw request' : c.settings.joinPolicy === 'approval' ? 'Request to join' : 'Join'}</Button>}>{c.description}</PageHead>
       {c.isDemo && <Notice tone="demo">This is a demo community seeded for Stage 2. Posts by demo members are labelled.</Notice>}
+      {c.settings.pinnedNote && <Notice title="Pinned">{c.settings.pinnedNote}</Notice>}
+      {c.viewer.role === 'moderator' && <ManageCommunity c={c} onChanged={res.reload} />}
+      {c.health && <CommunityHealthCard h={c.health} />}
       <div className="grid-2"><Card><h2 className="h-sm">Community rules</h2><ol className="stack-sm">{c.rules.map((r, i) => <li key={i}>{r}</li>)}</ol></Card>
         <Card><h2 className="h-sm">Anonymous posting</h2><p className="muted">{c.allowAnonymous ? 'Allowed here. Members see “Anonymous author”, never your name. We keep an internal record for safety; moderators can only look it up with a recorded reason and extra confirmation.' : 'Not allowed in this community. Posts show your name.'}</p>
           {c.viewer.member && <Check2 c={c} onDone={res.reload} />}</Card></div>
-      {c.viewer.member && <Composer community={c} onPosted={bump} />}
+      {c.viewer.member && (c.settings.postPolicy === 'members' || c.viewer.role === 'moderator' ? <Composer community={c} onPosted={bump} /> : <Notice>Only moderators can post in this community.</Notice>)}
       <FeedList key={n} query={{ community: c.slug }} />
     </div>)}</Async>;
 }
