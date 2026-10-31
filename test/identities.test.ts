@@ -226,6 +226,20 @@ for (const dialect of DIALECTS) {
       assert.equal((await t.call('GET', '/api/me/achievements', { token: d.token })).json.items.some((x: any) => x.id === 'student:first_path'), false);
     });
 
+    test('achievements can be shown or hidden on the profile; hiding never deletes the record; unearned ones cannot be shown', async () => {
+      const id = 'student:first_path'; const disp = (tok: string, i: string, v: boolean) => t.call('PUT', `/api/me/achievements/${encodeURIComponent(i)}/display`, { token: tok, body: { public: v } });
+      assert.equal((await disp(a.token, 'wizard:nope', true)).status, 404);
+      const unearned = (await t.call('GET', '/api/me/achievements', { token: a.token })).json.items.find((x: any) => !x.earned);
+      if (unearned) assert.equal((await disp(a.token, unearned.id, true)).status, 400, 'only earned milestones can be shown');
+      assert.equal((await t.call('GET', '/api/members/alice', { token: b.token })).json.profile.achievements, undefined, 'private by default');
+      assert.equal((await disp(a.token, id, true)).status, 200);
+      assert.ok((await t.call('GET', '/api/me/achievements', { token: a.token })).json.items.find((x: any) => x.id === id).public);
+      assert.ok(((await t.call('GET', '/api/members/alice', { token: b.token })).json.profile.achievements ?? []).some((x: any) => x.id === id && x.evidence === 'platform_recorded'));
+      assert.equal((await disp(a.token, id, false)).status, 200);
+      assert.equal((await t.call('GET', '/api/members/alice', { token: b.token })).json.profile.achievements, undefined, 'hidden again');
+      assert.equal((await t.call('GET', '/api/me/achievements', { token: a.token })).json.items.find((x: any) => x.id === id).earned, true, 'the record is kept');
+    });
+
     test('deleting the account removes identities, entries, suggestions and onboarding answers', async () => {
       const su = await t.call('POST', '/api/me/step-up', { token: a.token, body: { secret: 'a@example.com' } });
       const exp = (await t.call('GET', '/api/account/export', { token: a.token })).json;

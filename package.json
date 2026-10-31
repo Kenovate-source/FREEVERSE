@@ -1,6 +1,6 @@
 {
   "name": "freeverse",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "private": true,
   "description": "FREEVERSE Stage 2: trust-first platform for adults 18 and over (web). Server (Node + PostgreSQL/SQLite) and React client.",
   "type": "module",

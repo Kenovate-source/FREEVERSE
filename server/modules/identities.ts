@@ -1,3 +1,4 @@
+import { screenLabel } from '../../shared/label-screen';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { badRequest, conflict, notFound } from '../http/errors';
@@ -55,6 +56,7 @@ export const identitiesModule: ModuleDef = {
 
     router.get('/api/identities', { auth: 'active' }, async (c) => ({ items: await myIdentities(c.db, c.me.userId, true) }));
     router.post('/api/identities', { auth: 'active', body: z.object({ archetype: z.enum(ARCHETYPES), headline: z.string().trim().max(120).nullable().optional(), answers, primary: z.boolean().optional() }).strict(), rate: { key: 'identity:add', limit: 30, windowMs: 3600_000 } }, async (c) => {
+      { const bad = c.body.headline ? screenLabel(c.body.headline) : null; if (bad) throw badRequest(bad, { headline: 'label_not_allowed' }, 'label_not_allowed'); }
       // A removed identity can come back: it is reactivated rather than duplicated, with its old answers kept.
       const old = await c.db.get<any>("SELECT id FROM user_identities WHERE user_id = $1 AND archetype = $2 AND status = 'removed'", [c.me.userId, c.body.archetype]);
       if (old) await c.db.run('DELETE FROM user_identities WHERE id = $1', [old.id]);
@@ -64,6 +66,7 @@ export const identitiesModule: ModuleDef = {
     router.patch('/api/identities/:id', { auth: 'active', body: z.object({ status: z.enum(['active', 'paused']).optional(), headline: z.string().trim().max(120).nullable().optional(), visibility: aud.optional(), answers: answers.optional(), primary: z.literal(true).optional() }).strict() }, async (c) => {
       const r = await c.db.get<any>("SELECT * FROM user_identities WHERE id = $1 AND user_id = $2 AND status <> 'removed'", [c.params.id, c.me.userId]);
       if (!r) throw notFound('We couldn’t find that identity.');
+      { const bad = typeof c.body.headline === 'string' ? screenLabel(c.body.headline) : null; if (bad) throw badRequest(bad, { headline: 'label_not_allowed' }, 'label_not_allowed'); }
       const sets: string[] = []; const p: unknown[] = [r.id]; const add = (col: string, v: unknown) => { p.push(v); sets.push(`${col} = $${p.length}`); };
       if (c.body.status) { if (c.body.status === 'paused' && bool(r.is_primary) && c.body.primary !== true) { const other = await c.db.get("SELECT 1 AS x FROM user_identities WHERE user_id = $1 AND status = 'active' AND id <> $2", [c.me.userId, r.id]); if (!other) throw conflict('Keep at least one active identity, or remove this one.', 'last_identity'); } add('status', c.body.status); }
       if (c.body.headline !== undefined) add('headline', c.body.headline);
@@ -181,10 +184,23 @@ export const identitiesModule: ModuleDef = {
     router.get('/api/me/achievements', { auth: 'active' }, async (c) => {
       const st = await userStats(c.db, c.me.userId); const out: AchievementView[] = [];
       for (const i of await myIdentities(c.db, c.me.userId)) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) out.push(evaluate(a, st, i.archetype));
-      return { items: out, note: 'Achievements are private to you and computed from what you have done on FREEVERSE. They are not verified credentials.' };
+      const shown = new Set((await c.db.query<{ achievement_id: string }>('SELECT achievement_id FROM achievement_display WHERE user_id = $1 AND is_public = $2', [c.me.userId, true])).map((r) => r.achievement_id));
+      return { items: out.map((a) => ({ ...a, public: shown.has(a.id), evidence: 'platform_recorded' as const })), note: 'Achievements are computed from what you have done on FREEVERSE (recorded by the platform, not verified credentials). They are private unless you choose to show one. Hiding one never deletes the record.' };
+    });
+    // Show or hide one achievement on your profile. Only earned achievements can be shown.
+    router.put('/api/me/achievements/:id/display', { auth: 'active', body: z.object({ public: z.boolean() }).strict() }, async (c) => {
+      const st = await userStats(c.db, c.me.userId); let found: AchievementView | null = null;
+      for (const i of await myIdentities(c.db, c.me.userId)) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) { const e = evaluate(a, st, i.archetype); if (e.id === c.params.id) found = e; }
+      if (!found) throw notFound('We couldn’t find that milestone.');
+      if (c.body.public && !found.earned) throw badRequest('Only earned milestones can be shown.', undefined, 'not_earned');
+      const now = c.now().toISOString();
+      const r = await c.db.run('UPDATE achievement_display SET is_public = $3, updated_at = $4 WHERE user_id = $1 AND achievement_id = $2', [c.me.userId, found.id, c.body.public, now]);
+      if (!r.changes) await c.db.run('INSERT INTO achievement_display (user_id, achievement_id, is_public, updated_at) VALUES ($1,$2,$3,$4)', [c.me.userId, found.id, c.body.public, now]);
+      return { ok: true, public: c.body.public };
     });
 
     registerEraser('identities', async (db, userId) => {
+      await db.run('DELETE FROM achievement_display WHERE user_id = $1', [userId]);
       await db.run('DELETE FROM profile_suggestions WHERE user_id = $1', [userId]);
       const e = await db.run('DELETE FROM profile_entries WHERE user_id = $1', [userId]);
       const i = await db.run('DELETE FROM user_identities WHERE user_id = $1', [userId]);

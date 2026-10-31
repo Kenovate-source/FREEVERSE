@@ -34,6 +34,7 @@ export function SignIn() {
         <Button type="submit" variant="primary" block busy={busy}>Sign in</Button>
         <p className="muted center"><Link to="/recover">Forgot your password?</Link></p>
       </form>
+      <p className="faint center" data-testid="auth-methods">Sign-in uses email and password. Google, Apple and phone sign-in aren’t available yet.</p>
       <p className="muted center">New here? <Link to="/signup">Create an account</Link></p>
     </AuthFrame>
   );
@@ -57,6 +58,7 @@ export function SignUp() {
         <div><Check label={`I’m an adult aged ${config?.eligibility.min ?? 18} or over`} checked={age} onChange={(e) => setAge(e.target.checked)} aria-invalid={fe.age ? true : undefined} />{fe.age && <p className="error-text" role="alert">{fe.age}</p>}</div>
         <Button type="submit" variant="primary" block busy={busy}>Create account</Button>
       </form>
+      <p className="faint center" data-testid="auth-methods">Sign-in uses email and password. Google, Apple and phone sign-in aren’t available yet.</p>
       <p className="muted center">Already a member? <Link to="/signin">Sign in</Link></p>
       <p className="faint center">By continuing you will be asked to accept our <Link to="/terms">Terms</Link>, <Link to="/privacy">Privacy Policy</Link> and <Link to="/rules">Community rules</Link> (drafts).</p>
     </AuthFrame>

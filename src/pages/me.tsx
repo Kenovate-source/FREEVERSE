@@ -3,13 +3,13 @@ import { api } from '../api/client';
 import { Link, navigate } from '../lib/router';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
-import { Async, Badge, Button, Card, Chip, Confirm, DemoBadge, EmptyState, Notice, PageHead, SelectField, TextArea, TextField, errMsg, fieldErrors, useResource } from '../ui/kit';
+import { Async, Badge, Button, Card, Chip, Confirm, DemoBadge, EmptyState, Notice, PageHead, SelectField, Switch, TextArea, TextField, errMsg, fieldErrors, useResource } from '../ui/kit';
 import { useToast } from '../state/toast';
 import { useSession } from '../state/session';
 import { Widget } from './social';
 import { ARCHETYPE_DEFS, ARCHETYPE_LIST, visibleQuestions, type EntryKind } from '../../shared/archetypes';
 import { AUDIENCE_LABEL, type Archetype, type Audience } from '../../shared/constants';
-import { AVATAR_EXTRAS, AVATAR_EYES, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_SHAPES, COVER_PRESETS, type AvatarConfig } from '../../shared/avatar';
+import { AVATAR_BROWS, AVATAR_EXTRAS, AVATAR_EYES, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_PATTERNS, AVATAR_SHAPES, COVER_PRESETS, type AvatarConfig } from '../../shared/avatar';
 import { GENDER_OPTIONS, type MyProfile } from '../../shared/api/profile';
 import type { AchievementView, EntryView, IdentityView, SpaceView, SuggestionView } from '../../shared/api/identity';
 import type { MediaItem } from '../../shared/api/media';
@@ -95,7 +95,7 @@ function AvatarBuilder({ p, onSaved }: { p: MyProfile; onSaved: () => void }) {
   return <Card className="stack-sm" aria-labelledby="av"><h2 id="av" className="h-sm">Avatar</h2><p className="muted">Build one, or upload a photo. Everyone starts with a unique avatar, so you never need a photo.</p>
     <div className="row"><Avatar avatar={{ mode, config: cfg as Record<string, unknown>, photoUrl: photo.url }} size={96} name={p.displayName} /><div className="row-wrap" role="group" aria-label="Avatar type">{(['avatar', 'photo', 'both'] as const).map((m) => <Chip key={m} on={mode === m} onClick={() => setMode(m)} disabled={m !== 'avatar' && !photo.id}>{m === 'avatar' ? 'Built avatar' : m === 'photo' ? 'Photo' : 'Photo with avatar'}</Chip>)}</div></div>
     <fieldset className="fieldset"><legend>Colours</legend><div className="row-wrap">{AVATAR_PALETTES.map((pl) => <button key={pl.id} type="button" className="swatch" aria-label={pl.id} aria-pressed={cfg.palette === pl.id} style={{ background: `linear-gradient(135deg, ${pl.a}, ${pl.b})` }} onClick={() => setCfg({ ...cfg, palette: pl.id })} />)}</div></fieldset>
-    <div className="grid-3">{opt('shape', AVATAR_SHAPES, 'Shape')}{opt('eyes', AVATAR_EYES, 'Eyes')}{opt('mouth', AVATAR_MOUTHS, 'Mouth')}{opt('extra', AVATAR_EXTRAS, 'Extra')}</div>
+    <div className="grid-3">{opt('shape', AVATAR_SHAPES, 'Shape')}{opt('eyes', AVATAR_EYES, 'Eyes')}{opt('mouth', AVATAR_MOUTHS, 'Mouth')}{opt('extra', AVATAR_EXTRAS, 'Extra')}{opt('brows', AVATAR_BROWS, 'Brows')}{opt('pattern', AVATAR_PATTERNS, 'Pattern')}</div>
     <div className="row-wrap"><label className="btn btn-secondary btn-sm"><Icon name="image" size={16} /> Upload a photo<input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; try { const m = await uploadImage(f, 'avatar'); setPhoto({ id: m.id, url: m.url }); setMode('photo'); } catch (er) { say(errMsg(er), 'error'); } }} /></label>
       <Button size="sm" variant="ghost" onClick={() => setCfg({ seed: String(Math.random()) } as AvatarConfig)}>Surprise me</Button></div>
     <Button variant="primary" busy={busy} onClick={() => void save()} style={{ justifySelf: 'start' }}>Save avatar</Button></Card>;
@@ -130,7 +130,8 @@ function Entries() {
     <Confirm open={!!del} danger title="Delete this entry?" confirmLabel="Delete" onConfirm={async () => { await api.del(`/api/me/entries/${del!.id}`); res.reload(); }} onClose={() => setDel(null)}>This removes it from your profile.</Confirm></Card>;
 }
 function Achievements() {
+  const { say } = useToast();
   const res = useResource(() => api.get<{ items: AchievementView[] }>('/api/me/achievements'), []);
-  return <Card className="stack-sm" aria-labelledby="ac"><h2 id="ac" className="h-sm">Milestones</h2><Async res={res}>{(d) => d.items.length === 0 ? <p className="muted">Add an identity to see milestones.</p> : <ul className="plain stack-sm">{d.items.map((a) => <li key={a.id}><strong>{a.label}</strong> {a.earned ? <Badge tone="ok">Earned</Badge> : <span className="faint">{a.progress}/{a.target}</span>}<div className="muted">{a.description}</div></li>)}</ul>}</Async></Card>;
+  return <Card className="stack-sm" aria-labelledby="ac"><h2 id="ac" className="h-sm">Milestones</h2><Async res={res}>{(d) => d.items.length === 0 ? <p className="muted">Add an identity to see milestones.</p> : <ul className="plain stack-sm">{d.items.map((a) => <li key={a.id}><strong>{a.label}</strong> {a.earned ? <Badge tone="ok">Earned</Badge> : <span className="faint">{a.progress}/{a.target}</span>} <span className="faint">Recorded by FREEVERSE</span><div className="muted">{a.description}</div>{a.earned && <Switch label="Show on my profile" checked={!!a.public} onChange={async (v) => { try { await api.put(`/api/me/achievements/${encodeURIComponent(a.id)}/display`, { public: v }); res.reload(); } catch (e) { say(errMsg(e), 'error'); } }} hint={a.public ? 'Others who can open your profile can see this. Hiding it keeps your record.' : 'Private to you.'} />}</li>)}</ul>}</Async></Card>;
 }
 export { navigate, DemoBadge };

@@ -1,8 +1,12 @@
+import { screenLabel } from '../../shared/label-screen';
+import { userStats, evaluate } from '../identity/stats';
+import { myIdentities } from './identities';
+import { ARCHETYPE_DEFS } from '../../shared/archetypes';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { badRequest, conflict, notFound } from '../http/errors';
 import { json, placeholders } from '../db';
-import { AVATAR_EYES, AVATAR_EXTRAS, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_SHAPES, COVER_PRESETS } from '../../shared/avatar';
+import { AVATAR_EYES, AVATAR_BROWS, AVATAR_PATTERNS, AVATAR_EXTRAS, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_SHAPES, COVER_PRESETS } from '../../shared/avatar';
 import { GENDER_OPTIONS, type MemberProfile, type MyProfile, type Personalization, type TagItem } from '../../shared/api/profile';
 import { INTERESTS, INTEREST_CATEGORIES, LEARN_TOPICS, CONTENT_CATEGORIES, PARTICIPATION_STYLES, CREATIVE_INTERESTS, CAREER_INTERESTS, GOAL_SUGGESTIONS, PERSONALIZATION_LIMITS, slugify } from '../../shared/interests';
 import { TAG_KINDS, type TagKind } from '../../shared/constants';
@@ -24,6 +28,8 @@ const avatarConfigSchema = z.object({
   palette: z.enum(AVATAR_PALETTES.map((p) => p.id) as [string, ...string[]]).optional(),
   shape: z.enum(AVATAR_SHAPES).optional(),
   eyes: z.enum(AVATAR_EYES).optional(),
+  brows: z.enum(AVATAR_BROWS).optional(),
+  pattern: z.enum(AVATAR_PATTERNS).optional(),
   mouth: z.enum(AVATAR_MOUTHS).optional(),
   extra: z.enum(AVATAR_EXTRAS).optional(),
 }).strict();
@@ -97,6 +103,7 @@ export const profilesModule: ModuleDef = {
 
     router.patch('/api/profile', { auth: 'active', body: profilePatch, rate: { key: 'profile:patch', limit: 60, windowMs: 10 * 60_000 } }, async (c) => {
       const b = c.body as z.infer<typeof profilePatch>;
+      for (const [k, v] of [['displayName', b.displayName], ['headline', b.headline], ['handle', b.handle]] as const) { const bad = typeof v === 'string' ? screenLabel(v) : null; if (bad) throw badRequest(bad, { [k]: 'label_not_allowed' }, 'label_not_allowed'); }
       const now = c.now().toISOString();
       await c.db.tx(async (t) => {
         if (b.handle !== undefined || b.displayName !== undefined) {
@@ -183,6 +190,7 @@ export const profilesModule: ModuleDef = {
         const label = cleanText(it.label, PERSONALIZATION_LIMITS.customLabelMax);
         const slug = slugify(label);
         if (!label || !slug) continue;
+        const bad = screenLabel(label); if (bad) throw badRequest(bad, { items: 'label_not_allowed' }, 'label_not_allowed');
         const key = `custom-${slug}`;
         final.set(key, { label, category: null, custom: true });
       }
@@ -223,6 +231,14 @@ export const profilesModule: ModuleDef = {
       if (can('cover')) out.cover = { mode: row.cover_mode, presetId: row.cover_preset ?? null, imageUrl: row.cover_mode === 'image' && row.cover_media_id ? signedMediaUrl(s, viewer, row.cover_media_id) : null };
       if (can('interests')) {
         out.interests = (await c.db.query<any>("SELECT key, label, category FROM user_tags WHERE user_id = $1 AND kind = 'interest' ORDER BY created_at, key", [u.id])).map((r) => ({ key: r.key, label: r.label, category: r.category ?? null }));
+      }
+      {
+        const shown = (await c.db.query<{ achievement_id: string }>('SELECT achievement_id FROM achievement_display WHERE user_id = $1 AND is_public = $2', [u.id, true])).map((r) => r.achievement_id);
+        if (shown.length) {
+          const st = await userStats(c.db, u.id); const list: NonNullable<MemberProfile['achievements']> = [];
+          for (const i of await myIdentities(c.db, u.id)) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) { const e = evaluate(a, st, i.archetype); if (e.earned && shown.includes(e.id)) list.push({ id: e.id, label: e.label, description: e.description, evidence: 'platform_recorded' }); }
+          if (list.length) out.achievements = list;
+        }
       }
       if (can('connections')) {
         const n = async (sql: string) => Number((await c.db.get<{ n: number }>(sql, [u.id]))?.n ?? 0);
