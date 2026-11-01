@@ -5,6 +5,8 @@ import { Icon } from '../ui/Icon';
 import { Async, Badge, Button, Card, Chip, Confirm, EmptyState, Notice, PageHead, SelectField, Switch, TextArea, TextField, errMsg, useResource } from '../ui/kit';
 import { useToast } from '../state/toast';
 import { timeAgo } from '../lib/time';
+import { ReadAloud } from '../features/ai-voice';
+import { AI_MODES } from '../../shared/ai-style';
 import { AI_LIMITS, type AgentCard, type AiConversationView, type AiMessageView, type AiSendResult, type CrisisResource } from '../../shared/api/ai';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
@@ -23,7 +25,7 @@ export function NovaPage(_: P) {
     <div className="stack-lg"><PageHead title="Nova" actions={info.data?.history.saveHistory === false ? <Link className="btn btn-primary" to="/ai/chat/temporary">Temporary chat</Link> : <Button variant="primary" onClick={() => void create()}><Icon name="plus" size={16} /> New conversation</Button>}>Your companion for thinking things through. For specialist help, see the <Link to="/ai/council">AI Council</Link>.</PageHead>
       <Async res={info}>{(i) => <><ModeBanner info={i} />
         <details className="card"><summary>How your conversations are handled</summary><p>{i.disclosure}</p><p className="muted">History is {i.history.saveHistory ? 'saved' : 'off'}{i.history.retentionDays ? `, deleted after ${i.history.retentionDays} days` : ''}. Change this in <Link to="/settings/nova">Settings → Nova</Link>.</p></details>
-        <div className="row-wrap"><Link className="chip chip-link" to="/ai/journal">Journal {i.tools.journal ? '' : '(off)'}</Link><Link className="chip chip-link" to="/ai/goals">Goals {i.tools.goals ? '' : '(off)'}</Link><Link className="chip chip-link" to="/ai/habits">Habits {i.tools.habits ? '' : '(off)'}</Link></div></>}</Async>
+        <div className="row-wrap"><Link className="chip chip-link" to="/ai/preferences">AI preferences</Link><Link className="chip chip-link" to="/ai/journal">Journal {i.tools.journal ? '' : '(off)'}</Link><Link className="chip chip-link" to="/ai/goals">Goals {i.tools.goals ? '' : '(off)'}</Link><Link className="chip chip-link" to="/ai/habits">Habits {i.tools.habits ? '' : '(off)'}</Link></div></>}</Async>
       <form className="row-wrap" role="search" onSubmit={(e) => { e.preventDefault(); setApplied(q); }}><TextField label="Search your conversations" value={q} onChange={(e) => setQ(e.target.value)} /><Button type="submit">Search</Button></form>
       <Async res={list} empty={(d) => (d.items.length ? null : <EmptyState icon="nova" title={applied ? 'No conversations match' : 'No conversations yet'}>{applied ? 'Try another word.' : 'Start one whenever you like.'}</EmptyState>)}>{(d) => <ul className="plain stack-sm">{d.items.map((c) => <li key={c.id} className="card spread">
         {renaming === c.id ? <form className="row-wrap" onSubmit={async (e) => { e.preventDefault(); try { await api.patch(`/api/ai/conversations/${c.id}`, { title }); setRenaming(null); list.reload(); } catch (er) { say(errMsg(er), 'error'); } }}><TextField label="Title" value={title} maxLength={AI_LIMITS.titleMax} onChange={(e) => setTitle(e.target.value)} /><Button type="submit" size="sm" variant="primary">Save</Button><Button size="sm" variant="ghost" onClick={() => setRenaming(null)}>Cancel</Button></form>
@@ -41,7 +43,7 @@ export function NovaChatPage({ params, query }: P) {
   const { say } = useToast(); const temp = params.id === 'temporary'; const agent = query.get('agent') ?? 'nova';
   const conv = useResource(() => (temp ? Promise.resolve(null) : api.get<{ conversation: AiConversationView; messages: AiMessageView[] }>(`/api/ai/conversations/${params.id}`)), [params.id]);
   const info = useResource(() => api.get<Info>('/api/ai/info'), []);
-  const [local, setLocal] = useState<AiMessageView[]>([]); const [text, setText] = useState(''); const [busy, setBusy] = useState(false); const [safety, setSafety] = useState<AiSendResult['safety']>(null); const end = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<'everyday' | 'creative'>('everyday'); const [local, setLocal] = useState<AiMessageView[]>([]); const [text, setText] = useState(''); const [busy, setBusy] = useState(false); const [safety, setSafety] = useState<AiSendResult['safety']>(null); const end = useRef<HTMLDivElement>(null);
   useEffect(() => { if (conv.data) setLocal(conv.data.messages); }, [conv.data]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [local.length]);
   const send = async () => {
@@ -49,10 +51,10 @@ export function NovaChatPage({ params, query }: P) {
     try {
       if (temp) {
         const mine: AiMessageView = { id: `u${local.length}`, role: 'user', body: t, createdAt: new Date().toISOString(), meta: {} }; const next = [...local, mine]; setLocal(next); setText('');
-        const r = await api.post<{ text: string; mode: 'live' | 'demo' | 'safety'; safety: AiSendResult['safety'] }>('/api/ai/chat', { agentId: agent, messages: next.filter((m) => m.role !== 'notice').map((m) => ({ role: m.role as 'user' | 'assistant', content: m.body })).slice(-20) });
+        const r = await api.post<{ text: string; mode: 'live' | 'demo' | 'safety'; safety: AiSendResult['safety'] }>('/api/ai/chat', { agentId: agent, ...(agent === 'nova' ? { mode } : {}), messages: next.filter((m) => m.role !== 'notice').map((m) => ({ role: m.role as 'user' | 'assistant', content: m.body })).slice(-20) });
         setLocal([...next, { id: `a${next.length}`, role: r.mode === 'safety' ? 'notice' : 'assistant', body: r.text, createdAt: new Date().toISOString(), meta: { mode: r.mode === 'safety' ? undefined : r.mode, agentId: agent } }]); setSafety(r.safety);
       } else {
-        const r = await api.post<AiSendResult>(`/api/ai/conversations/${params.id}/messages`, { body: t }); setText(''); setLocal((m) => [...m, ...(r.userMessage ? [r.userMessage] : []), r.assistantMessage]); setSafety(r.safety);
+        const r = await api.post<AiSendResult>(`/api/ai/conversations/${params.id}/messages`, { body: t, ...(mode === 'creative' ? { mode } : {}) }); setText(''); setLocal((m) => [...m, ...(r.userMessage ? [r.userMessage] : []), r.assistantMessage]); setSafety(r.safety);
       }
     } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); }
   };
@@ -61,9 +63,10 @@ export function NovaChatPage({ params, query }: P) {
       <PageHead title={temp ? 'Temporary chat' : conv.data?.conversation.title ?? 'Nova'} back={{ to: '/ai', label: 'Nova' }}>{temp ? 'Nothing here is saved. It disappears when you leave.' : ''}</PageHead>
       {info.data && <ModeBanner info={info.data} />}
       {conv.error != null && !temp && <Notice tone="warn">{errMsg(conv.error)}</Notice>}
+      {(agent === 'nova' || (conv.data && conv.data.conversation.agentId === 'nova')) && <div className="row-wrap" role="group" aria-label="Nova mode">{AI_MODES.map(([id, label]) => <Chip key={id} on={mode === id} onClick={() => setMode(id)}>{label}</Chip>)}<span className="faint">{mode === 'creative' ? 'Creative mode: ideas, design and making things.' : 'Everyday mode: conversation, planning and reflection.'}</span></div>}
       <div className="thread" role="log" aria-live="polite" aria-label="Conversation">
         {local.length === 0 && <p className="muted">Say what’s on your mind. Nova can be wrong, and isn’t a doctor, lawyer or therapist.</p>}
-        {local.map((m) => m.role === 'notice' ? <div key={m.id} className="notice notice-warn" role="note">{m.body}</div> : <div key={m.id} className={`bubble ${m.role === 'user' ? 'mine' : 'theirs'}`}>{m.body}{m.role === 'assistant' && <div className="faint small">{m.meta.mode === 'demo' ? 'Demo reply (scripted, not real AI)' : 'AI reply'}</div>}</div>)}
+        {local.map((m) => m.role === 'notice' ? <div key={m.id} className="notice notice-warn" role="note">{m.body}</div> : <div key={m.id} className={`bubble ${m.role === 'user' ? 'mine' : 'theirs'}`}>{m.body}{m.role === 'assistant' && <div className="faint small">{m.meta.mode === 'demo' ? 'Demo reply (scripted, not real AI)' : 'AI reply'}</div>}{m.role === 'assistant' && <ReadAloud text={m.body} />}</div>)}
         <div ref={end} />
       </div>
       {safety && <Card className="notice notice-warn"><h2 className="h-sm">If you’re struggling, you don’t have to handle it alone</h2><Resources list={safety.resources} /></Card>}

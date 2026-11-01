@@ -7,6 +7,8 @@ import { aiApi } from '../ai/runtime';
 import { analyse, CRISIS_REPLY, CRISIS_RESOURCES, FLAG_DISCLOSURE, flagExchange, purgeExpiredFlags, retentionDays } from '../ai/safety';
 import { loadSettings } from '../profile/common';
 import { registerEraser, registerExporter } from '../services/erasure';
+import { AI_INPUTS, permissionSummary } from '../../shared/ai-capabilities';
+import { CREATIVE_MODE_PROMPT, styleToPrompt, type AiStyle } from '../../shared/ai-style';
 import { AI_LIMITS, type AiConversationView, type AiMessageView, type AiSendResult } from '../../shared/api/ai';
 import type { Services } from '../services';
 import type { Db } from '../db';
@@ -41,6 +43,14 @@ async function respond(s: Services, o: { userId: string; agentId: string; histor
   return { text: r.text, mode: r.mode, provider: r.provider, safety: safety.severity ? { severity: 'elevated' as const, resources: CRISIS_RESOURCES.slice(0, 2) } : null };
 }
 
+/** Style preferences and mode become one extra system paragraph. Safety analysis always runs first and is not affected by either. */
+async function personalise(db: Db, userId: string, mode: 'everyday' | 'creative' | undefined): Promise<string> {
+  const st = (await loadSettings(db, userId)).nova;
+  const style: AiStyle = { tone: st.tone, formality: st.formality, humor: st.humor, detail: st.detail, coaching: st.coaching, styleNote: st.styleNote };
+  return [styleToPrompt(style), mode === 'creative' ? CREATIVE_MODE_PROMPT : ''].filter(Boolean).join('\n');
+}
+const modeField = z.enum(['everyday', 'creative']).optional();
+
 const agentAllowed = async (s: Services, agentId: string) => {
   const a = await aiApi.getAgent(s, agentId);
   if (!a || (a.config as any)?.hidden) throw notFound('That specialist does not exist.');
@@ -58,7 +68,10 @@ export const novaModule: ModuleDef = {
           ? 'No AI model is connected to this FREEVERSE instance. Replies are scripted stand-ins and are labelled “Demo”. Nothing here is real AI yet.'
           : 'Replies come from an AI model. It can be wrong. It is not a doctor, lawyer or therapist.',
         disclosure: FLAG_DISCLOSURE, flagRetentionDays: await retentionDays(c.db), resources: CRISIS_RESOURCES,
-        dailyCap: s.config.ai.dailyMessageCap, history: { saveHistory: st.nova.saveHistory, retentionDays: st.nova.historyRetentionDays },
+        dailyCap: s.config.ai.dailyMessageCap, defaultAgent: 'nova', inputs: AI_INPUTS,
+        usage: { last24h: Number((await c.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = $1 AND capability = 'text.chat' AND occurred_at >= $2", [c.me.userId, new Date(c.now().getTime() - 86400_000).toISOString()]))?.n ?? 0) },
+        access: 'Everyone can use the assistants in this early stage. There is a per-minute limit and a daily message limit to keep costs and abuse in check. Nothing essential (your account, safety information, reporting) depends on AI.',
+        assistants: (await aiApi.listAgents(s)).filter((a) => !(a.config as any)?.hidden).map((a) => ({ id: a.id, name: a.name, title: a.title, tagline: a.tagline, available: a.available, unavailableReason: a.unavailableReason ?? null, ...permissionSummary(a.toolPermissions) })), history: { saveHistory: st.nova.saveHistory, retentionDays: st.nova.historyRetentionDays },
         tools: { journal: st.nova.journalEnabled, goals: st.nova.goalsEnabled, habits: st.nova.habitsEnabled },
       };
     });
@@ -112,7 +125,7 @@ export const novaModule: ModuleDef = {
 
     router.post('/api/ai/conversations/:id/messages', {
       auth: 'active',
-      body: z.object({ body: z.string().trim().min(1, 'Write a message first.').max(AI_LIMITS.messageMax), attachJournalEntryId: id.optional() }).strict(),
+      body: z.object({ body: z.string().trim().min(1, 'Write a message first.').max(AI_LIMITS.messageMax), attachJournalEntryId: id.optional(), mode: modeField }).strict(),
       rate: { key: 'ai:min', limit: 12, windowMs: 60_000 },
     }, async (c) => {
       const me = c.me.userId;
@@ -132,7 +145,7 @@ export const novaModule: ModuleDef = {
       const history = prior.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.body })).slice(-20);
       if (attached) history[history.length - 1]!.content += attached;
       let out;
-      try { out = await respond(s, { userId: me, agentId: conv.agent_id, history, conversationId: conv.id, messageId: umid }); }
+      try { out = await respond(s, { userId: me, agentId: conv.agent_id, history, conversationId: conv.id, messageId: umid, extraSystem: await personalise(c.db, me, c.body.mode) }); }
       catch (e) { await c.db.run('DELETE FROM ai_messages WHERE id = $1', [umid]); throw e; } // nothing half-saved if the specialist could not answer
       const amid = uuid(); const t2 = c.now().toISOString();
       const meta: AiMessageView['meta'] = { mode: out.mode === 'safety' ? undefined : out.mode, provider: out.provider, agentId: conv.agent_id, ...(out.safety ? { safety: out.safety.severity } : {}) };
@@ -146,13 +159,13 @@ export const novaModule: ModuleDef = {
     // Temporary chat: nothing is stored (used when history is off). The client keeps the thread in memory.
     router.post('/api/ai/chat', {
       auth: 'active',
-      body: z.object({ agentId: z.string().max(40).default('nova'), messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(AI_LIMITS.messageMax) })).min(1).max(20) }).strict(),
+      body: z.object({ agentId: z.string().max(40).default('nova'), messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(AI_LIMITS.messageMax) })).min(1).max(20), mode: modeField }).strict(),
       rate: { key: 'ai:min', limit: 12, windowMs: 60_000 },
     }, async (c) => {
       s.rate.check(`ai:day:${c.me.userId}`, s.config.ai.dailyMessageCap, 24 * 3600_000);
       await agentAllowed(s, c.body.agentId);
       if (c.body.messages[c.body.messages.length - 1]!.role !== 'user') throw badRequest('The last message must be yours.');
-      const out = await respond(s, { userId: c.me.userId, agentId: c.body.agentId, history: c.body.messages, conversationId: null, messageId: null });
+      const out = await respond(s, { userId: c.me.userId, agentId: c.body.agentId, history: c.body.messages, conversationId: null, messageId: null, extraSystem: await personalise(c.db, c.me.userId, c.body.mode) });
       return { text: out.text, mode: out.mode, safety: out.safety, stored: false };
     });
 
