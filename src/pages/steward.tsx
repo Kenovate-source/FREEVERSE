@@ -7,6 +7,8 @@ import { useStepUp } from '../state/stepup';
 import { useSession } from '../state/session';
 import { timeAgo } from '../lib/time';
 import type { AiMessageView } from '../../shared/api/ai';
+import { FounderHome, CommandBar } from './founder-console';
+import { SuggestionsAdmin } from './founder-suggestions';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
 const RISK_TONE = (r: string) => (r === 'high' ? 'warn' : r === 'medium' ? 'violet' : 'ok') as 'warn' | 'violet' | 'ok';
@@ -21,16 +23,16 @@ function useGuarded() {
 }
 
 const SECTIONS = [
-  { id: 'overview', label: 'Overview' }, { id: 'ai', label: 'Founder AI' }, { id: 'decisions', label: 'Decisions' }, { id: 'governance', label: 'Governance' }, { id: 'access', label: 'Access reviews' },
+  { id: 'overview', label: 'Overview' }, { id: 'ai', label: 'Founder AI' }, { id: 'decisions', label: 'Decisions' }, { id: 'suggestions', label: 'Suggestions' }, { id: 'governance', label: 'Governance' }, { id: 'access', label: 'Access reviews' },
   { id: 'communities', label: 'Communities' }, { id: 'universes', label: 'Universes' }, { id: 'council', label: 'AI Council' }, { id: 'audit', label: 'Audit log' }, { id: 'constitution', label: 'Constitution' }, { id: 'priorities', label: 'Priorities' },
 ] as const;
 
 export function FounderPage({ params }: P) {
   const sec = params.section ?? 'overview'; const { can } = useSession();
   return (
-    <div className="stack-lg"><PageHead title="Founder Console">Platform stewardship in one place. A title never grants access to anyone’s private messages, journals or Nova chats.</PageHead>
+    <div className="stack-lg"><PageHead title="Founder Console" actions={<CommandBar />}>Platform stewardship in one place. A title never grants access to anyone’s private messages, journals or Nova chats.</PageHead>
       <nav className="row-wrap" aria-label="Founder Console sections">{SECTIONS.map((s) => <Link key={s.id} to={s.id === 'overview' ? '/founder' : `/founder/${s.id}`} className={`chip chip-link${sec === s.id ? ' on' : ''}`} aria-current={sec === s.id ? 'page' : undefined}>{s.label}</Link>)}</nav>
-      {sec === 'overview' && <Overview />}{sec === 'ai' && (can('ai.founder.use') ? <FounderAi /> : <Notice tone="warn">You don’t have access to Founder AI.</Notice>)}{sec === 'decisions' && <Decisions />}{sec === 'governance' && <GovernanceAdmin />}
+      {sec === 'overview' && <FounderHome />}{sec === 'suggestions' && <SuggestionsAdmin />}{sec === 'ai' && (can('ai.founder.use') ? <FounderAi /> : <Notice tone="warn">You don’t have access to Founder AI.</Notice>)}{sec === 'decisions' && <Decisions />}{sec === 'governance' && <GovernanceAdmin />}
       {sec === 'access' && <Access />}{sec === 'communities' && <Communities />}{sec === 'universes' && <UniversesAdmin />}{sec === 'council' && <CouncilAdmin />}{sec === 'audit' && <Audit />}{sec === 'constitution' && <Constitution />}{sec === 'priorities' && <Priorities />}
     </div>
   );

@@ -7,8 +7,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || '/opt/npm-tools/node
 const BASE = process.env.BASE || 'http://127.0.0.1:5199';
 const OUT = process.env.SHOTS || 'screenshots/stage2'; mkdirSync(OUT, { recursive: true });
 const SIZES = { phone: { width: 390, height: 844 }, tablet: { width: 820, height: 1100 }, desktop: { width: 1366, height: 900 } };
-const FOUNDER_ROUTES = ['/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/access', '/founder/communities', '/founder/universes', '/founder/council', '/founder/audit', '/founder/constitution', '/founder/priorities', '/governance', '/moderation'];
-const ROUTES = ['/home', '/universes/freeconnect', '/universes/freelearn', '/universes/freework', '/universes/freebuild', '/universes/freemarket', '/universes/freeai', '/universes/freeresearch', '/universes/freehealth', '/universes/freefinance', '/universes/freemedia', '/universes/freeevents', '/universes/freevolunteer', '/universes/freelabs', '/universes/freeplay', '/universes/freeentertainment', '/universes/freeplay/games', '/universes/freefinance/tools', '/terms', '/privacy', '/rules', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
+const FOUNDER_ROUTES = ['/founder', '/founder/ai', '/founder/decisions', '/founder/suggestions', '/founder/governance', '/founder/access', '/founder/communities', '/founder/universes', '/founder/council', '/founder/audit', '/founder/constitution', '/founder/priorities', '/governance', '/moderation'];
+const ROUTES = ['/suggestions', '/home', '/universes/freeconnect', '/universes/freelearn', '/universes/freework', '/universes/freebuild', '/universes/freemarket', '/universes/freeai', '/universes/freeresearch', '/universes/freehealth', '/universes/freefinance', '/universes/freemedia', '/universes/freeevents', '/universes/freevolunteer', '/universes/freelabs', '/universes/freeplay', '/universes/freeentertainment', '/universes/freeplay/games', '/universes/freefinance/tools', '/terms', '/privacy', '/rules', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
 const results = []; const problems = [];
 const stamp = Date.now();
 
@@ -76,6 +76,21 @@ async function run(size, who = 'member') {
     await page.getByText('Image input', { exact: true }).waitFor(); await page.getByText('Not available yet').first().waitFor();
     await page.goto(`${BASE}/#/ai/chat/temporary`); await page.getByRole('group', { name: 'Nova mode' }).getByRole('button', { name: 'Creative' }).click();
     await page.getByText(/Creative mode: ideas/).waitFor();
+  });
+  if (who === 'member') await step('suggestions: send a private suggestion and see it with its status', async () => {
+    await page.goto(`${BASE}/#/suggestions`); await page.getByRole('heading', { name: 'Suggest an improvement' }).waitFor({ timeout: 8000 });
+    const t = `Browser test idea ${stamp}${size}`.slice(0, 60);
+    await page.getByLabel('Title').fill(t); await page.getByLabel('What would you like, and why?').fill('It would help to have this because it makes daily use easier for me.');
+    await page.getByLabel('What is it about?').selectOption('usability'); await page.getByRole('button', { name: 'Send suggestion' }).click();
+    await page.getByRole('heading', { name: t }).waitFor({ timeout: 8000 }); await page.getByText('Submitted').first().waitFor();
+  });
+  if (who === 'founder') await step('console: ecosystem map opens a context layer; command bar navigates; suggestions queue lists items', async () => {
+    await page.goto(`${BASE}/#/founder`); await page.getByRole('heading', { name: 'The ecosystem' }).waitFor({ timeout: 10000 });
+    await page.screenshot({ path: `${OUT}/${size}-founder-console.png` });
+    await page.getByRole('button', { name: /^Safety:/ }).click(); await page.screenshot({ path: `${OUT}/${size}-founder-console-open.png` }); await page.getByRole('heading', { name: 'Safety', exact: true }).waitFor({ timeout: 5000 }); await page.getByText(/How this level is decided/).waitFor();
+    await page.keyboard.press('Control+k'); await page.getByRole('dialog', { name: 'Command bar' }).waitFor(); await page.getByRole('combobox', { name: 'Go to a workspace' }).fill('suggest'); await page.keyboard.press('Enter');
+    await page.waitForURL(/#\/founder\/suggestions/, { timeout: 5000 }); await page.getByRole('heading', { name: 'Suggestions from citizens' }).waitFor({ timeout: 8000 });
+    await page.getByText(/Browser test idea/).first().waitFor({ timeout: 8000 });
   });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {

@@ -63,7 +63,14 @@ export async function collectOverview(s: Services) {
   const universes = UNIVERSES.map((u) => ({ id: u.id, name: u.name, status: overrides[u.id]?.status ?? u.status, basis: u.basis }));
   const pending = await s.db.query<any>("SELECT id, title, effective_risk, source, created_at FROM proposals WHERE status = 'pending_approval' ORDER BY created_at LIMIT 20");
   const ai = await founderAiSettings(s.db);
+  const timelineRows = await s.db.query<any>("SELECT a.occurred_at, a.action, a.target_type, a.outcome, u.handle FROM audit_events a LEFT JOIN users u ON u.id = a.actor_id WHERE a.action NOT IN ('founder.console_viewed') ORDER BY a.occurred_at DESC, a.id DESC LIMIT 12");
+  const attention = {
+    suggestionsNew: await count(s, "SELECT COUNT(*) AS n FROM suggestions WHERE status = 'submitted'").catch(() => 0),
+    findingsOpen: await count(s, "SELECT COUNT(*) AS n FROM founder_ai_findings WHERE status = 'open'").catch(() => 0),
+    universesLive: universes.filter((u) => u.status === 'available' || u.status === 'partial').length, universesTotal: universes.length,
+  };
   return {
+    attention, timeline: timelineRows.map((r) => ({ at: r.occurred_at, action: r.action, target: r.target_type ?? null, outcome: r.outcome ?? null, by: r.handle ?? null })),
     generatedAt: nowIso, dataNote: 'Every figure below is computed live from this instance’s own database. Nothing is estimated.',
     platform, config: cfg, moderation, governance, council, security: sec,
     accessReview: { lastCompletedAt: lastReview?.completed_at ?? null, open: await count(s, "SELECT COUNT(*) AS n FROM access_reviews WHERE status = 'open'") },
