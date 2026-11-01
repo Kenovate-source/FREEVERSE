@@ -28,6 +28,7 @@ import { identitiesModule } from './identities';
 import { onboardingModule } from './onboarding';
 import { homeModule } from './home';
 import { spacesModule } from './spaces';
+import { suggestionsModule } from './suggestions';
 import { universeSpacesModule } from './universe-spaces';
 import { demoSeedModule } from './demo-seed';
 
@@ -62,6 +63,7 @@ export const modules: ModuleDef[] = [
   onboardingModule,
   homeModule,
   spacesModule,
+  suggestionsModule,
   universeSpacesModule,
   demoSeedModule,
 ];

@@ -6,6 +6,7 @@ import { Onboarding } from './onboarding';
 import { HomePage, CommunitiesPage, CommunityPage, PostPage, MemberPage, ExplorePage, SearchPage } from './social';
 import { LearnPage, LearnItemPage, OpportunitiesPage, OpportunityPage, MentorsPage, EventsPage, EventPage } from './grow';
 import { MessagesPage, ConversationPage, NotificationsPage, SavedPage } from './inbox';
+import { SuggestionsPage } from './suggestions';
 import { AiPreferencesPage } from './ai-preferences';
 import { NovaPage, NovaChatPage, JournalPage, GoalsPage, HabitsPage, CouncilPage, CouncilAgentPage } from './ai';
 import { IdentitiesPage, SpacePage, ProfileEditPage } from './me';
@@ -21,7 +22,7 @@ export const PAGES: Record<string, ComponentType<PageProps>> = {
   home: HomePage, explore: ExplorePage, search: SearchPage, communities: CommunitiesPage, community: CommunityPage, post: PostPage, member: MemberPage,
   messages: MessagesPage, conversation: ConversationPage, notifications: NotificationsPage, saved: SavedPage,
   learn: LearnPage, 'learn-item': LearnItemPage, opportunities: OpportunitiesPage, opportunity: OpportunityPage, mentors: MentorsPage, events: EventsPage, event: EventPage,
-  nova: NovaPage, 'ai-preferences': AiPreferencesPage, 'nova-chat': NovaChatPage, journal: JournalPage, goals: GoalsPage, habits: HabitsPage, council: CouncilPage, 'council-agent': CouncilAgentPage,
+  nova: NovaPage, suggestions: SuggestionsPage, 'ai-preferences': AiPreferencesPage, 'nova-chat': NovaChatPage, journal: JournalPage, goals: GoalsPage, habits: HabitsPage, council: CouncilPage, 'council-agent': CouncilAgentPage,
   identities: IdentitiesPage, space: SpacePage, 'profile-edit': ProfileEditPage, settings: SettingsPage, 'settings-section': SettingsPage,
   universes: UniversesPage, universe: UniversePage, 'universe-space': UniversePage, soon: SoonPage, help: HelpPage,
   founder: FounderPage, 'founder-section': FounderPage, governance: GovernancePage, moderation: ModerationPage, 'moderation-case': ModerationCasePage,
