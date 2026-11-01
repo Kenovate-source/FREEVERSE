@@ -4,6 +4,7 @@ import { Link, navigate } from '../../lib/router';
 import { Badge, Button, Dialog, Notice, TextField, errMsg } from '../../ui/kit';
 import { useToast } from '../../state/toast';
 import { templateFor } from '../../../shared/universe-spaces';
+import { availabilityByLabel, sessionStatus, SESSION_STATUS_LABEL } from '../../../shared/media-taxonomy';
 import type { PostView } from '../../../shared/api/content';
 
 export function MessageDialog({ handle, open, onClose, starter }: { handle: string; open: boolean; onClose: () => void; starter?: string }) {
@@ -28,7 +29,13 @@ export function UniverseBits({ post, onChange }: { post: PostView; onChange: (p:
     try { const r = part.joined ? await api.del<{ joined: boolean; count: number }>(`/api/posts/${post.id}/participation`) : await api.put<{ joined: boolean; count: number }>(`/api/posts/${post.id}/participation`); onChange({ ...post, participation: { count: r.count, joined: r.joined } }); say(r.joined ? tpl.participation!.done : 'Removed'); } catch (e) { say(errMsg(e), 'error'); }
   };
   const showWho = async () => { try { setWho((await api.get<{ items: { handle: string; displayName: string | null }[] }>(`/api/posts/${post.id}/participants`)).items); } catch (e) { say(errMsg(e), 'error'); } };
+  const av = post.universe === 'freeentertainment' ? availabilityByLabel(String(meta.availability ?? '')) : undefined;
+  const status = post.universe === 'freeentertainment' && post.template === 'watch-along' ? sessionStatus(String(post.data.startsAt ?? ''), typeof meta.minutes === 'number' ? meta.minutes : Number(meta.minutes) || undefined, Date.now()) : null;
+  const href = typeof post.data.url === 'string' && /^https?:\/\//.test(post.data.url) ? post.data.url : null; let host = ''; try { host = href ? new URL(href).hostname.replace(/^www\./, '') : ''; } catch { /* shown without a host */ }
   return <div className="stack-sm uni-bits">
+    {(status || av) && <div className="row-wrap">{status && <Badge tone={status === 'live' ? 'ok' : undefined}>{SESSION_STATUS_LABEL[status]}</Badge>}{av && <Badge>{av.label}</Badge>}</div>}
+    {av && <p className="faint">{av.blurb}</p>}
+    {href && av?.link && post.template === 'recommendation' && <a className="btn btn-primary btn-sm" href={href} target="_blank" rel="noopener noreferrer nofollow" style={{ justifySelf: 'start' }}>Open where to watch{host ? ` (${host})` : ''}</a>}
     {rows.length > 0 && <dl className="meta-list">{rows.map((f) => <div key={f.key}><dt>{f.label.replace(/ \(.*\)$/, '')}</dt><dd>{String(meta[f.key])}</dd></div>)}</dl>}
     {tpl.notice && <p className="faint">{tpl.notice}</p>}
     <div className="row-wrap">

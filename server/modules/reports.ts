@@ -11,7 +11,7 @@ import { registerEraser, registerExporter } from '../services/erasure';
 
 export const REPORT_HELP: Record<string, string> = {
   harassment: 'Bullying, threats or targeted abuse', unwanted_contact: 'Contact you did not want', self_harm_crisis: 'Someone may be at risk of harm',
-  spam: 'Spam or scams', impersonation: 'Pretending to be someone else', illegal: 'Illegal or dangerous content', other: 'Something else',
+  spam: 'Spam or scams', impersonation: 'Pretending to be someone else', illegal: 'Illegal or dangerous content, including something shared without the rights holder’s permission', other: 'Something else',
 };
 
 export const reportsModule: ModuleDef = {

@@ -7,6 +7,7 @@ import { PostCard } from '../features/posts';
 import { TemplateComposer } from '../features/universe/composer';
 import { renderTool } from '../features/universe/tools';
 import { OrbitMap } from '../features/universe/OrbitMap';
+import { DiscoverFilters, SessionFilters, mediaQueryFrom } from '../features/universe/MediaFilters';
 import { UniverseSigil } from '../features/universe/Sigil';
 import { themeFor } from '../../shared/universe-theme';
 import { useMotion } from '../motion/react';
@@ -64,8 +65,10 @@ function Browse({ uid, space, spec, query }: { uid: string; space: Space; spec: 
     <div className="spread"><p className="muted">{cur.blurb}</p><Button variant="primary" onClick={() => setComposing(cur.id)}>{cur.verb}</Button></div>
     {composing && (composing === cur.id || tpls.some((t) => t.id === composing)) && <TemplateComposer universe={uid} template={tpls.find((t) => t.id === composing) ?? cur} onClose={() => { setComposing(null); setQuery({ new: null }); }} onPosted={() => { setComposing(null); setQuery({ new: null }); setTick((x) => x + 1); }} />}
     {filterField?.options && <div className="row-wrap" role="group" aria-label={`Filter by ${filterField.label}`}><Chip on={!facet} onClick={() => setQuery({ f: null })}>All</Chip>{filterField.options.map((o) => <Chip key={o} on={facet === o} onClick={() => setQuery({ f: facet === o ? null : o })}>{o}</Chip>)}</div>}
+    {uid === 'freeentertainment' && cur.id === 'recommendation' && <DiscoverFilters query={query} />}
+    {uid === 'freeentertainment' && cur.id === 'watch-along' && <SessionFilters query={query} />}
     <div className="row-wrap"><Chip on={mine} onClick={() => setQuery({ mine: mine ? null : '1' })}>Only mine</Chip></div>
-    <FeedList key={`${tick}|${cur.id}`} query={{ universe: uid, template: ids && tpls.length > 1 ? cur.id : ids, facet: facet || undefined, mine: mine ? '1' : undefined, sort: 'recent' }} />
+    <FeedList key={`${tick}|${cur.id}|${query.toString()}`} query={{ ...(uid === 'freeentertainment' ? mediaQueryFrom(query) : {}), universe: uid, template: ids && tpls.length > 1 ? cur.id : ids, facet: facet || undefined, mine: mine ? '1' : undefined, sort: 'recent' }} />
   </div>;
 }
 

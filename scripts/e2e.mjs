@@ -46,6 +46,28 @@ async function run(size, who = 'member') {
     await page.getByRole('list', { name: 'Links in this post' }).first().waitFor({ timeout: 8000 });
     const hosts = await page.locator('[aria-label="Links in this post"] li').allInnerTexts(); if (!hosts.join(' ').includes('news.example.org')) throw new Error('links not shown: ' + hosts);
   });
+  if (who === 'member') await step('entertainment: add a title, filter it, host a watch-along that shows as upcoming', async () => {
+    await page.goto(`${BASE}/#/universes/freeentertainment/recommendations`); await page.waitForSelector('main h1');
+    const nm = `Moonlit Tale ${stamp}${size}`.slice(0, 60);
+    await page.getByRole('button', { name: 'Add a title' }).click();
+    const f = page.getByRole('region', { name: 'Add a title' });
+    await f.getByLabel('Title', { exact: true }).fill(nm); await f.getByLabel('Why do you recommend it?').fill('A gentle story worth the evening.');
+    await f.getByLabel('Format').selectOption('Anime'); await f.getByLabel('Genre').selectOption('Fantasy'); await f.getByLabel('Original language').selectOption('Japanese');
+    await f.getByLabel('Release year').fill('2001'); await f.getByLabel('How can people watch it?').selectOption('Information only');
+    await f.getByLabel('Your rating').selectOption({ index: 1 }); await f.getByLabel('Spoilers').selectOption({ index: 1 });
+    await f.getByRole('button', { name: 'Post', exact: true }).last().click();
+    await page.getByText(nm).first().waitFor({ timeout: 8000 });
+    await page.getByLabel('Genre').selectOption('Horror'); await page.waitForFunction((n) => !document.body.innerText.includes(n), nm, { timeout: 8000 });
+    await page.getByLabel('Genre').selectOption('Fantasy'); await page.getByText(nm).first().waitFor({ timeout: 8000 });
+    await page.goto(`${BASE}/#/universes/freeentertainment/watch-alongs`); await page.waitForSelector('main h1');
+    await page.getByRole('button', { name: 'Host a watch-along' }).click();
+    const w = page.getByRole('region', { name: 'Host a watch-along' });
+    await w.getByLabel('What are you watching?').fill(`Night viewing ${stamp}${size}`.slice(0, 60)); await w.getByLabel('Starts').fill('2031-05-01T19:00');
+    await w.getByLabel('Format').selectOption('Series'); await w.getByLabel('Where will everyone watch?').selectOption('External destination');
+    await w.getByRole('button', { name: 'Post', exact: true }).last().click();
+    await page.getByText('Upcoming').first().waitFor({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Live now' }).click(); await page.getByText(/Night viewing/).first().waitFor({ state: 'detached', timeout: 8000 });
+  });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {
       await page.goto(`${BASE}/#${r}`); await page.waitForSelector('main h1, main h2, [role="alert"]', { timeout: 8000 }); await page.waitForTimeout(250);
