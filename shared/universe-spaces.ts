@@ -2,6 +2,7 @@
 // Everything here is backed by real features: posts (with a `universe` and `template`), the existing Learn / Opportunities / Mentors /
 // Events / Nova / Council features, in-browser tools and games. Nothing here promises payments, video hosting, multiplayer or live AI.
 import type { PostKind } from './constants';
+import { ANIMATION_STYLES, AVAILABILITY_LABELS, MEDIA_FORMATS, MEDIA_GENRES, MEDIA_LANGUAGES } from './media-taxonomy';
 
 export type FieldType = 'text' | 'textarea' | 'select' | 'number';
 export interface FieldDef { key: string; label: string; type: FieldType; options?: readonly string[]; required?: boolean; max?: number; min?: number; hint?: string; placeholder?: string }
@@ -45,7 +46,7 @@ export interface UniverseSpec {
 
 const S = (o: readonly string[]) => o;
 const CAT_MARKET = S(['Digital products', 'Design & creative', 'Tutoring & lessons', 'Tech help', 'Handmade & crafts', 'Clothing & accessories', 'Electronics', 'Books & study materials', 'Other']);
-const MEDIA_KINDS = S(['Film', 'Series', 'Music', 'Podcast', 'Book', 'Anime', 'Comedy', 'Game', 'Other']);
+const MEDIA_KINDS = S([...MEDIA_FORMATS]);
 const FIELDS = S(['Computer science', 'Engineering', 'Health & life sciences', 'Social sciences', 'Business & economics', 'Arts & humanities', 'Natural sciences', 'Education', 'Other']);
 
 export const GAMES = [
@@ -285,19 +286,38 @@ export const UNIVERSE_SPECS: readonly UniverseSpec[] = [
   {
     id: 'freeentertainment', related: S(['freemedia', 'freeplay', 'freeevents']),
     templates: [
-      { id: 'recommendation', label: 'Recommendation', kind: 'resource', verb: 'Recommend something', blurb: 'Tell people what to watch, hear, read or play, and why.', titleLabel: 'Title', titleRequired: true, bodyLabel: 'Why do you recommend it?', bodyRequired: true, urlLabel: 'Link (optional)',
-        fields: [{ key: 'medium', label: 'Kind', type: 'select', options: MEDIA_KINDS, required: true }, { key: 'rating', label: 'Your rating', type: 'select', options: S(['5 – loved it', '4 – really good', '3 – good', '2 – mixed', '1 – not for me']), required: true }, { key: 'spoilers', label: 'Spoilers', type: 'select', options: S(['Spoiler-free', 'Contains spoilers']), required: true }, { key: 'where', label: 'Where to find it (optional)', type: 'text', max: 80 }], filterField: 'medium' },
-      { id: 'watch-along', label: 'Watch-along', kind: 'event', verb: 'Host a watch-along', blurb: 'Invite people to watch or listen together at the same time, on a service of your choice.', titleLabel: 'What are you watching?', titleRequired: true, bodyLabel: 'Details', needsStart: true, urlLabel: 'Meeting or stream link (optional)', fields: [{ key: 'medium', label: 'Kind', type: 'select', options: MEDIA_KINDS, required: true }], filterField: 'medium',
-        participation: { label: 'I’m in', done: 'You’re in', what: 'The host sees how many are joining.' }, notice: 'FREEVERSE doesn’t stream content or host calls. You watch on your own service and chat here.' },
+      { id: 'recommendation', label: 'Title', kind: 'resource', verb: 'Add a title', blurb: 'Tell people what to watch, hear, read or play, and why. Add details so others can find it by genre, language, country or year.', titleLabel: 'Title', titleRequired: true, bodyLabel: 'Why do you recommend it?', bodyRequired: true, urlLabel: 'Where to watch it (optional link)',
+        notice: 'FREEVERSE doesn’t host or stream films or series. Only link to a place you are entitled to share, and choose the availability that is true. Rights holders can use Report on any entry and choose “Illegal or dangerous content”.',
+        fields: [
+          { key: 'medium', label: 'Format', type: 'select', options: MEDIA_KINDS, required: true },
+          { key: 'genre', label: 'Genre', type: 'select', options: MEDIA_GENRES },
+          { key: 'language', label: 'Original language', type: 'select', options: MEDIA_LANGUAGES },
+          { key: 'country', label: 'Country or region of origin', type: 'text', max: 60 },
+          { key: 'year', label: 'Release year', type: 'number', min: 1888, max: 2100 },
+          { key: 'animation', label: 'Animation style', type: 'select', options: ANIMATION_STYLES },
+          { key: 'creator', label: 'Creator or main cast', type: 'text', max: 120 },
+          { key: 'availability', label: 'How can people watch it?', type: 'select', options: AVAILABILITY_LABELS, required: true, hint: 'Be accurate. “Information only” is fine when there is no legitimate link.' },
+          { key: 'where', label: 'Service or source name (optional)', type: 'text', max: 80 },
+          { key: 'rating', label: 'Your rating', type: 'select', options: S(['5 – loved it', '4 – really good', '3 – good', '2 – mixed', '1 – not for me']), required: true },
+          { key: 'spoilers', label: 'Spoilers', type: 'select', options: S(['Spoiler-free', 'Contains spoilers']), required: true },
+        ], filterField: 'medium' },
+      { id: 'watch-along', label: 'Watch-along', kind: 'event', verb: 'Host a watch-along', blurb: 'Plan a shared viewing for a set time. Everyone watches on their own copy and chats here. To watch something right now, use Discover instead.', titleLabel: 'What are you watching?', titleRequired: true, bodyLabel: 'Details for guests', needsStart: true, urlLabel: 'Meeting or chat link (optional)',
+        fields: [
+          { key: 'medium', label: 'Format', type: 'select', options: MEDIA_KINDS, required: true },
+          { key: 'minutes', label: 'Length in minutes', type: 'number', min: 5, max: 600, hint: 'Used to show when it is live and when it has finished. Defaults to 120.' },
+          { key: 'availability', label: 'Where will everyone watch?', type: 'select', options: AVAILABILITY_LABELS, required: true },
+          { key: 'where', label: 'Service or source name (optional)', type: 'text', max: 80 },
+        ], filterField: 'medium',
+        participation: { label: 'I’m in', done: 'You’re in', what: 'The host sees how many are joining.' }, notice: 'FREEVERSE doesn’t stream content, own or license what you watch, or keep playback in sync. You press play together on your own service and talk here.' },
     ],
     spaces: [
       { id: 'overview', label: 'Overview', type: 'overview' },
-      { id: 'recommendations', label: 'Recommendations', type: 'browse', templates: S(['recommendation']) },
-      { id: 'watch-alongs', label: 'Watch-alongs', type: 'browse', templates: S(['watch-along']) },
+      { id: 'recommendations', label: 'Discover & watch', type: 'browse', templates: S(['recommendation']), blurb: 'Find something to watch right now. No scheduling needed.' },
+      { id: 'watch-alongs', label: 'Watch-alongs', type: 'browse', templates: S(['watch-along']), blurb: 'Plan or join a shared viewing at a set time. Shows whether each session is upcoming, live or finished.' },
       { id: 'play', label: 'Play instead', type: 'link', to: '/universes/freeplay/games' },
     ],
-    limits: ['A discovery and discussion space, not a streaming product. No licensed content is hosted.'],
-    actions: [{ label: 'Browse recommendations', to: '/universes/freeentertainment/recommendations', primary: true }, { label: 'Recommend something', to: '/universes/freeentertainment/recommendations?new=recommendation' }],
+    limits: ['A discovery and discussion space, not a streaming product. FREEVERSE hosts no films or series and doesn’t claim to have licensed anything people discuss.', 'Entries are added by members, so coverage is partial and never exhaustive.', 'Watch-alongs don’t synchronise playback: each person presses play on their own service.'],
+    actions: [{ label: 'Discover & watch', to: '/universes/freeentertainment/recommendations', primary: true }, { label: 'Add a title', to: '/universes/freeentertainment/recommendations?new=recommendation' }],
   },
 ];
 

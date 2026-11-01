@@ -103,6 +103,9 @@ const feedQuery = z.object({
   universe: z.enum(UNIVERSE_IDS).optional(),
   template: z.string().max(200).optional(),
   facet: z.string().max(80).optional(),
+  genre: z.string().max(80).optional(), language: z.string().max(80).optional(), country: z.string().max(80).optional(), animation: z.string().max(80).optional(), availability: z.string().max(80).optional(),
+  yfrom: z.coerce.number().int().min(1800).max(2200).optional(), yto: z.coerce.number().int().min(1800).max(2200).optional(),
+  when: z.enum(['upcoming', 'live', 'finished']).optional(),
   mine: z.enum(['1', 'true']).transform(() => true).optional(),
   tag: z.string().max(24).optional(),
   q: z.string().trim().max(80).optional(),
@@ -127,6 +130,22 @@ async function feed(s: Services, me: string, q: z.infer<typeof feedQuery>): Prom
   if (q.universe) where.push(`p.universe = ${p(q.universe)}`);
   if (q.template) { const ts = q.template.split(',').filter((x) => /^[a-z-]{1,40}$/.test(x)).slice(0, 8); if (ts.length) where.push(`p.template IN (${ts.map((x) => p(x)).join(',')})`); }
   if (q.facet) where.push(`p.facet = ${p(q.facet)}`);
+  // Structured Universe fields live in data.meta. Keys are whitelisted (never interpolated from input); values are bound parameters.
+  const pg = s.db.dialect === 'postgres';
+  const metaText = (key: string) => (pg ? `(p.data->'meta'->>'${key}')` : `json_extract(p.data, '$.meta.${key}')`);
+  for (const key of ['genre', 'language', 'animation', 'availability'] as const) if (q[key]) where.push(`${metaText(key)} = ${p(q[key])}`);
+  if (q.country) where.push(`lower(COALESCE(${metaText('country')}, '')) LIKE ${p(contains(q.country))} ESCAPE '\\'`);
+  if (q.yfrom !== undefined) where.push(`CAST(${metaText('year')} AS INTEGER) >= ${p(q.yfrom)}`);
+  if (q.yto !== undefined) where.push(`CAST(${metaText('year')} AS INTEGER) <= ${p(q.yto)}`);
+  if (q.when) {
+    // upcoming / live / finished, using the session's own length (default 120 minutes), at the server's clock.
+    const nowS = Math.floor(Date.now() / 1000);
+    const startS = pg ? "EXTRACT(EPOCH FROM CAST(p.data->>'startsAt' AS timestamptz))" : "CAST(strftime('%s', json_extract(p.data, '$.startsAt')) AS INTEGER)";
+    const mins = `COALESCE(CAST(${metaText('minutes')} AS INTEGER), 120)`;
+    const n = p(nowS);
+    where.push("p.kind = 'event'");
+    where.push(q.when === 'upcoming' ? `${startS} > ${n}` : q.when === 'live' ? `${startS} <= ${n} AND ${startS} + ${mins} * 60 > ${n}` : `${startS} + ${mins} * 60 <= ${n}`);
+  }
   if (q.mine) where.push('p.author_id = $1');
   if (q.tag) where.push(`CAST(p.tags AS TEXT) LIKE ${p(`%"${q.tag.toLowerCase().replace(/[%_"\\]/g, '')}"%`)}`);
   if (q.q) { const l = p(contains(q.q)); where.push(`(lower(COALESCE(p.title,'')) LIKE ${l} ESCAPE '\\' OR lower(p.body) LIKE ${l} ESCAPE '\\')`); }

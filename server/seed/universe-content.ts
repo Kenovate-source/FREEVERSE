@@ -7,7 +7,7 @@ import { templateFor, validateMeta } from '../../shared/universe-spaces';
 
 interface Sample { by: string; universe: string; template: string; title?: string; body: string; meta: Record<string, string | number>; url?: string; startsInDays?: number; tags?: string[]; join?: string[] }
 
-const SAMPLES: Sample[] = [
+export const SAMPLES: Sample[] = [
   // FreeLearn
   { by: 'demo_mei', universe: 'freelearn', template: 'tip', body: 'Demo tip: after a study session, write three questions you could be asked tomorrow. Answer them from memory before you sleep.', meta: { topic: 'Study habits' } },
   { by: 'demo_amara', universe: 'freelearn', template: 'study-partner', body: 'Demo request: working through a typography course and looking for someone to swap weekly feedback with.', meta: { subject: 'Typography', format: 'Online' }, join: ['demo_mei'] },
@@ -49,8 +49,8 @@ const SAMPLES: Sample[] = [
   { by: 'demo_kofi', universe: 'freeplay', template: 'challenge', body: 'Demo challenge: I cleared Memory Match in 18 moves. Can you beat it?', meta: { game: 'Memory Match', score: 18 } },
   { by: 'demo_mei', universe: 'freeplay', template: 'game-tip', body: 'Demo tip: in Slide & Merge, keep your largest tile in one corner and build outward from it.', meta: { game: 'Slide & Merge' } },
   // FreeEntertainment
-  { by: 'demo_noor', universe: 'freeentertainment', template: 'recommendation', title: 'A cosy mystery series (demo recommendation)', body: 'Demo recommendation, an invented example: gentle puzzles, kind characters, perfect for a rainy afternoon.', meta: { medium: 'Series', rating: '4 – really good', spoilers: 'Spoiler-free', where: 'Your favourite streaming service' } },
-  { by: 'demo_amara', universe: 'freeentertainment', template: 'watch-along', title: 'Saturday film night (demo)', body: 'Demo invitation: pick any film, press play together at the agreed time and chat here afterwards.', meta: { medium: 'Film' }, startsInDays: 6, join: ['demo_noor'] },
+  { by: 'demo_noor', universe: 'freeentertainment', template: 'recommendation', title: 'A cosy mystery series (demo recommendation)', body: 'Demo recommendation, an invented example: gentle puzzles, kind characters, perfect for a rainy afternoon.', meta: { medium: 'Series', genre: 'Mystery', availability: 'Information only', rating: '4 – really good', spoilers: 'Spoiler-free', where: 'Your favourite streaming service' } },
+  { by: 'demo_amara', universe: 'freeentertainment', template: 'watch-along', title: 'Saturday film night (demo)', body: 'Demo invitation: pick any film, press play together at the agreed time and chat here afterwards.', meta: { medium: 'Feature film', availability: 'External destination', minutes: 120 }, startsInDays: 6, join: ['demo_noor'] },
 ];
 
 export async function seedUniverseContent(s: Services): Promise<void> {
