@@ -68,6 +68,15 @@ async function run(size, who = 'member') {
     await page.getByText('Upcoming').first().waitFor({ timeout: 8000 });
     await page.getByRole('button', { name: 'Live now' }).click(); await page.getByText(/Night viewing/).first().waitFor({ state: 'detached', timeout: 8000 });
   });
+  if (who === 'member') await step('AI preferences: save a style, see honest capabilities, switch Nova to Creative mode', async () => {
+    await page.goto(`${BASE}/#/ai/preferences`); await page.getByRole('heading', { name: 'How should assistants talk to you?' }).waitFor({ timeout: 8000 });
+    await page.getByLabel('Tone').selectOption('direct'); const saved = page.waitForResponse((r) => r.url().includes('/api/settings') && r.request().method() === 'PATCH', { timeout: 8000 }); await page.getByRole('button', { name: 'Save style' }).click(); if (!(await saved).ok()) throw new Error('save failed');
+    await page.reload(); await page.getByRole('heading', { name: 'How should assistants talk to you?' }).waitFor({ timeout: 8000 });
+    if ((await page.getByLabel('Tone').inputValue()) !== 'direct') throw new Error('style did not persist');
+    await page.getByText('Image input', { exact: true }).waitFor(); await page.getByText('Not available yet').first().waitFor();
+    await page.goto(`${BASE}/#/ai/chat/temporary`); await page.getByRole('group', { name: 'Nova mode' }).getByRole('button', { name: 'Creative' }).click();
+    await page.getByText(/Creative mode: ideas/).waitFor();
+  });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {
       await page.goto(`${BASE}/#${r}`); await page.waitForSelector('main h1, main h2, [role="alert"]', { timeout: 8000 }); await page.waitForTimeout(250);

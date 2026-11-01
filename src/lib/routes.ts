@@ -28,7 +28,7 @@ export const ROUTES: RouteDef[] = [
   R('opportunities', '/opportunities', 'Opportunities', { section: 'opportunities' }), R('opportunity', '/opportunities/:id', 'Opportunity', { section: 'opportunities' }),
   R('mentors', '/mentors', 'Mentors', { section: 'mentors' }), R('events', '/events', 'Events', { section: 'events' }), R('event', '/events/:id', 'Event', { section: 'events' }),
   R('nova', '/ai', 'Nova', { section: 'nova' }), R('nova-chat', '/ai/chat/:id', 'Nova', { section: 'nova' }), R('journal', '/ai/journal', 'Journal', { section: 'nova' }),
-  R('goals', '/ai/goals', 'Goals', { section: 'nova' }), R('habits', '/ai/habits', 'Habits', { section: 'nova' }),
+  R('ai-preferences', '/ai/preferences', 'AI preferences', { section: 'nova' }), R('goals', '/ai/goals', 'Goals', { section: 'nova' }), R('habits', '/ai/habits', 'Habits', { section: 'nova' }),
   R('council', '/ai/council', 'AI Council', { section: 'council' }), R('council-agent', '/ai/council/:agent', 'AI Council', { section: 'council' }),
   R('identities', '/identities', 'Your identities', { section: 'identities' }), R('space', '/spaces/:archetype', 'Identity space', { section: 'identities' }),
   R('profile-edit', '/me/profile', 'Your profile', { section: 'profile' }),
