@@ -104,6 +104,27 @@ async function run(size, who = 'member') {
     await page.goto(`${BASE}/#/founder/appointments`); await page.getByRole('heading', { name: 'Appointments and access' }).waitFor({ timeout: 8000 });
     await page.goto(`${BASE}/#/founder/communities`); await page.getByRole('button', { name: 'Restrict' }).first().waitFor({ timeout: 8000 });
   });
+  if (who === 'member' && size === 'desktop') await step('motion: Full, Less and Off really differ in the app and on the landing page', async () => {
+    const anim = (sel) => page.evaluate((q) => { const el = document.querySelector(q); return el ? getComputedStyle(el).animationName : 'missing'; }, sel);
+    await page.goto(`${BASE}/#/settings/accessibility`); const sel = page.getByLabel('Decorative motion'); await sel.waitFor({ timeout: 8000 });
+    const seen = {};
+    for (const [value, key] of [['full', 'full'], ['reduced', 'less'], ['off', 'off']]) {
+      await sel.selectOption(value); await page.waitForFunction((k) => document.documentElement.dataset.motionLevel === k, key, { timeout: 5000 });
+      await page.goto(`${BASE}/#/home`); await page.waitForSelector('.env-page'); seen[key] = await anim('.env-page[data-env="home"]');
+      await page.goto(`${BASE}/#/settings/accessibility`); await sel.waitFor();
+    }
+    if (seen.full !== 'env-rise' || seen.less !== 'env-fade' || seen.off !== 'none') throw new Error('app motion levels do not differ: ' + JSON.stringify(seen));
+    // the landing page (signed out): chapter-specific entrance only under Full
+    const landing = {};
+    for (const [label, key] of [['Full', 'full'], ['Less', 'less'], ['Off', 'off']]) {
+      const c2 = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const p2 = await c2.newPage(); await p2.goto(`${BASE}/`); await p2.waitForSelector('.ch-identity .chip-cloud', { timeout: 15000 });
+      await p2.locator('.j-actions').getByRole('button', { name: label, exact: true }).click(); await p2.waitForFunction((k) => document.documentElement.dataset.motionLevel === k, key, { timeout: 5000 });
+      await p2.evaluate(() => document.querySelector('.ch-identity')?.scrollIntoView()); await p2.waitForFunction(() => document.querySelector('.chip-cloud')?.classList.contains('in'), null, { timeout: 8000 });
+      landing[key] = await p2.evaluate(() => getComputedStyle(document.querySelector('.ch-identity .chip-cloud li')).animationName); await c2.close();
+    }
+    if (landing.full !== 'ch-assemble' || landing.less !== 'none' || landing.off !== 'none') throw new Error('landing motion levels do not differ: ' + JSON.stringify(landing));
+    await sel.selectOption('auto');
+  });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {
       await page.goto(`${BASE}/#${r}`); await page.waitForSelector('main h1, main h2, [role="alert"]', { timeout: 8000 }); await page.waitForTimeout(250);

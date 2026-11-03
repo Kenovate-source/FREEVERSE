@@ -187,3 +187,45 @@ html[data-motion-mode="exploration"] .uni-hero[data-depth="2"] .sigil { transfor
 .orbit-map .om-grab { cursor: grab; } .orbit-map .om-grab:active { cursor: grabbing; }
 .orbit-map .om-bar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .universe-cluster-hint { font-size: .85rem; }
+
+/* ───── Phase 7: each chapter moves in its own way. Only under Full motion; Less keeps the plain fade, Off shows everything at rest. ───── */
+@keyframes ch-assemble { from { opacity: 0; transform: translate(calc((var(--i, 0) - 8) * 16px), calc((var(--i, 0) % 3 - 1) * 26px)) scale(0.6) rotate(calc((var(--i, 0) - 8) * 3deg)); } to { opacity: 1; transform: none; } }
+@keyframes ch-radial { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+@keyframes ch-from-left { from { opacity: 0; transform: translateX(-34px); } to { opacity: 1; transform: none; } }
+@keyframes ch-from-right { from { opacity: 0; transform: translateX(40px) skewX(-5deg); } to { opacity: 1; transform: none; } }
+@keyframes ch-wipe { from { clip-path: inset(0 100% 0 0 round 16px); opacity: 0.2; } to { clip-path: inset(0 0 0 0 round 16px); opacity: 1; } }
+@keyframes ch-draw-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes ch-dot-in { from { transform: scale(0); } 60% { transform: scale(1.5); } to { transform: scale(1); } }
+@keyframes ch-sweep { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+@keyframes ch-ripple { 0% { box-shadow: 0 0 0 0 rgba(120, 220, 255, 0.45); } 100% { box-shadow: 0 0 0 22px rgba(120, 220, 255, 0); } }
+
+/* Identity: separate pieces converge into one self */
+html[data-motion-level="full"] .ch-identity .chip-cloud.in li { animation: ch-assemble 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+/* Universes: a field switching on from the centre outwards */
+html[data-motion-level="full"] .universe-list.in li { animation: ch-radial 0.6s ease-out both; animation-delay: calc(var(--i, 0) * 38ms); }
+/* Learning: a path that draws itself as you progress; each step lights its node */
+html[data-motion-level="full"] .ch-knowledge .path-list li.reveal { transform: translateX(-16px); }
+html[data-motion-level="full"] .ch-knowledge .path-list li.reveal.in { transform: none; transition-delay: 0.1s; }
+html[data-motion-level="full"] .ch-knowledge .path-list li.in::before { animation: ch-dot-in 0.6s 0.25s both; }
+html[data-motion-level="full"] .ch-knowledge .path-list { border-left-color: transparent; position: relative; }
+html[data-motion-level="full"] .ch-knowledge .path-list::before { content: ''; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px; background: linear-gradient(var(--border), var(--accent, #7fc8ff)); transform-origin: top; animation: ch-draw-y 1.6s ease-out both; animation-timeline: view(); animation-range: entry 10% cover 55%; }
+@supports not (animation-timeline: view()) { html[data-motion-level="full"] .ch-knowledge .path-list::before { animation: none; } html[data-motion-level="full"] .ch-knowledge .path-list { border-left-color: var(--border); } }
+/* Community: a conversation, taking turns */
+html[data-motion-level="full"] .bubbles.in .bubble { animation: ch-from-left 0.55s ease-out both; }
+html[data-motion-level="full"] .bubbles.in .bubble:nth-child(2) { animation-name: ch-from-right; animation-delay: 0.7s; }
+html[data-motion-level="full"] .bubbles.in .bubble:nth-child(3) { animation-delay: 1.4s; }
+html[data-motion-level="full"] .bubbles.in .bubble:nth-child(n+2) { animation-fill-mode: both; }
+/* Work: momentum, cards sliding in from the side like moving forward */
+html[data-motion-level="full"] .hscroll.in .hcard { animation: ch-from-right 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+html[data-motion-level="full"] .hscroll.in .hcard:nth-child(2) { animation-delay: 0.12s; } html[data-motion-level="full"] .hscroll.in .hcard:nth-child(3) { animation-delay: 0.24s; } html[data-motion-level="full"] .hscroll.in .hcard:nth-child(4) { animation-delay: 0.36s; }
+/* Media: a screen wiping on, with a slow highlight sweeping across, like light on glass */
+html[data-motion-level="full"] .bento .reveal.in { animation: ch-wipe 0.8s cubic-bezier(0.6, 0, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 110ms); transform: none; }
+html[data-motion-level="full"] .bento > article { position: relative; overflow: hidden; }
+html[data-motion-level="full"][data-decor="full"] .bento > article::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.10), transparent); transform: translateX(-120%); animation: ch-sweep 9s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 1.6s); pointer-events: none; }
+/* Trust: steady and deliberate. No floating: edges draw in, then the content settles with a plain fade */
+html[data-motion-level="full"] .ch-trust .promises li.reveal { transform: none; transition: opacity 0.8s linear; }
+html[data-motion-level="full"] .ch-trust .promises li { position: relative; }
+html[data-motion-level="full"] .ch-trust .promises li.in::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px; background: var(--accent, #7fc8ff); transform-origin: top; animation: ch-draw-y 0.9s ease-out both; animation-delay: calc(var(--i, 0) * 160ms); }
+/* Invitation: one calm, repeating ripple around the main button */
+html[data-motion-level="full"][data-decor="full"] .ch-invite .btn-primary { animation: ch-ripple 2.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .chip-cloud li, .universe-list li, .bubble, .hcard, .bento > article, .promises li, .path-list li, .path-list::before, .ch-invite .btn-primary { animation: none !important; } }
