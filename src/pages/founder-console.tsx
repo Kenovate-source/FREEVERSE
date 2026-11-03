@@ -96,7 +96,7 @@ export function CommandBar() {
   }, []);
   useEffect(() => { if (open) { setQ(''); setI(0); setTimeout(() => input.current?.focus(), 0); } }, [open]);
   const go = (to: string) => { setOpen(false); navigate(to); };
-  return <div className="cmd"><Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">Command bar <kbd>Ctrl K</kbd></Button>
+  return <div className="cmd"><Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">Command bar <kbd className="kbd-hint">Ctrl K</kbd></Button>
     {open && <div className="cmd-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}><div className="cmd-box" role="dialog" aria-modal="true" aria-label="Command bar">
       <input ref={input} className="input" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-activedescendant={list[i] ? `cmd-${i}` : undefined} aria-label="Go to a workspace" placeholder="Where to? Try “access”, “ai” or “audit”" value={q}
         onChange={(e) => { setQ(e.target.value); setI(0); }} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); else if (e.key === 'ArrowDown') { e.preventDefault(); setI((x) => Math.min(list.length - 1, x + 1)); } else if (e.key === 'ArrowUp') { e.preventDefault(); setI((x) => Math.max(0, x - 1)); } else if (e.key === 'Enter' && list[i]) go(list[i]!.to); }} />

@@ -7,6 +7,7 @@ import { Async, Badge, Button, Card, Chip, Confirm, DemoBadge, EmptyState, Notic
 import { useToast } from '../state/toast';
 import { useSession } from '../state/session';
 import { Widget } from './social';
+import { IdentityLabelsCard } from '../features/identity-labels';
 import { ARCHETYPE_DEFS, ARCHETYPE_LIST, visibleQuestions, type EntryKind } from '../../shared/archetypes';
 import { AUDIENCE_LABEL, type Archetype, type Audience } from '../../shared/constants';
 import { AVATAR_BROWS, AVATAR_EXTRAS, AVATAR_EYES, AVATAR_MOUTHS, AVATAR_PALETTES, AVATAR_PATTERNS, AVATAR_SHAPES, COVER_PRESETS, type AvatarConfig } from '../../shared/avatar';
@@ -34,6 +35,7 @@ export function IdentitiesPage(_: P) {
           <Button size="sm" variant="ghost" onClick={() => void act(() => api.patch(`/api/identities/${i.id}`, { status: i.status === 'active' ? 'paused' : 'active' }), i.status === 'active' ? 'Paused' : 'Active again')}>{i.status === 'active' ? 'Pause' : 'Resume'}</Button>
           <Button size="sm" variant="ghost" onClick={() => setRm(i)}>Remove</Button></div>
         {edit === i.id && <EditIdentity i={i} onDone={() => { setEdit(null); res.reload(); }} />}</Card>); })}</div>}</Async>
+    <IdentityLabelsCard />
     <Confirm open={!!rm} danger title="Remove this identity?" confirmLabel="Remove" onConfirm={async () => { const r = await api.del<{ note: string }>(`/api/identities/${rm!.id}`); say(r.note); res.reload(); }} onClose={() => setRm(null)}>It disappears from your home and profile. Your account, posts and profile entries stay. You can add it again later.</Confirm></div>;
 }
 function AddIdentity({ existing, onDone }: { existing: Archetype[]; onDone: () => void }) {

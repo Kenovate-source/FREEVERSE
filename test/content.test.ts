@@ -331,7 +331,7 @@ for (const dialect of DIALECTS) {
       // every table/column that can hold a user id
       const tables = ['posts:author_id', 'comments:author_id', 'reactions:user_id', 'saved_items:user_id', 'follows:follower_id', 'follows:followee_id', 'blocks:blocker_id', 'blocks:blocked_id',
         'profiles:user_id', 'user_privacy:user_id', 'user_settings:user_id', 'media:owner_id', 'notifications:user_id', 'notifications:actor_id', 'conversation_members:user_id', 'messages:sender_id',
-        'post_anon_aliases:user_id', 'poll_votes:user_id', 'community_members:user_id', 'reports:reporter_id', 'auth_identities:user_id', 'role_grants:user_id', 'user_tags:user_id', 'user_identities:user_id'];
+        'post_anon_aliases:user_id', 'poll_votes:user_id', 'community_members:user_id', 'reports:reporter_id', 'auth_identities:user_id', 'role_grants:user_id', 'user_tags:user_id', 'user_identities:user_id', 'identity_labels:user_id'];
       for (const tc of tables) {
         const [tab, col] = tc.split(':');
         if (tab === 'role_grants') continue;

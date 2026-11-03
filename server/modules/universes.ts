@@ -6,6 +6,11 @@ import { cfgGet } from '../governance/actions';
 import { registerEraser, registerExporter } from '../services/erasure';
 import type { UniverseView } from '../../shared/api/catalog';
 
+/** The one place a Universe's member-facing view is built. The Founder's preview calls this too, so a preview can never drift from what members see. */
+export function universeView(u: (typeof UNIVERSES)[number], status: UniverseStatus, note: string | null, interested = false, interestedCount = 0): UniverseView {
+  return { id: u.id, name: u.name, tagline: u.tagline, description: u.description, status, statusLabel: UNIVERSE_STATUS_LABEL[status], today: u.today, route: status === 'available' || status === 'partial' ? u.route ?? null : null, basis: u.basis, accent: u.accent, note, interested, interestedCount };
+}
+
 export const universesModule: ModuleDef = {
   name: 'universes',
   register(router) {
@@ -15,7 +20,7 @@ export const universesModule: ModuleDef = {
       const counts = new Map((await c.db.query<any>('SELECT feature_key, COUNT(*) AS n FROM feature_interest GROUP BY feature_key')).map((r) => [r.feature_key, Number(r.n)]));
       const items: UniverseView[] = UNIVERSES.map((u) => {
         const status: UniverseStatus = ov[u.id]?.status ?? u.status;
-        return { id: u.id, name: u.name, tagline: u.tagline, description: u.description, status, statusLabel: UNIVERSE_STATUS_LABEL[status], today: u.today, route: status === 'available' || status === 'partial' ? u.route ?? null : null, basis: u.basis, accent: u.accent, note: ov[u.id]?.note ?? null, interested: mine.has(`universe:${u.id}`), interestedCount: counts.get(`universe:${u.id}`) ?? 0 };
+        return universeView(u, status, ov[u.id]?.note ?? null, mine.has(`universe:${u.id}`), counts.get(`universe:${u.id}`) ?? 0);
       });
       return { items };
     });

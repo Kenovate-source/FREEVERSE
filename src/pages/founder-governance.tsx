@@ -35,6 +35,7 @@ export function PollsAdmin() {
   const create = async () => { setBusy(true); try { await api.post('/api/founder/polls', { title: f.title, description: f.description, eligibility: f.eligibility, ...(f.eligibility === 'community' ? { communitySlug: f.community.trim() } : {}), options: f.options.map((o) => o.trim()).filter(Boolean) }); say('Draft saved. Nothing is visible to members until you publish it.'); setF({ title: '', description: '', eligibility: 'citizens', community: '', options: ['', ''] }); res.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
   return <div className="stack-lg"><div><h2 className="h-md">Polls</h2><p className="muted">Advisory polls to inform a decision. You choose who may vote and when voting closes; each person gets one final vote; totals appear only when voting closes; nobody can see how an individual voted. Not every decision needs a vote.</p></div>
     <Card className="stack" as="section" aria-label="New poll"><h3 className="h-sm">Draft a poll</h3>
+      <PollAiAssist onDraft={(d) => setF({ ...f, title: d.title, description: d.description, options: d.options })} />
       <TextField label="Question" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={L.titleMax} />
       <TextArea label="Background for voters" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={3} maxLength={L.descMax} />
       <SelectField label="Who may vote" value={f.eligibility} onChange={(e) => setF({ ...f, eligibility: e.target.value })} hint={POLL_ELIGIBILITY.find((x) => x[0] === f.eligibility)![2]}>{POLL_ELIGIBILITY.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</SelectField>
@@ -46,16 +47,16 @@ export function PollsAdmin() {
 }
 
 function PollCard({ p, onChanged }: { p: PollView; onChanged: () => void }) {
-  const { say } = useToast(); const [closes, setClose] = useState(''); const [text, setText] = useState(''); const [cancel, setCancel] = useState(false); const [busy, setBusy] = useState(false);
+  const { say } = useToast(); const [closes, setClose] = useState(''); const [opens, setOpens] = useState(''); const [text, setText] = useState(''); const [cancel, setCancel] = useState(false); const [busy, setBusy] = useState(false);
   const go = async (path: string, body: unknown, msg: string) => { setBusy(true); try { await api.post(`/api/founder/polls/${p.id}/${path}`, body); say(msg); setText(''); onChanged(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
-  return <Card as="article" className="stack-sm"><div className="spread"><h3 className="h-sm">{p.title}</h3><Badge tone={p.state === 'open' ? 'ok' : p.state === 'cancelled' ? 'warn' : undefined}>{POLL_STATE_LABEL[p.state]}</Badge></div>
-    <p className="muted">{p.description}</p><p className="faint">Who may vote: {p.eligibilityText}{p.closesAt ? ` · closes ${new Date(p.closesAt).toLocaleString()}` : ''} · {p.turnout.votes} of {p.turnout.eligible} have voted</p>
+  return <Card as="article" className="stack-sm"><div className="spread"><h3 className="h-sm">{p.title}</h3><Badge tone={p.state === 'open' ? 'ok' : p.state === 'scheduled' ? 'violet' : p.state === 'cancelled' ? 'warn' : undefined}>{POLL_STATE_LABEL[p.state]}</Badge></div>
+    <p className="muted">{p.description}</p><p className="faint">Who may vote: {p.eligibilityText}{p.state === 'scheduled' && p.opensAt ? ` · opens ${new Date(p.opensAt).toLocaleString()}` : ''}{p.closesAt ? ` · closes ${new Date(p.closesAt).toLocaleString()}` : ''} · {p.turnout.votes} of {p.turnout.eligible} have voted</p>
     <ul className="plain">{p.options.map((o) => <li key={o.id}>{o.label}{o.votes !== null && <strong> — {o.votes}</strong>}</li>)}</ul>
     {p.state === 'open' && <p className="faint">Totals stay hidden until voting closes.</p>}
     {p.decision && <Notice tone="ok" title="Decision recorded">{p.decision}</Notice>}{p.cancelReason && <p className="muted">Cancelled: {p.cancelReason}</p>}
-    {p.state === 'draft' && <div className="row-wrap"><TextField label="Voting closes" type="datetime-local" value={closes} onChange={(e) => setClose(e.target.value)} hint={`Between ${L.minHours} hour and ${L.maxDays} days from now. Publishing makes it visible to everyone eligible, and the rules can’t be edited afterwards.`} />
-      <Button variant="primary" busy={busy} disabled={!closes} onClick={() => void go('publish', { closesAt: new Date(closes).toISOString() }, 'Published')}>Publish poll</Button><Button variant="ghost" onClick={() => setCancel(true)}>Discard</Button></div>}
-    {p.state === 'open' && <Button size="sm" variant="ghost" onClick={() => setCancel(true)}>Cancel this poll…</Button>}
+    {p.state === 'draft' && <div className="row-wrap"><TextField label="Opens (optional)" type="datetime-local" value={opens} onChange={(e) => setOpens(e.target.value)} hint={`Leave empty to open now. Or choose a time up to ${L.maxScheduleDays} days ahead; people are told when it opens.`} /><TextField label="Voting closes" type="datetime-local" value={closes} onChange={(e) => setClose(e.target.value)} hint={`Between ${L.minHours} hour and ${L.maxDays} days from now. Publishing makes it visible to everyone eligible, and the rules can’t be edited afterwards.`} />
+      <Button variant="primary" busy={busy} disabled={!closes} onClick={() => void go('publish', { closesAt: new Date(closes).toISOString(), ...(opens ? { opensAt: new Date(opens).toISOString() } : {}) }, opens ? 'Scheduled' : 'Published')}>Publish poll</Button><Button variant="ghost" onClick={() => setCancel(true)}>Discard</Button></div>}
+    {(p.state === 'open' || p.state === 'scheduled') && <Button size="sm" variant="ghost" onClick={() => setCancel(true)}>Cancel this poll…</Button>}
     {p.state === 'closed' && !p.decision && <div className="stack-sm"><TextArea label="Record your decision and why (visible to eligible voters)" value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={L.decisionMax} /><div><Button variant="primary" busy={busy} disabled={!need(text)} onClick={() => void go('decision', { decision: text }, 'Decision recorded')}>Record decision</Button></div></div>}
     <Confirm open={cancel} danger title={p.state === 'draft' ? 'Discard this draft?' : 'Cancel this poll?'} confirmLabel={p.state === 'draft' ? 'Discard' : 'Cancel poll'} onConfirm={async () => { if (!need(text)) throw new Error('Write a reason of at least 10 characters.'); await api.post(`/api/founder/polls/${p.id}/cancel`, { reason: text }); say('Cancelled'); setText(''); onChanged(); }} onClose={() => setCancel(false)}>
       <p>{p.state === 'open' ? 'Votes already cast are kept but the poll ends and no results are shown. Voters will see that it was cancelled.' : 'It will not be published.'}</p><TextArea label="Reason (recorded)" value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={400} /></Confirm></Card>;
@@ -87,4 +88,14 @@ const NEXT: Record<string, { matters: string; limits: string; next: { label: str
 export function FindingNext({ f }: { f: { dedupeKey: string | null } }) {
   const n = f.dedupeKey ? NEXT[f.dedupeKey] : undefined; if (!n) return null;
   return <div className="stack-sm"><p><strong>Why it matters:</strong> {n.matters}</p><p className="faint"><strong>Limits:</strong> {n.limits}</p>{n.next.length > 0 && <div className="row-wrap"><strong>What you can do next:</strong>{n.next.map((x) => <Link key={x.to} to={x.to} className="btn btn-secondary btn-sm">{x.label}</Link>)}</div>}</div>;
+}
+
+function PollAiAssist({ onDraft }: { onDraft: (d: { title: string; description: string; options: string[] }) => void }) {
+  const { say } = useToast(); const st = useResource(() => api.get<{ provider: string }>('/api/founder-ai/state'), []); const [topic, setTopic] = useState(''); const [busy, setBusy] = useState(false); const [label, setLabel] = useState('');
+  const demo = st.data?.provider === 'demo';
+  const go = async () => { setBusy(true); try { const r = await api.post<{ draft: any; label: string }>('/api/founder/polls/draft-assist', { topic }); onDraft(r.draft); setLabel(r.label); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  return <details className="stack-sm"><summary>Draft the wording with Founder AI (optional)</summary>
+    {demo ? <Notice tone="demo" title="Not available in demo mode">No AI model is connected, so Founder AI can’t draft anything. Write the poll yourself below.</Notice> : <>
+      <TextField label="What do you want to ask about?" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={400} hint="It fills the form below with a draft. Nothing is saved until you press Save draft." />
+      <div><Button size="sm" busy={busy} disabled={topic.trim().length < 10} onClick={() => void go()}>Draft with Founder AI</Button></div>{label && <Notice tone="info">{label}</Notice>}</>}</details>;
 }

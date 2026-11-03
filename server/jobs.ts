@@ -1,13 +1,15 @@
 import type { Services } from './services';
 import { purgeExpiredFlags } from './ai/safety';
+import { sweepPolls } from './modules/polls';
 
 /** Housekeeping that must happen on a schedule. Idempotent; safe to call at any time (tests call it directly). */
-export async function runMaintenance(s: Services): Promise<{ flagsPurged: number; stepUpsPurged: number }> {
+export async function runMaintenance(s: Services): Promise<{ flagsPurged: number; stepUpsPurged: number; polls: { opened: number; closed: number } }> {
   const now = s.now();
   const flagsPurged = await purgeExpiredFlags(s.db, now);
   const stepUpsPurged = (await s.db.run('DELETE FROM step_up_grants WHERE expires_at <= $1', [now.toISOString()])).changes;
   await s.db.run('DELETE FROM dev_sessions WHERE expires_at <= $1', [now.toISOString()]).catch(() => undefined);
-  return { flagsPurged, stepUpsPurged };
+  const polls = await sweepPolls(s);
+  return { flagsPurged, stepUpsPurged, polls };
 }
 
 export function startJobs(s: Services, everyMs = 10 * 60_000): () => void {

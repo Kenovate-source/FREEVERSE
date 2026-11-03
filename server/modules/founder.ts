@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { notFound } from '../http/errors';
 import { json, num } from '../db';
-import { UNIVERSES } from '../../shared/universes';
+import { UNIVERSES, type UniverseStatus } from '../../shared/universes';
+import { universeView } from './universes';
 import { GOVERNANCE_LEVELS } from '../../shared/constants';
 import { aiApi } from '../ai/runtime';
 import { cfgGet } from '../governance/actions';
@@ -132,6 +133,30 @@ export const founderModule: ModuleDef = {
     router.get('/api/founder/universes', { auth: { perm: 'ops.dashboard.view' } }, async (c) => {
       const overrides = await cfgGet<Record<string, { status: string; note: string }>>(c.db, 'universes.status', {});
       return { items: UNIVERSES.map((u) => ({ id: u.id, name: u.name, builtInStatus: u.status, status: overrides[u.id]?.status ?? u.status, note: overrides[u.id]?.note ?? null, basis: u.basis })) };
+    });
+
+    // Read-only preview: builds the exact view members would get for a draft status and note. Nothing is saved.
+    router.post('/api/founder/universes/preview', { auth: { perm: 'ops.dashboard.view' }, body: z.object({ universeId: z.string().max(40), status: z.enum(['available', 'partial', 'planned_v2', 'planned_v3', 'concept', 'under_review']), note: z.string().trim().max(300).default('') }).strict() }, async (c) => {
+      const u = UNIVERSES.find((x) => x.id === c.body.universeId); if (!u) throw notFound('Unknown Universe.');
+      const ov = await cfgGet<Record<string, { status: UniverseStatus; note?: string }>>(c.db, 'universes.status', {});
+      const curStatus: UniverseStatus = ov[u.id]?.status ?? u.status; const curNote = ov[u.id]?.note ?? null;
+      const now = universeView(u, curStatus, curNote); const after = universeView(u, c.body.status, c.body.note || null);
+      const changes: string[] = [];
+      if (now.status !== after.status) changes.push(`Members will see “${now.statusLabel}” change to “${after.statusLabel}”.`);
+      if (!!now.route !== !!after.route) changes.push(after.route ? 'Members will get an Open link into this Universe.' : 'The Open link into this Universe will no longer be offered. Direct links may still work: this changes what members are told, not what is built.');
+      if ((now.note ?? '') !== (after.note ?? '')) changes.push(after.note ? 'A note will be shown to members on the Universe page.' : 'The note shown to members will be removed.');
+      return { before: now, after, changes, saved: false };
+    });
+    // Per-Universe change history from the decision record, with whether each change can still be rolled back safely.
+    router.get('/api/founder/universes/:id/history', { auth: { perm: 'ops.dashboard.view' } }, async (c) => {
+      const uid = String(c.params.id);
+      if (!UNIVERSES.some((u) => u.id === uid)) throw notFound('Unknown Universe.');
+      const rows = (await c.db.query<any>("SELECT id, status, payload, decided_by, executed_at, rollback_data, created_at FROM proposals WHERE action_type = 'universe.set_status' AND status IN ('executed','rolled_back') ORDER BY COALESCE(executed_at, created_at) DESC LIMIT 200")).filter((r) => json<any>(r.payload, {}).universeId === uid);
+      const cur = (await cfgGet<Record<string, any>>(c.db, 'universes.status', {}))[uid];
+      const items = rows.slice(0, 30).map((r) => { const p = json<any>(r.payload, {}); const rb = json<any>(r.rollback_data, null);
+        const stillCurrent = r.status === 'executed' && !!rb && (rb.universeId ? (cur?.status ?? null) === rb.applied.status && (cur?.note ?? '') === (rb.applied.note ?? '') : true);
+        return { proposalId: r.id, status: p.status, note: p.note || null, at: r.executed_at ?? r.created_at, rolledBack: r.status === 'rolled_back', canRollback: stillCurrent && !!rb?.universeId, whyNot: r.status === 'rolled_back' ? 'Already rolled back.' : !rb?.universeId ? 'Recorded before targeted rollback existed.' : !stillCurrent ? 'Changed again since.' : null }; });
+      return { items };
     });
 
     router.get('/api/universes/overrides', { auth: 'active' }, async (c) => ({ overrides: await cfgGet(c.db, 'universes.status', {}) }));

@@ -582,3 +582,28 @@ html[data-decor="full"] .eco-core { animation: eco-breathe 9s ease-in-out infini
 .cmd-box { width: min(34rem, 92vw); background: var(--surface, #14162a); border: 1px solid var(--border, rgba(255,255,255,.2)); border-radius: 1rem; padding: 1rem; display: grid; gap: .6rem; }
 .cmd-box ul { margin: 0; max-height: 50vh; overflow: auto; } .cmd-box li { padding: .5rem .6rem; border-radius: .5rem; cursor: pointer; } .cmd-box li.on { background: rgba(127,200,255,.18); outline: 1px solid rgba(127,200,255,.5); }
 .cmd kbd { font-size: .7rem; opacity: .7; margin-left: .3rem; }
+
+/* Founder AI workspace tabs and work lifecycle */
+.fai-tabs { gap: 6px; border-bottom: 1px solid var(--line, rgba(255,255,255,.12)); padding-bottom: 8px; }
+.fai-tab { background: transparent; border: 1px solid transparent; color: inherit; padding: 8px 14px; border-radius: 999px; font: inherit; cursor: pointer; min-height: 40px; }
+.fai-tab:hover { border-color: rgba(255,255,255,.25); }
+.fai-tab.on { background: rgba(120,140,255,.18); border-color: rgba(140,160,255,.6); font-weight: 600; }
+.fai-count { margin-left: 6px; font-size: .75rem; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,.14); }
+.lifecycle { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; }
+.lifecycle .stage { display: grid; gap: 2px; align-content: start; padding: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); font-size: .82rem; }
+.lifecycle .stage-dot { font-weight: 700; }
+.lifecycle .stage-name { font-weight: 600; }
+.lifecycle .stage-note { opacity: .75; overflow-wrap: anywhere; }
+.lifecycle .st-done { border-color: rgba(90,220,150,.6); }
+.lifecycle .st-current { border-color: rgba(120,170,255,.9); box-shadow: 0 0 0 1px rgba(120,170,255,.5); }
+.lifecycle .st-stopped, .lifecycle .st-failed { border-color: rgba(255,130,110,.7); }
+.lifecycle .st-skipped, .lifecycle .st-waiting { opacity: .7; border-style: dashed; }
+@media (max-width: 720px) { .lifecycle { grid-template-columns: 1fr; } .lifecycle .stage { grid-template-columns: 1.4em auto 1fr; align-items: baseline; } }
+
+/* Founder console on small screens: one scrollable strip of sections instead of a wall of chips; no keyboard hint on touch */
+@media (max-width: 720px) {
+  .founder-sections { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 6px; margin-inline: -16px; padding-inline: 16px; -webkit-overflow-scrolling: touch; }
+  .founder-sections .chip { flex: 0 0 auto; scroll-snap-align: center; white-space: nowrap; min-height: 40px; }
+  .kbd-hint { display: none; }
+}
+@media (hover: none) { .kbd-hint { display: none; } }

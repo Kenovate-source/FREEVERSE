@@ -31,6 +31,7 @@ import { spacesModule } from './spaces';
 import { suggestionsModule } from './suggestions';
 import { oversightModule } from './oversight';
 import { pollsModule } from './polls';
+import { identityLabelsModule } from './identity-labels';
 import { universeSpacesModule } from './universe-spaces';
 import { demoSeedModule } from './demo-seed';
 
@@ -68,6 +69,7 @@ export const modules: ModuleDef[] = [
   suggestionsModule,
   oversightModule,
   pollsModule,
+  identityLabelsModule,
   universeSpacesModule,
   demoSeedModule,
 ];
