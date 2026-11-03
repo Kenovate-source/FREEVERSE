@@ -27,7 +27,7 @@ export function App() {
   const el = <Page params={g.match.params} query={query} />;
   const sync = <MotionRouteSync routeId={g.match.route.id} path={path} />;
   if (g.match.route.public || g.match.route.id === 'eligibility' || g.match.route.id === 'onboarding') return <>{sync}{banner}{el}</>;
-  return <Shell>{sync}{banner}{el}</Shell>;
+  return <Shell>{sync}{banner}<div className="env-page" data-env={g.match.route.section ?? 'default'} key={g.match.route.id}>{el}</div></Shell>;
 }
 function ConnectionBanner({ retry }: { retry: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);

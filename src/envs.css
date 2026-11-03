@@ -1,0 +1,31 @@
+/* Phase 7: every environment enters in its own way. One language (short, transform and opacity only), different character.
+   Full motion: the environment's own entrance. Less: a plain quick fade. Off (and the OS reduced-motion setting): nothing moves. */
+@keyframes env-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes env-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes env-zoom { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes env-gather { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes env-progress { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes env-snap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes env-deliberate { from { opacity: 0; clip-path: inset(0 0 100% 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes env-layer { from { opacity: 0; transform: scale(1.012); } to { opacity: 1; transform: none; } }
+@keyframes env-think { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+html[data-motion-level="less"] .env-page { animation: env-fade 0.14s ease-out both; }
+html[data-motion-level="full"] .env-page { animation: env-fade 0.22s ease-out both; }
+html[data-motion-level="full"] .env-page[data-env="home"] { animation: env-rise 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; }              /* a dashboard settling */
+html[data-motion-level="full"] .env-page[data-env="universes"] { animation: env-zoom 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }          /* stepping into a world */
+html[data-motion-level="full"] .env-page[data-env="communities"] { animation: env-gather 0.32s ease-out both; }                          /* people gathering */
+html[data-motion-level="full"] .env-page[data-env="messages"] { animation: env-snap 0.18s ease-out both; }                               /* quick, conversational */
+html[data-motion-level="full"] .env-page[data-env="nova"], html[data-motion-level="full"] .env-page[data-env="council"] { animation: env-think 0.55s ease-out both; } /* unhurried, thoughtful */
+html[data-motion-level="full"] .env-page[data-env="settings"] { animation: env-fade 0.12s linear both; }                                   /* precise, no flourish */
+html[data-motion-level="full"] .env-page[data-env="profile"], html[data-motion-level="full"] .env-page[data-env="identities"] { animation: env-zoom 0.36s ease-out both; } /* coming into focus */
+html[data-motion-level="full"] .env-page[data-env="learn"], html[data-motion-level="full"] .env-page[data-env="opportunities"], html[data-motion-level="full"] .env-page[data-env="mentors"] { animation: env-progress 0.36s ease-out both; } /* moving forward */
+html[data-motion-level="full"] .env-page[data-env="governance"], html[data-motion-level="full"] .env-page[data-env="moderation"] { animation: env-deliberate 0.5s ease-in-out both; } /* deliberate, accountable */
+html[data-motion-level="full"] .env-page[data-env="founder"] { animation: env-layer 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }       /* layered, significant */
+html[data-motion-level="off"] .env-page, html[data-motion="reduce"] .env-page { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .env-page { animation: none !important; } }
+
+/* Signing out: a short, clear departure. The page eases away before the sign-out request is made. */
+html.fv-leaving #root { opacity: 0; transform: scale(0.99); transition: opacity 0.26s ease-in, transform 0.26s ease-in; }
+html[data-motion-level="less"].fv-leaving #root { transform: none; transition: opacity 0.14s linear; }
+html[data-motion-level="off"].fv-leaving #root, html[data-motion="reduce"].fv-leaving #root { opacity: 1; transform: none; transition: none; }

@@ -58,3 +58,11 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => { hidden = document.hidden; listeners.forEach((l) => l()); });
   (window as unknown as { __fvMotion?: unknown }).__fvMotion = { get: getMotion, hidden: isPageHidden, subscribe: subscribeMotion, focusZones: focusZoneCount };
 }
+
+/** Runs `then` after a short departure transition when decorative motion is on; immediately otherwise. Never blocks longer than the transition. */
+export function depart<T>(then: () => Promise<T> | T): Promise<T> {
+  const r = document.documentElement; const level = r.dataset.motionLevel; const reduce = r.dataset.motion === 'reduce';
+  if (level === 'off' || reduce) return Promise.resolve(then());
+  r.classList.add('fv-leaving');
+  return new Promise<T>((resolve, reject) => setTimeout(() => { Promise.resolve().then(then).then(resolve, reject).finally(() => setTimeout(() => r.classList.remove('fv-leaving'), 50)); }, level === 'less' ? 140 : 260));
+}

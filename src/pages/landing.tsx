@@ -39,6 +39,7 @@ export function Landing() {
     const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { const i = secs.indexOf(e.target as HTMLElement); if (i >= 0) { setActive(i); if (stage.current) stage.current.dataset.chapter = String(i); } } }, { rootMargin: '-45% 0px -45% 0px' });
     secs.forEach((s) => io.observe(s));
     const rv = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { (e.target as HTMLElement).classList.add('in'); rv.unobserve(e.target); } }, { threshold: 0.12 });
+    document.querySelectorAll('.chip-cloud, .universe-list, .promises, .bento, .bubbles').forEach((box) => Array.from(box.children).forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i))));
     document.querySelectorAll('.reveal').forEach((n) => rv.observe(n));
     return () => { io.disconnect(); rv.disconnect(); root.classList.remove('js-reveal'); };
   }, []);

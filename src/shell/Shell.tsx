@@ -5,6 +5,7 @@ import { NAV_GROUPS, TAB_BAR, matchRoute, visibleNav, type NavItem } from '../li
 import { useSession } from '../state/session';
 import { Dialog } from '../ui/kit';
 import { Avatar } from '../ui/Avatar';
+import { depart } from '../motion/store';
 
 function NavLink({ item, current, badge, onClick }: { item: NavItem; current: boolean; badge?: number; onClick?: () => void }) {
   return (
@@ -64,14 +65,14 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/notifications" className="icon-btn" aria-label={badges.notifications ? `Notifications, ${badges.notifications} unread` : 'Notifications'} style={{ position: 'relative' }}>
             <Icon name="bell" size={20} />{badges.notifications > 0 && <span className="dot" aria-hidden="true" />}
           </Link>
-          <button type="button" className="btn btn-ghost btn-sm signout-btn" onClick={() => void signOut()} aria-label="Sign out"><Icon name="logout" size={16} /><span className="signout-label"> Sign out</span></button>
+          <button type="button" className="btn btn-ghost btn-sm signout-btn" onClick={() => void depart(() => signOut())} aria-label="Sign out"><Icon name="logout" size={16} /><span className="signout-label"> Sign out</span></button>
           <div className="menu-wrap" ref={menuRef}>
             <button type="button" className="icon-btn" aria-haspopup="menu" aria-expanded={menu} aria-label="Account menu" onClick={() => setMenu((v) => !v)}><Avatar size={34} name={me?.displayName ?? undefined} avatar={me?.avatar ?? { mode: 'avatar', config: { seed: me?.id ?? 'me' }, photoUrl: null }} /></button>
             {menu && (
               <div className="menu" role="menu">
                 <div className="menu-head"><strong>{me?.displayName ?? 'Member'}</strong><span className="faint">{me?.handle ? `@${me.handle}` : me?.email}</span></div>
                 <Link role="menuitem" to="/me/profile">My profile</Link><Link role="menuitem" to="/identities">Identities</Link><Link role="menuitem" to="/settings">Settings</Link><Link role="menuitem" to="/help">Help & safety</Link>
-                <button role="menuitem" type="button" onClick={() => void signOut()}><Icon name="logout" size={16} /> Sign out</button>
+                <button role="menuitem" type="button" onClick={() => void depart(() => signOut())}><Icon name="logout" size={16} /> Sign out</button>
               </div>
             )}
           </div>
@@ -94,7 +95,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {g.items.map((i) => <NavLink key={i.id} item={i} current={isCurrent(i)} badge={badgeOf(i)} onClick={() => setMore(false)} />)}</div>
           ))}
         </nav>
-        <div className="more-signout"><button type="button" className="btn btn-secondary btn-block" onClick={() => { setMore(false); void signOut(); }}><Icon name="logout" size={16} /> Sign out</button></div>
+        <div className="more-signout"><button type="button" className="btn btn-secondary btn-block" onClick={() => { setMore(false); void depart(() => signOut()); }}><Icon name="logout" size={16} /> Sign out</button></div>
       </Dialog>
     </div>
   );
