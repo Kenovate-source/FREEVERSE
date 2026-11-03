@@ -7,8 +7,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || '/opt/npm-tools/node
 const BASE = process.env.BASE || 'http://127.0.0.1:5199';
 const OUT = process.env.SHOTS || 'screenshots/stage2'; mkdirSync(OUT, { recursive: true });
 const SIZES = { phone: { width: 390, height: 844 }, tablet: { width: 820, height: 1100 }, desktop: { width: 1366, height: 900 } };
-const FOUNDER_ROUTES = ['/founder', '/founder/ai', '/founder/decisions', '/founder/suggestions', '/founder/governance', '/founder/access', '/founder/communities', '/founder/universes', '/founder/council', '/founder/audit', '/founder/constitution', '/founder/priorities', '/governance', '/moderation'];
-const ROUTES = ['/suggestions', '/home', '/universes/freeconnect', '/universes/freelearn', '/universes/freework', '/universes/freebuild', '/universes/freemarket', '/universes/freeai', '/universes/freeresearch', '/universes/freehealth', '/universes/freefinance', '/universes/freemedia', '/universes/freeevents', '/universes/freevolunteer', '/universes/freelabs', '/universes/freeplay', '/universes/freeentertainment', '/universes/freeplay/games', '/universes/freefinance/tools', '/terms', '/privacy', '/rules', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
+const FOUNDER_ROUTES = ['/founder', '/founder/ai', '/founder/decisions', '/founder/suggestions', '/founder/appointments', '/founder/polls', '/founder/governance', '/founder/access', '/founder/communities', '/founder/universes', '/founder/council', '/founder/audit', '/founder/constitution', '/founder/priorities', '/governance', '/moderation'];
+const ROUTES = ['/suggestions', '/polls', '/home', '/universes/freeconnect', '/universes/freelearn', '/universes/freework', '/universes/freebuild', '/universes/freemarket', '/universes/freeai', '/universes/freeresearch', '/universes/freehealth', '/universes/freefinance', '/universes/freemedia', '/universes/freeevents', '/universes/freevolunteer', '/universes/freelabs', '/universes/freeplay', '/universes/freeentertainment', '/universes/freeplay/games', '/universes/freefinance/tools', '/terms', '/privacy', '/rules', '/explore', '/search?q=study', '/communities', '/learn', '/opportunities', '/mentors', '/events', '/messages', '/notifications', '/saved', '/ai', '/ai/council', '/identities', '/me/profile', '/settings', '/settings/privacy', '/settings/accessibility', '/universes', '/soon/calls', '/help', '/governance', '/founder', '/founder/ai', '/founder/decisions', '/founder/governance', '/founder/audit', '/moderation'];
 const results = []; const problems = [];
 const stamp = Date.now();
 
@@ -91,6 +91,18 @@ async function run(size, who = 'member') {
     await page.keyboard.press('Control+k'); await page.getByRole('dialog', { name: 'Command bar' }).waitFor(); await page.getByRole('combobox', { name: 'Go to a workspace' }).fill('suggest'); await page.keyboard.press('Enter');
     await page.waitForURL(/#\/founder\/suggestions/, { timeout: 5000 }); await page.getByRole('heading', { name: 'Suggestions from citizens' }).waitFor({ timeout: 8000 });
     await page.getByText(/Browser test idea/).first().waitFor({ timeout: 8000 });
+  });
+  if (who === 'founder') await step('governance: draft and publish a poll, vote in it; appointments and community oversight screens load', async () => {
+    await page.goto(`${BASE}/#/founder/polls`); await page.getByRole('heading', { name: 'Draft a poll' }).waitFor({ timeout: 10000 });
+    const q = `Browser poll ${stamp}`.slice(0, 60);
+    await page.getByLabel('Question').fill(q); await page.getByLabel('Background for voters').fill('This is a poll created by the browser test to check the flow.');
+    await page.getByLabel('Option 1').fill('Yes'); await page.getByLabel('Option 2').fill('No'); await page.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('heading', { name: q }).waitFor({ timeout: 8000 });
+    const d = new Date(Date.now() + 26 * 3600_000); const pad = (n) => String(n).padStart(2, '0'); await page.getByLabel('Voting closes').fill(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    await page.getByRole('button', { name: 'Publish poll' }).click(); await page.getByText('Open for voting').first().waitFor({ timeout: 8000 });
+    await page.goto(`${BASE}/#/polls`); await page.getByRole('heading', { name: q }).waitFor({ timeout: 8000 }); await page.getByLabel('Yes').check(); await page.getByRole('button', { name: 'Send my vote' }).click(); await page.getByText(/You voted/).waitFor({ timeout: 8000 });
+    await page.goto(`${BASE}/#/founder/appointments`); await page.getByRole('heading', { name: 'Appointments and access' }).waitFor({ timeout: 8000 });
+    await page.goto(`${BASE}/#/founder/communities`); await page.getByRole('button', { name: 'Restrict' }).first().waitFor({ timeout: 8000 });
   });
   for (const r of (who === 'founder' ? FOUNDER_ROUTES : ROUTES)) {
     await step(`route ${r}`, async () => {

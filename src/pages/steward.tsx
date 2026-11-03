@@ -9,6 +9,7 @@ import { timeAgo } from '../lib/time';
 import type { AiMessageView } from '../../shared/api/ai';
 import { FounderHome, CommandBar } from './founder-console';
 import { SuggestionsAdmin } from './founder-suggestions';
+import { AppointmentsAdmin, PollsAdmin, CommunityOversight, FindingNext } from './founder-governance';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
 const RISK_TONE = (r: string) => (r === 'high' ? 'warn' : r === 'medium' ? 'violet' : 'ok') as 'warn' | 'violet' | 'ok';
@@ -23,7 +24,7 @@ function useGuarded() {
 }
 
 const SECTIONS = [
-  { id: 'overview', label: 'Overview' }, { id: 'ai', label: 'Founder AI' }, { id: 'decisions', label: 'Decisions' }, { id: 'suggestions', label: 'Suggestions' }, { id: 'governance', label: 'Governance' }, { id: 'access', label: 'Access reviews' },
+  { id: 'overview', label: 'Overview' }, { id: 'ai', label: 'Founder AI' }, { id: 'decisions', label: 'Decisions' }, { id: 'suggestions', label: 'Suggestions' }, { id: 'governance', label: 'Governance' }, { id: 'appointments', label: 'Appointments & access' }, { id: 'polls', label: 'Polls' }, { id: 'access', label: 'Access reviews' },
   { id: 'communities', label: 'Communities' }, { id: 'universes', label: 'Universes' }, { id: 'council', label: 'AI Council' }, { id: 'audit', label: 'Audit log' }, { id: 'constitution', label: 'Constitution' }, { id: 'priorities', label: 'Priorities' },
 ] as const;
 
@@ -32,7 +33,7 @@ export function FounderPage({ params }: P) {
   return (
     <div className="stack-lg"><PageHead title="Founder Console" actions={<CommandBar />}>Platform stewardship in one place. A title never grants access to anyone’s private messages, journals or Nova chats.</PageHead>
       <nav className="row-wrap" aria-label="Founder Console sections">{SECTIONS.map((s) => <Link key={s.id} to={s.id === 'overview' ? '/founder' : `/founder/${s.id}`} className={`chip chip-link${sec === s.id ? ' on' : ''}`} aria-current={sec === s.id ? 'page' : undefined}>{s.label}</Link>)}</nav>
-      {sec === 'overview' && <FounderHome />}{sec === 'suggestions' && <SuggestionsAdmin />}{sec === 'ai' && (can('ai.founder.use') ? <FounderAi /> : <Notice tone="warn">You don’t have access to Founder AI.</Notice>)}{sec === 'decisions' && <Decisions />}{sec === 'governance' && <GovernanceAdmin />}
+      {sec === 'overview' && <FounderHome />}{sec === 'suggestions' && <SuggestionsAdmin />}{sec === 'appointments' && <AppointmentsAdmin />}{sec === 'polls' && <PollsAdmin />}{sec === 'ai' && (can('ai.founder.use') ? <FounderAi /> : <Notice tone="warn">You don’t have access to Founder AI.</Notice>)}{sec === 'decisions' && <Decisions />}{sec === 'governance' && <GovernanceAdmin />}
       {sec === 'access' && <Access />}{sec === 'communities' && <Communities />}{sec === 'universes' && <UniversesAdmin />}{sec === 'council' && <CouncilAdmin />}{sec === 'audit' && <Audit />}{sec === 'constitution' && <Constitution />}{sec === 'priorities' && <Priorities />}
     </div>
   );
@@ -69,7 +70,7 @@ function FounderAi() {
     <Rules s={s} onSaved={st.reload} />
     <Card className="stack-sm"><div className="spread"><h2 className="h-sm">Findings ({fnd.data?.items.length ?? 0} open)</h2><Button variant="primary" busy={busy} onClick={() => void analyze()}>Run analysis</Button></div>
       <p className="faint">Each finding is labelled: {Object.keys(s.epistemic).map((k) => k.replace('_', ' ')).join(', ')}. Analysis reads aggregate counts only, never private content.</p>
-      <Async res={fnd} empty={(d) => (d.items.length ? null : <p className="muted">No open findings. Run an analysis to check.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((f: any) => <li key={f.id} className="card stack-sm"><div className="row-wrap"><Badge tone="violet">{String(f.epistemic).replace('_', ' ')}</Badge><Badge tone={f.severity === 'high' ? 'warn' : undefined}>{f.severity}</Badge><strong>{f.title}</strong></div><p>{f.body}</p>{f.proposalId && <p className="faint">A proposal exists: see <Link to="/founder/decisions">Decisions</Link>.</p>}<div className="row-wrap"><Button size="sm" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/acknowledge`); fnd.reload(); }}>Mark as seen</Button><Button size="sm" variant="ghost" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/dismiss`); fnd.reload(); }}>Dismiss</Button></div></li>)}</ul>}</Async></Card>
+      <Async res={fnd} empty={(d) => (d.items.length ? null : <p className="muted">No open findings. Run an analysis to check.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((f: any) => <li key={f.id} className="card stack-sm"><div className="row-wrap"><Badge tone="violet">{String(f.epistemic).replace('_', ' ')}</Badge><Badge tone={f.severity === 'high' ? 'warn' : undefined}>{f.severity}</Badge><strong>{f.title}</strong></div><p>{f.body}</p>{Array.isArray(f.evidence) && f.evidence.length > 0 && <details><summary>Evidence ({f.evidence.length})</summary><ul>{f.evidence.map((e: any, i: number) => <li key={i}>{typeof e === 'string' ? e : `${e.label ?? e.key ?? ''}: ${e.value ?? ''}`}</li>)}</ul></details>}<FindingNext f={f} />{f.proposalId && <p className="faint">A proposal exists: see <Link to="/founder/decisions">Decisions</Link>.</p>}<div className="row-wrap"><Button size="sm" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/acknowledge`); fnd.reload(); }}>Mark as reviewed (keeps it on record)</Button><Button size="sm" variant="ghost" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/dismiss`); fnd.reload(); }}>Dismiss (not relevant)</Button></div></li>)}</ul>}</Async></Card>
     <FaiChat /><Delegate /><Proposer /></>}</Async>;
 }
 function Rules({ s, onSaved }: { s: any; onSaved: () => void }) {
@@ -165,7 +166,7 @@ function Communities() {
     <p className="muted">Reveal of an anonymous author is a moderator-only action on a live case; the Founder role does not include it. See Moderation → Reveal oversight.</p></Card>
     <Card className="stack-sm"><h2 className="h-sm">Community health</h2><p className="muted">Counts only. No content.</p>
     <TextField label="Reason for any anonymous-posting change (recorded)" value={why} onChange={(e) => setWhy(e.target.value)} hint="At least 5 characters" />
-    <Async res={res}>{(d) => <table className="table"><thead><tr><th>Community</th><th>Members</th><th>Posts</th><th>Open cases</th><th>Anonymous</th></tr></thead><tbody>{d.items.map((c: any) => <tr key={c.slug}><td>{c.name} {c.isDemo && <DemoBadge />}</td><td>{c.members}</td><td>{c.posts}</td><td>{c.openCases}</td><td>{c.allowAnonymous ? 'Allowed' : 'No'} <Button size="sm" variant="ghost" disabled={why.trim().length < 5 || (!c.allowAnonymous && !globalOn)} onClick={() => void toggle(c)}>{c.allowAnonymous ? 'Disable' : 'Enable'}</Button></td></tr>)}</tbody></table>}</Async></Card></div>;
+    <Async res={res}>{(d) => <table className="table"><thead><tr><th>Community</th><th>Members</th><th>Posts</th><th>Open cases</th><th>Anonymous</th><th>Oversight</th></tr></thead><tbody>{d.items.map((c: any) => <tr key={c.slug}><td>{c.name} {c.isDemo && <DemoBadge />}{c.closed && <Badge>Closed</Badge>}{c.restricted && <Badge tone="warn">Restricted</Badge>}</td><td>{c.members}</td><td>{c.posts}</td><td>{c.openCases}</td><td>{c.allowAnonymous ? 'Allowed' : 'No'} <Button size="sm" variant="ghost" disabled={why.trim().length < 5 || (!c.allowAnonymous && !globalOn)} onClick={() => void toggle(c)}>{c.allowAnonymous ? 'Disable' : 'Enable'}</Button></td><td><CommunityOversight c={c} onDone={res.reload} /></td></tr>)}</tbody></table>}</Async></Card></div>;
 }
 function UniversesAdmin() {
   const { say } = useToast(); const guarded = useGuarded(); const res = useResource(() => api.get<{ items: any[] }>('/api/founder/universes'), []); const [edit, setEdit] = useState<{ id: string; status: string; note: string } | null>(null);

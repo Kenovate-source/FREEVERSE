@@ -90,12 +90,12 @@ export const founderModule: ModuleDef = {
 
     router.get('/api/founder/communities', { auth: { perm: 'community.health.view' } }, async (c) => {
       const rows = await c.db.query<any>(
-        `SELECT c.slug, c.name, c.allow_anonymous, c.is_demo,
+        `SELECT c.slug, c.name, c.allow_anonymous, c.is_demo, c.status, c.restricted_at, c.restricted_reason,
            (SELECT COUNT(*) FROM community_members x WHERE x.community_id = c.id) AS members,
            (SELECT COUNT(*) FROM posts p WHERE p.community_id = c.id AND p.status = 'published') AS posts,
            (SELECT COUNT(*) FROM moderation_cases k WHERE k.status IN ('open','in_review') AND k.target_type = 'post' AND k.target_id IN (SELECT CAST(id AS TEXT) FROM posts WHERE community_id = c.id)) AS open_cases
-           FROM communities c WHERE c.status = 'active' ORDER BY members DESC`);
-      return { items: rows.map((r) => ({ slug: r.slug, name: r.name, allowAnonymous: r.allow_anonymous === true || r.allow_anonymous === 1, isDemo: r.is_demo === true || r.is_demo === 1, members: num(r.members), posts: num(r.posts), openCases: num(r.open_cases) })), note: 'Counts only. No content or member lists.' };
+           FROM communities c WHERE c.status IN ('active','archived') ORDER BY members DESC`);
+      return { items: rows.map((r) => ({ closed: r.status !== 'active', restricted: !!r.restricted_at, restrictedReason: r.restricted_reason ?? null, slug: r.slug, name: r.name, allowAnonymous: r.allow_anonymous === true || r.allow_anonymous === 1, isDemo: r.is_demo === true || r.is_demo === 1, members: num(r.members), posts: num(r.posts), openCases: num(r.open_cases) })), note: 'Counts only. No content or member lists.' };
     });
 
     router.get('/api/founder/audit', {

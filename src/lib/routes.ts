@@ -34,7 +34,7 @@ export const ROUTES: RouteDef[] = [
   R('profile-edit', '/me/profile', 'Your profile', { section: 'profile' }),
   R('settings', '/settings', 'Settings', { section: 'settings' }), R('settings-section', '/settings/:section', 'Settings', { section: 'settings' }),
   R('universes', '/universes', 'Universes', { section: 'universes' }), R('universe', '/universes/:id', 'Universe', { section: 'universes' }), R('universe-space', '/universes/:id/:space', 'Universe', { section: 'universes' }),
-  R('soon', '/soon/:feature', 'Coming soon', { section: 'universes' }), R('help', '/help', 'Help & safety', { section: 'help' }), R('suggestions', '/suggestions', 'Suggest an improvement', { section: 'help' }),
+  R('soon', '/soon/:feature', 'Coming soon', { section: 'universes' }), R('help', '/help', 'Help & safety', { section: 'help' }), R('suggestions', '/suggestions', 'Suggest an improvement', { section: 'help' }), R('polls', '/polls', 'Polls', { section: 'help' }),
   R('founder', '/founder', 'Founder Console', { perm: 'founder.console', section: 'founder' }), R('founder-section', '/founder/:section', 'Founder Console', { perm: 'founder.console', section: 'founder' }),
   R('governance', '/governance', 'Governance', { perm: 'governance.view', section: 'governance' }),
   R('moderation', '/moderation', 'Moderation', { perm: 'moderation.queue.view', section: 'moderation' }), R('moderation-case', '/moderation/:id', 'Moderation case', { perm: 'moderation.queue.view', section: 'moderation' }),
@@ -57,7 +57,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: 'ai', label: 'AI', items: [{ id: 'nova', label: 'Nova', path: '/ai', icon: 'nova' }, { id: 'council', label: 'AI Council', path: '/ai/council', icon: 'council' }] },
   { id: 'you', label: 'You', items: [
     { id: 'profile', label: 'My profile', path: '/me/profile', icon: 'user' }, { id: 'identities', label: 'Identities', path: '/identities', icon: 'layers' },
-    { id: 'settings', label: 'Settings', path: '/settings', icon: 'sliders' }, { id: 'suggestions', label: 'Suggest an improvement', path: '/suggestions', icon: 'edit' }, { id: 'help', label: 'Help & safety', path: '/help', icon: 'shield' } ] },
+    { id: 'settings', label: 'Settings', path: '/settings', icon: 'sliders' }, { id: 'polls', label: 'Polls', path: '/polls', icon: 'scale' }, { id: 'suggestions', label: 'Suggest an improvement', path: '/suggestions', icon: 'edit' }, { id: 'help', label: 'Help & safety', path: '/help', icon: 'shield' } ] },
   { id: 'steward', label: 'Stewardship', items: [
     { id: 'founder', label: 'Founder Console', path: '/founder', icon: 'crown', perm: 'founder.console' }, { id: 'governance', label: 'Governance', path: '/governance', icon: 'scale', perm: 'governance.view' },
     { id: 'moderation', label: 'Moderation', path: '/moderation', icon: 'flag', perm: 'moderation.queue.view' } ] },

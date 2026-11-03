@@ -135,7 +135,7 @@ export const moderationModule: ModuleDef = {
           const until = b.until ?? new Date(now.getTime() + 7 * 86400_000).toISOString();
           if (new Date(until) <= now || new Date(until).getTime() - now.getTime() > 90 * 86400_000) throw badRequest('Choose a suspension end between now and 90 days from now.');
           if (targetUser === c.me.userId) throw forbidden('You cannot act on your own account.');
-          const holder = await c.db.get("SELECT 1 AS x FROM role_grants WHERE user_id = $1 AND revoked_at IS NULL AND role IN ('founder','council','high_council')", [targetUser]);
+          const holder = await c.db.get("SELECT 1 AS x FROM role_grants WHERE user_id = $1 AND revoked_at IS NULL AND restricted_at IS NULL AND role IN ('founder','council','high_council')", [targetUser]);
           if (holder) throw forbidden('Governance members cannot be suspended through the moderation queue.', 'governance_protected');
           await c.db.tx(async (t) => {
             await t.run("UPDATE users SET status = 'suspended', suspended_until = $2, updated_at = $3 WHERE id = $1 AND status = 'active'", [targetUser, until, nowIso]);
@@ -166,7 +166,7 @@ export const moderationModule: ModuleDef = {
           await c.db.tx(async (t) => { await record(t, authorId); });
           await audit(c.db, { actorId: c.me.userId, actorRole: roleLabel(c), action: 'moderation.anonymous_author_revealed', targetType: cs.target_type, targetId: cs.target_id, caseId: cs.id, reason: b.note }, now);
           // Oversight: the Council and Founder are told that a reveal happened (case and category only, never the identity) and can review it.
-          const overseers = await c.db.query<{ user_id: string }>("SELECT DISTINCT user_id FROM role_grants WHERE role IN ('council','founder') AND revoked_at IS NULL AND user_id <> $1", [c.me.userId]);
+          const overseers = await c.db.query<{ user_id: string }>("SELECT DISTINCT user_id FROM role_grants WHERE role IN ('council','founder') AND revoked_at IS NULL AND restricted_at IS NULL AND user_id <> $1", [c.me.userId]);
           for (const o of overseers) await notify(c.db, { userId: o.user_id, type: 'system', data: { text: `An anonymous-author reveal was recorded on a ${cs.category.replace(/_/g, ' ')} case. Review it in Moderation → Reveal oversight.`, href: '#/moderation' } }, now);
           result = { author: u ? { handle: u.handle, displayName: u.display_name } : null, note: 'This reveal is recorded in the audit log together with your reason.' };
           return created({ actionId, ...result });

@@ -80,7 +80,7 @@ export function FounderHome() {
 
 const COMMANDS: { label: string; to: string; hint: string }[] = [
   { label: 'Overview', to: '/founder', hint: 'ecosystem map' }, { label: 'Founder AI workspace', to: '/founder/ai', hint: 'findings, proposals, delegation' }, { label: 'Decisions', to: '/founder/decisions', hint: 'proposals waiting for approval' },
-  { label: 'Governance', to: '/founder/governance', hint: 'appointments and roles' }, { label: 'Access reviews', to: '/founder/access', hint: 'who can do what' }, { label: 'Suggestions', to: '/founder/suggestions', hint: 'citizens’ ideas' },
+  { label: 'Governance', to: '/founder/governance', hint: 'appointments and roles' }, { label: 'Access reviews', to: '/founder/access', hint: 'who can do what' }, { label: 'Appointments & access', to: '/founder/appointments', hint: 'pause or restore a role' }, { label: 'Polls', to: '/founder/polls', hint: 'ask citizens or leaders' }, { label: 'Suggestions', to: '/founder/suggestions', hint: 'citizens’ ideas' },
   { label: 'Communities', to: '/founder/communities', hint: 'health and oversight' }, { label: 'Universes', to: '/founder/universes', hint: 'status and configuration' }, { label: 'AI Council', to: '/founder/council', hint: 'specialists' },
   { label: 'Audit log', to: '/founder/audit', hint: 'recorded actions' }, { label: 'Constitution', to: '/founder/constitution', hint: 'the rules' }, { label: 'Priorities', to: '/founder/priorities', hint: 'your list' }, { label: 'Moderation queue', to: '/moderation', hint: 'cases and appeals' },
 ];
