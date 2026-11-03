@@ -19,7 +19,7 @@ const wf = async <T>(fn: () => Promise<T>): Promise<T> => {
   try { return await fn(); } catch (e) { if (e instanceof WorkflowError) { if (e.status === 403) throw forbidden(e.message, e.code); throw badRequest(e.message, undefined, e.code); } throw e; }
 };
 
-const findingView = (f: any) => ({ id: f.id, kind: f.kind, epistemic: f.epistemic, severity: f.severity, title: f.title, body: f.body, evidence: json(f.evidence, []), status: f.status, proposalId: f.proposal_id ?? null, createdAt: f.created_at, updatedAt: f.updated_at });
+const findingView = (f: any) => ({ id: f.id, kind: f.kind, epistemic: f.epistemic, severity: f.severity, title: f.title, body: f.body, evidence: json(f.evidence, []), status: f.status, proposalId: f.proposal_id ?? null, dedupeKey: f.dedupe_key ?? null, createdAt: f.created_at, updatedAt: f.updated_at });
 const msgView = (m: any): AiMessageView => ({ id: m.id, role: m.role, body: m.body, createdAt: m.created_at, meta: json(m.meta, {}) });
 
 const EPISTEMIC_HELP = {
