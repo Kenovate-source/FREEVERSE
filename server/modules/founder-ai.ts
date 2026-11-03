@@ -13,6 +13,7 @@ import type { Ctx } from '../http/router';
 import type { Services } from '../services';
 import { AI_MODES, AI_MODE_LABEL } from '../../shared/constants';
 import type { AiMessageView } from '../../shared/api/ai';
+import { lifecycleOf } from '../../shared/proposal-lifecycle';
 
 const id = z.string().uuid();
 const wf = async <T>(fn: () => Promise<T>): Promise<T> => {
@@ -189,6 +190,18 @@ export const founderAiModule: ModuleDef = {
     router.get('/api/founder-ai/delegations', { auth: { perm: 'ai.founder.use' } }, async (c) => {
       const rows = await c.db.query<any>('SELECT * FROM ai_delegations ORDER BY created_at DESC LIMIT 50');
       return { items: rows.map((r) => ({ id: r.id, from: r.from_agent, to: r.to_agent, task: json(r.task, {}), status: r.status, result: json(r.result, null), createdAt: r.created_at })) };
+    });
+
+    // ───────── work: every proposal with its lifecycle (derived from recorded fields only) ─────────
+    router.get('/api/founder-ai/work', { auth: { perm: 'proposals.view' }, query: z.object({ filter: z.enum(['all', 'active', 'finished']).default('all') }) }, async (c) => {
+      const rows = await c.db.query<any>("SELECT p.*, f.title AS finding_title FROM proposals p LEFT JOIN founder_ai_findings f ON f.proposal_id = p.id ORDER BY p.created_at DESC LIMIT 60");
+      const items = rows.map((r) => {
+        const auto = r.auto_executed === true || r.auto_executed === 1;
+        const stages = lifecycleOf({ status: r.status, kind: r.kind, source: r.source, createdAt: r.created_at, decidedAt: r.decided_at, decisionNote: r.decision_note, executedAt: r.executed_at, autoExecuted: auto, rationale: r.rationale, hasImpact: !!json(r.impact, null), verification: json(r.verification, null), findingTitle: r.finding_title ?? null });
+        const active = ['pending_approval', 'approved', 'executing', 'draft'].includes(r.status) || (r.status === 'executed' && !r.verification);
+        return { id: r.id, title: r.title, source: r.source, risk: r.effective_risk, status: r.status, kind: r.kind, createdAt: r.created_at, autoExecuted: auto, rationale: r.rationale, stages, active };
+      }).filter((x) => c.query.filter === 'all' || (c.query.filter === 'active' ? x.active : !x.active));
+      return { items };
     });
 
     // ───────── decision record ─────────

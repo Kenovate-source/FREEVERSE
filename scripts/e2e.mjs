@@ -14,9 +14,9 @@ const stamp = Date.now();
 
 async function run(size, who = 'member') {
   const email = who === 'founder' ? 'tolu@example.test' : `e2e${stamp}${size}@example.test`; const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: SIZES[size] }); const page = await ctx.newPage();
-  page.setDefaultTimeout(6000); const errs = []; page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(`console: ${m.text()}`); }); page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-  page.on('response', (r) => { if (r.status() >= 400 && r.status() !== 404 && r.status() !== 401) errs.push(`HTTP ${r.status()} ${r.url()}`); });
-  const step = async (name, fn) => { try { await fn(); results.push({ size, name, ok: true }); } catch (e) { results.push({ size, name, ok: false, err: String(e.message).split('\n')[0] }); console.log('FAIL', size, name, String(e.message).split('\n')[0]); } };
+  page.setDefaultTimeout(6000); const errs = []; const expected = { on: false }; page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(`console: ${m.text()}`); }); page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
+  page.on('response', (r) => { if (r.status() >= 400 && r.status() !== 404 && r.status() !== 401 && !expected.on) errs.push(`HTTP ${r.status()} ${r.url()}`); });
+  const step = async (name, fn) => { try { await fn(); results.push({ size, name, ok: true }); } catch (e) { results.push({ size, name, ok: false, err: String(e.message).split('\n')[0] }); await page.screenshot({ path: `${OUT}/FAIL-${size}-${name.replace(/\W+/g, '_').slice(0, 40)}.png` }).catch(() => undefined); console.log('FAIL', size, name, String(e.message).split('\n')[0]); } };
   await page.goto(`${BASE}/#/`); await page.waitForSelector('h1');
   await page.screenshot({ path: `${OUT}/${size}-landing.png` });
   for (const lp of ['/terms', '/privacy', '/rules']) await step(`public ${lp}`, async () => { await page.goto(`${BASE}/#${lp}`); await page.waitForSelector('main h2'); if (!/Draft for legal review/.test(await page.locator('main').innerText())) throw new Error('draft notice missing'); if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow'); });
@@ -84,6 +84,23 @@ async function run(size, who = 'member') {
     await page.getByLabel('What is it about?').selectOption('usability'); await page.getByRole('button', { name: 'Send suggestion' }).click();
     await page.getByRole('heading', { name: t }).waitFor({ timeout: 8000 }); await page.getByText('Submitted').first().waitFor();
   });
+  if (who === 'member') await step('identity labels: search the list, add one as "becoming", add own words, see them on the profile; authority words refused', async () => {
+    await page.goto(`${BASE}/#/identities`); await page.getByRole('heading', { name: 'How you describe yourself' }).waitFor({ timeout: 10000 });
+    await page.getByLabel('This is…').selectOption('aspiring');
+    await page.getByLabel('Search the list').fill('podcast');
+    await page.getByRole('group', { name: 'Matching labels' }).getByRole('button', { name: 'Podcaster' }).click();
+    await page.getByRole('region', { name: /I’m becoming/ }).getByText('Podcaster').waitFor({ timeout: 8000 });
+    await page.getByLabel('Or describe yourself in your own words').fill('Night-shift poet'); await page.getByRole('button', { name: 'Add in my own words' }).click();
+    await page.getByText('Night-shift poet').waitFor({ timeout: 8000 });
+    expected.on = true; await page.getByLabel('Or describe yourself in your own words').fill('FREEVERSE Admin'); await page.getByRole('button', { name: 'Add in my own words' }).click();
+    await page.getByText(/can’t claim a FREEVERSE role/).waitFor({ timeout: 8000 }); expected.on = false;
+    await page.screenshot({ path: `${OUT}/${size}-identity-labels.png` });
+    await page.goto(`${BASE}/#/me/profile`); await page.waitForSelector('main h1');
+    const own = await page.evaluate(async () => { const k = Object.keys(localStorage).find((x) => x.includes('fv.session')); const tok = k ? localStorage.getItem(k) : null; if (!tok) return null; const r = await fetch('/api/me', { headers: { authorization: `Bearer ${String(tok).replace(/^"|"$/g, '')}` } }); const j = await r.json(); return j.user?.handle ? `#/u/${j.user.handle}` : null; });
+    if (!own) throw new Error('could not work out the own handle');
+    await page.goto(`${BASE}/${own}`); await page.getByRole('heading', { name: 'In their own words' }).waitFor({ timeout: 8000 });
+    await page.getByText('Night-shift poet').waitFor();
+  });
   if (who === 'founder') await step('console: ecosystem map opens a context layer; command bar navigates; suggestions queue lists items', async () => {
     await page.goto(`${BASE}/#/founder`); await page.getByRole('heading', { name: 'The ecosystem' }).waitFor({ timeout: 10000 });
     await page.screenshot({ path: `${OUT}/${size}-founder-console.png` });
@@ -91,6 +108,31 @@ async function run(size, who = 'member') {
     await page.keyboard.press('Control+k'); await page.getByRole('dialog', { name: 'Command bar' }).waitFor(); await page.getByRole('combobox', { name: 'Go to a workspace' }).fill('suggest'); await page.keyboard.press('Enter');
     await page.waitForURL(/#\/founder\/suggestions/, { timeout: 5000 }); await page.getByRole('heading', { name: 'Suggestions from citizens' }).waitFor({ timeout: 8000 });
     await page.getByText(/Browser test idea/).first().waitFor({ timeout: 8000 });
+  });
+  if (who === 'founder') await step('founder AI: tabbed workspace; prepared change shows its lifecycle at Decide; Mode lives under its own tab', async () => {
+    await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Ask' }).waitFor({ timeout: 10000 });
+    if ((await page.getByRole('tab').count()) !== 6) throw new Error('expected 6 workspace tabs');
+    if (await page.getByRole('heading', { name: /^Mode:/ }).count()) throw new Error('mode card should not be on the Ask tab');
+    await page.getByRole('tab', { name: 'Mode and boundaries' }).click(); await page.getByRole('heading', { name: /^Mode:/ }).waitFor({ timeout: 5000 });
+    await page.getByRole('tab', { name: 'Prepare a change' }).click();
+    await page.getByLabel('Title').fill('Move FreePlay back to concept'); await page.getByLabel('Why').fill('E2E: checking the lifecycle display');
+    await page.getByRole('button', { name: 'Prepare proposal' }).click();
+    await page.getByRole('heading', { name: 'Work', exact: true }).waitFor({ timeout: 8000 });
+    const item = page.locator('li.card', { hasText: 'Move FreePlay back to concept' }).first(); await item.waitFor({ timeout: 8000 });
+    await item.getByRole('list', { name: /Progress for/ }).waitFor();
+    if (!(await item.locator('.stage.st-current', { hasText: 'Decide' }).count())) throw new Error('Decide should be the current stage while waiting');
+    if (await item.locator('.stage.st-done', { hasText: 'Execute' }).count()) throw new Error('Execute must not show done before approval');
+    await page.screenshot({ path: `${OUT}/${size}-founder-ai-work.png` });
+  });
+  if (who === 'founder') await step('universes admin: preview shows what members will see before saving; history is listed', async () => {
+    await page.goto(`${BASE}/#/founder/universes`); await page.getByRole('heading', { name: 'Universes', exact: true }).waitFor({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Change' }).first().click();
+    await page.getByRole('heading', { name: /What members will see/ }).waitFor({ timeout: 8000 });
+    await page.getByLabel('Status').selectOption('concept'); await page.getByLabel('Note shown to members').fill('E2E preview note');
+    await page.locator('[aria-label="Preview of what members will see"]').getByText('E2E preview note').waitFor({ timeout: 8000 });
+    await page.getByRole('heading', { name: 'Change history' }).waitFor();
+    await page.screenshot({ path: `${OUT}/${size}-founder-universes-preview.png` });
+    await page.getByRole('button', { name: 'Cancel' }).click();
   });
   if (who === 'founder') await step('governance: draft and publish a poll, vote in it; appointments and community oversight screens load', async () => {
     await page.goto(`${BASE}/#/founder/polls`); await page.getByRole('heading', { name: 'Draft a poll' }).waitFor({ timeout: 10000 });
@@ -141,6 +183,28 @@ async function run(size, who = 'member') {
 }
 for (const s of Object.keys(SIZES)) await run(s);
 await run('desktop', 'founder');
+// Founder console on a phone: sign the Founder back in on a phone-sized screen and check key screens for overflow and tap-size problems.
+async function founderPhone() {
+  const size = 'phone-founder'; const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: SIZES.phone }); const page = await ctx.newPage(); page.setDefaultTimeout(8000);
+  const step = async (name, fn) => { try { await fn(); results.push({ size, name, ok: true }); } catch (e) { results.push({ size, name, ok: false, err: String(e.message).split('\n')[0] }); console.log('FAIL', size, name, String(e.message).split('\n')[0]); } };
+  await step('founder signs in on a phone', async () => { await page.goto(`${BASE}/#/signin`); await page.getByLabel('Email').fill('tolu@example.test'); await page.getByLabel('Password', { exact: true }).fill('correct horse 12'); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.waitForURL(/#\/(home|founder)/, { timeout: 10000 }); });
+  for (const r of ['/founder', '/founder/ai', '/founder/decisions', '/founder/suggestions', '/founder/polls', '/founder/governance', '/founder/communities', '/founder/appointments', '/founder/audit']) {
+    await step(`phone founder ${r}`, async () => {
+      await page.goto(`${BASE}/#${r}`); await page.waitForSelector('main h1, main h2', { timeout: 8000 }); await page.waitForTimeout(300);
+      if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow');
+      const small = await page.evaluate(() => [...document.querySelectorAll('main button, main a[href], main [role="tab"]')].filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0 && b.height < 32 && getComputedStyle(e).display !== 'inline'; }).map((e) => (e.textContent || '').trim().slice(0, 24)));
+      if (small.length > 3) throw new Error('too many small tap targets: ' + small.slice(0, 5).join(' | '));
+      await page.screenshot({ path: `${OUT}/phone-founder-${r.replace(/\W+/g, '_')}.png` });
+    });
+  }
+  await step('phone founder: Founder AI tabs reachable and the lifecycle stacks', async () => {
+    await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Work' }).click(); await page.getByRole('heading', { name: 'Work', exact: true }).waitFor();
+    if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow on Work');
+    await page.screenshot({ path: `${OUT}/phone-founder-ai-work.png` });
+  });
+  await browser.close();
+}
+await founderPhone();
 const failed = results.filter((r) => !r.ok);
 writeFileSync(`${OUT}/report.json`, JSON.stringify({ base: BASE, results, problems }, null, 2));
 console.log(`${results.length - failed.length}/${results.length} checks passed`);

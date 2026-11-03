@@ -1,7 +1,7 @@
 import type { Services } from '../services';
 import type { Db } from '../db';
 import { bool, json, uuid } from '../db';
-import { ACTIONS, type Actor, type ExecCtx, type Risk } from './actions';
+import { ACTIONS, RollbackBlocked, type Actor, type ExecCtx, type Risk } from './actions';
 import { audit } from '../services/audit';
 import type { AiMode } from '../../shared/constants';
 
@@ -132,7 +132,8 @@ export async function rollback(s: Services, proposalId: string, actor: { userId:
   const def = ACTIONS[p.action_type];
   if (!def?.rollback) throw new WorkflowError(409, 'not_rollbackable', 'This change cannot be rolled back.');
   const now = s.now();
-  await def.rollback({ s, db: s.db, now, actor: { kind: 'human', userId: actor.userId, role: actor.role } }, json(p.rollback_data, {}));
+  try { await def.rollback({ s, db: s.db, now, actor: { kind: 'human', userId: actor.userId, role: actor.role } }, json(p.rollback_data, {})); }
+  catch (e) { if (e instanceof RollbackBlocked) throw new WorkflowError(409, 'superseded', e.message); throw e; }
   await s.db.run("UPDATE proposals SET status = 'rolled_back', updated_at = $2 WHERE id = $1", [proposalId, now.toISOString()]);
   await event(s.db, proposalId, actor.userId, actor.role, 'rolled_back', null, now);
   await audit(s.db, { actorId: actor.userId, actorRole: actor.role, action: 'proposal.rolled_back', targetType: 'proposal', targetId: proposalId, meta: { actionType: p.action_type } }, now);

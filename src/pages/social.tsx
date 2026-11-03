@@ -1,3 +1,4 @@
+import { ProfileLabels } from '../features/identity-labels';
 import { CreateCommunity, CommunityHealthCard, ManageCommunity, DiscoveryFilters } from '../features/communities';
 import { useState } from 'react';
 import { api, qs } from '../api/client';
@@ -57,6 +58,7 @@ export function HomePage(_: P) {
         <PageHead title={h.greeting}>{h.mode === 'identity' ? 'Your home adapts to the identities you’ve chosen. Change them any time.' : 'Pick an identity to get a home shaped around what you do.'}</PageHead>
         {h.identities.length > 0 && <div className="row-wrap" aria-label="Your identities">{h.identities.map((i) => <Link key={i.id} to={`/spaces/${i.archetype}`} className="chip chip-link"><Icon name={i.icon} size={14} /> {i.label}</Link>)}</div>}
         <TodayCard />
+        <HomeActivity a={h.activity} />
         {h.nextSteps.length > 0 && <Card><h2 className="h-sm">Next steps</h2><ul className="plain stack-sm">{h.nextSteps.map((s) => <li key={s.id}><Link to={s.href}><strong>{s.title}</strong></Link><div className="muted">{s.description}</div></li>)}</ul></Card>}
         {h.widgets.length > 0 && <div className="grid-cards">{h.widgets.map((w) => <Widget key={w.id} w={w} />)}</div>}
       </>)}</Async>
@@ -66,6 +68,17 @@ export function HomePage(_: P) {
       </section>
     </div>
   );
+}
+
+function HomeActivity({ a }: { a: HomeView['activity'] }) {
+  const quiet = !a.unreadNotifications && !a.unreadConversations && !a.messageRequests && !a.earnedTotal;
+  return <Card className="stack-sm" as="section" aria-labelledby="act-h"><h2 id="act-h" className="h-sm">Right now</h2>
+    {quiet ? <p className="muted">All quiet. Nothing is waiting for you.</p> : <ul className="plain stack-sm">
+      {a.unreadConversations > 0 && <li><Link to="/messages"><strong>{a.unreadConversations}</strong> conversation{a.unreadConversations === 1 ? '' : 's'} with new messages</Link></li>}
+      {a.messageRequests > 0 && <li><Link to="/messages"><strong>{a.messageRequests}</strong> message request{a.messageRequests === 1 ? '' : 's'} to look at</Link></li>}
+      {a.unreadNotifications > 0 && <li><Link to="/notifications"><strong>{a.unreadNotifications}</strong> unread notification{a.unreadNotifications === 1 ? '' : 's'}</Link></li>}
+      {a.earnedTotal > 0 && <li>Earned so far: {a.earned.map((x) => x.label).join(', ')}{a.earnedTotal > a.earned.length ? ` and ${a.earnedTotal - a.earned.length} more` : ''}. <Link to="/me/profile">See all</Link></li>}</ul>}
+    <p className="faint">Counts only. Message text is never shown on Home.</p></Card>;
 }
 
 // ───────── Communities ─────────
@@ -119,6 +132,7 @@ export function MemberPage({ params }: P) {
   const { say } = useToast(); const { me } = useSession(); const res = useResource(() => api.get<{ profile: MemberProfile }>(`/api/members/${params.handle}`), [params.handle]); const [rep, setRep] = useState(false); const [dm, setDm] = useState(false); const [msg, setMsg] = useState('');
   const mutate = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); say(ok); res.reload(); } catch (e) { say(errMsg(e), 'error'); } };
   const living = useResource(() => api.get<{ entries: { id: string; kind: string; title: string; description: string | null; evidence: string; link: string | null }[]; identities: { archetype: string; label: string; headline: string | null }[] }>(`/api/members/${params.handle}/living`).catch(() => ({ entries: [], identities: [] })), [params.handle]);
+  const labels = useResource(() => api.get<{ items: any[] }>(`/api/members/${params.handle}/identity-labels`).catch(() => ({ items: [] as any[] })), [params.handle]);
   const posts = useResource(() => api.get<{ items: PostView[] }>(`/api/members/${params.handle}/posts`).catch(() => ({ items: [] as PostView[] })), [params.handle]);
   return <Async res={res}>{({ profile: p }) => {
     const self = p.person.isSelf; const h = p.person.handle ?? params.handle ?? '';
@@ -137,6 +151,7 @@ export function MemberPage({ params }: P) {
           <div className="row-wrap">{p.ageBand && <Badge>Age {p.ageBand}</Badge>}{p.counts && <><Badge>{p.counts.followers} followers</Badge><Badge>{p.counts.following} following</Badge><Badge>{p.counts.connections} connections</Badge></>}</div>
           {p.achievements && p.achievements.length > 0 && <Card><h2 className="h-sm">Milestones</h2><ul className="plain stack-sm">{p.achievements.map((a) => <li key={a.id}><strong>{a.label}</strong> <Badge>Recorded by FREEVERSE</Badge><div className="muted">{a.description}</div></li>)}</ul><p className="faint small">Recorded from activity on FREEVERSE; not a verified credential.</p></Card>}
           {p.interests && p.interests.length > 0 && <Card><h2 className="h-sm">Interests</h2><div className="row-wrap">{p.interests.map((i) => <span key={i.key} className="chip chip-static">{i.label}</span>)}</div></Card>}
+          {labels.data && <ProfileLabels items={labels.data.items} />}
           {living.data && (living.data.identities.length > 0 || living.data.entries.length > 0) && <Card><h2 className="h-sm">Identities & highlights</h2>
             <div className="row-wrap">{living.data.identities.map((i) => <Badge key={i.archetype} tone="cyan">{i.label}</Badge>)}</div>
             <ul className="plain stack-sm">{living.data.entries.map((e) => <li key={e.id}><strong>{e.title}</strong> <Badge tone={e.evidence === 'self_declared' ? undefined : 'ok'}>{e.evidence === 'self_declared' ? 'Self-declared' : 'Recorded on FREEVERSE'}</Badge>{e.description && <div className="muted">{e.description}</div>}</li>)}</ul></Card>}

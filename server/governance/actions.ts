@@ -203,12 +203,26 @@ const anonymous: ActionDef<z.infer<typeof anonSchema>> = {
 };
 
 const UNI_IDS = UNIVERSES.map((u) => u.id) as [string, ...string[]];
+export class RollbackBlocked extends Error {}
 const uniSchema = z.object({ universeId: z.enum(UNI_IDS), status: z.enum(['available', 'partial', 'planned_v2', 'planned_v3', 'concept', 'under_review']), note: z.string().trim().max(300).default('') }).strict();
 const universe: ActionDef<z.infer<typeof uniSchema>> = {
   type: 'universe.set_status', label: 'Change a Universe’s published status', risk: 'medium', riskWhy: 'Changes what members are told is available.', autonomyEligible: false, schema: uniSchema,
   async impact(db, p) { return { summary: `Set ${p.universeId} to “${p.status}”. This changes the status members see on the Universes page. It does not build or remove anything.`, affects: ['Universes page'], reversible: true }; },
-  async execute(c, p) { const cur = await cfgGet<Record<string, unknown>>(c.db, 'universes.status', {}); await cfgSet(c.db, 'universes.status', { ...cur, [p.universeId]: { status: p.status, note: p.note } }, actorId(c.actor), c.now); return { result: {}, rollback: { previous: cur } }; },
-  async rollback(c, d) { await cfgSet(c.db, 'universes.status', d.previous, actorId(c.actor), c.now); },
+  async execute(c, p) {
+    const cur = await cfgGet<Record<string, any>>(c.db, 'universes.status', {}); const applied = { status: p.status, note: p.note };
+    await cfgSet(c.db, 'universes.status', { ...cur, [p.universeId]: applied }, actorId(c.actor), c.now);
+    // Roll back only THIS Universe, and only if nobody has changed it since. (Older records hold a whole-map snapshot under `previous`.)
+    return { result: {}, rollback: { universeId: p.universeId, previousEntry: cur[p.universeId] ?? null, applied } };
+  },
+  async rollback(c, raw) {
+    const d = raw as { universeId?: string; previous?: unknown; previousEntry?: unknown; applied: { status: string; note?: string } };
+    const cur = await cfgGet<Record<string, any>>(c.db, 'universes.status', {});
+    if (!d.universeId) { await cfgSet(c.db, 'universes.status', d.previous, actorId(c.actor), c.now); return; } // legacy record
+    const now = cur[d.universeId];
+    if ((now?.status ?? null) !== d.applied.status || (now?.note ?? '') !== (d.applied.note ?? '')) throw new RollbackBlocked('This Universe has been changed again since. Roll back the newer change first, or set the status you want.');
+    const next = { ...cur }; if (d.previousEntry) next[d.universeId] = d.previousEntry; else delete next[d.universeId];
+    await cfgSet(c.db, 'universes.status', next, actorId(c.actor), c.now);
+  },
   async verify(c, p) { const cur = await cfgGet<any>(c.db, 'universes.status', {}); return { ok: cur[p.universeId]?.status === p.status, detail: 'Configuration re-read.' }; },
 };
 

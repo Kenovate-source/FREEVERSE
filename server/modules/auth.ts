@@ -137,7 +137,7 @@ export const authModule: ModuleDef = {
         throw forbidden('FREEVERSE is for adults aged 18 and over. We have not saved the date you entered.', 'ineligible');
       }
       const nowIso = c.now().toISOString();
-      const handle = `member-${randomBytes(4).toString('hex')}`;
+      const handle = `member_${randomBytes(4).toString('hex')}`; // underscore: a hyphen is not a valid handle character
       await c.db.tx(async (t) => {
         await t.run(
           `UPDATE users SET status = 'active', birth_month = $2, birth_year = $3, age_check_method = 'self_declared_birthdate', age_check_status = 'self_attested',

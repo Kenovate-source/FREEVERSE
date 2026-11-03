@@ -1,7 +1,7 @@
 import type { ModuleDef } from './types';
 import { ARCHETYPE_DEFS } from '../../shared/archetypes';
 import type { HomeView, WidgetData } from '../../shared/api/identity';
-import { widgetData, widgetItems } from '../identity/stats';
+import { evaluate, userStats, widgetData, widgetItems } from '../identity/stats';
 import { myIdentities } from './identities';
 
 export const homeModule: ModuleDef = {
@@ -32,10 +32,17 @@ export const homeModule: ModuleDef = {
       const comm = await c.db.get<any>('SELECT COUNT(*) AS n FROM community_members WHERE user_id = $1', [me]);
       if (!Number(comm?.n)) next.push({ id: 'community', title: 'Join a community', description: 'Say hello in the Welcome Lounge or find a space that fits.', href: '#/communities' });
       next.push({ id: 'privacy', title: 'Review your privacy', description: 'See exactly who can see what, in plain language.', href: '#/settings/privacy' });
+      // "Where am I right now?": counts from your own inbox and notifications (never message text) and what you have earned.
+      const unreadN = await c.db.get<any>('SELECT COUNT(*) AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL', [me]);
+      const unreadC = await c.db.get<any>("SELECT COUNT(*) AS n FROM conversation_members cm WHERE cm.user_id = $1 AND cm.status = 'accepted' AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = cm.conversation_id AND m.deleted_at IS NULL AND m.sender_id <> $1 AND (cm.last_read_at IS NULL OR m.created_at > cm.last_read_at))", [me]);
+      const reqs = await c.db.get<any>("SELECT COUNT(*) AS n FROM conversation_members WHERE user_id = $1 AND status = 'request'", [me]);
+      const st = await userStats(c.db, me); const earnedAll = [] as { id: string; label: string }[];
+      for (const i of ids) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) { const e = evaluate(a, st, i.archetype); if (e.earned) earnedAll.push({ id: e.id, label: e.label }); }
       const out: HomeView = {
         greeting: prof?.display_name ? `Hi, ${String(prof.display_name).split(' ')[0]}` : 'Welcome',
         identities: ids.map((i) => ({ id: i.id, archetype: i.archetype, label: ARCHETYPE_DEFS[i.archetype].label, icon: ARCHETYPE_DEFS[i.archetype].icon, accent: ARCHETYPE_DEFS[i.archetype].accent, isPrimary: i.isPrimary })),
         widgets, nextSteps: next.slice(0, 4), mode: ids.length ? 'identity' : 'general',
+        activity: { unreadNotifications: Number(unreadN?.n ?? 0), unreadConversations: Number(unreadC?.n ?? 0), messageRequests: Number(reqs?.n ?? 0), earned: earnedAll.slice(0, 3), earnedTotal: earnedAll.length },
       };
       return out;
     });

@@ -16,7 +16,8 @@ export const RESERVED_HANDLES = new Set([
 
 export const handleSchema = z.string().trim().toLowerCase().regex(HANDLE_RE, 'Use 3–24 letters, numbers, dots or underscores, starting with a letter or number.')
   .refine((h) => !RESERVED_HANDLES.has(h), 'That handle is reserved.');
-export const handleParam = z.string().trim().toLowerCase().regex(HANDLE_RE);
+// Lookups also accept the legacy auto-generated form `member-xxxxxxxx` that early accounts were given, so their profiles open.
+export const handleParam = z.string().trim().toLowerCase().regex(new RegExp(`${HANDLE_RE.source}|^member-[0-9a-f]{8}$`));
 
 /** Collapses whitespace and strips control characters and angle brackets so labels can never carry markup. */
 export function cleanText(s: string, max: number): string {
