@@ -27,5 +27,11 @@ await build({
   outdir: 'dist', bundle: true, format: 'iife', target: 'es2022', minify: true, sourcemap: true,
   define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'info',
 });
+// Page environments (the central engine and every page's own scene) are a third lazily loaded script: plain canvas, tiny, and never on the critical path.
+await build({
+  entryPoints: { environments: 'src/environments/index.ts' },
+  outdir: 'dist', bundle: true, format: 'iife', target: 'es2022', minify: true, sourcemap: true,
+  define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'info',
+});
 await cp('public', 'dist', { recursive: true });
 console.log('build complete -> dist/');

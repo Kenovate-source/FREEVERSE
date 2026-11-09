@@ -17,7 +17,7 @@ function NavLink({ item, current, badge, onClick }: { item: NavItem; current: bo
   );
 }
 
-export function Shell({ children }: { children: ReactNode }) {
+export function Shell({ children, backdrop }: { children: ReactNode; backdrop?: ReactNode }) {
   const { me, perms, config, signOut, badges } = useSession();
   const path = usePath(); const section = matchRoute(path)?.route.section;
   const [more, setMore] = useState(false); const [menu, setMenu] = useState(false); const [q, setQ] = useState('');
@@ -42,6 +42,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="shell">
+      {backdrop}
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
       <aside className="sidebar" aria-label="Primary">
         <Link to="/home" className="brand"><img src="./brand/emblem-96.png" alt="" width="44" height="44" /><span className="brand-name">FREEVERSE</span></Link>
