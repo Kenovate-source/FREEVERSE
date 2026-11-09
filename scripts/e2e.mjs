@@ -24,6 +24,22 @@ async function run(size, who = 'member') {
   await step('sign up', async () => { await page.goto(`${BASE}/#/signup`); await page.getByLabel('Email').fill(email); await page.getByLabel('Password', { exact: true }).fill('correct horse 12'); await page.getByLabel('Confirm password').fill('correct horse 12'); await page.getByLabel(/I’m an adult/).check(); await page.getByRole('button', { name: 'Create account' }).click(); await page.waitForURL(/#\/eligibility/); });
   await step('eligibility', async () => { await page.getByLabel('Month').selectOption('6'); await page.getByLabel('Day').selectOption('15'); await page.getByLabel('Year').selectOption(String(new Date().getFullYear() - 21)); await page.getByLabel(/accept the/).check(); await page.getByLabel(/date I entered/).check(); await page.getByRole('button', { name: 'Continue' }).click(); await page.waitForURL(/#\/onboarding/); await page.screenshot({ path: `${OUT}/${size}-onboarding.png` }); });
   await step('onboarding skip', async () => { await page.getByRole('button', { name: 'Skip setup for now' }).click(); await page.waitForURL(/#\/home/); });
+  if (who === 'member') await step('page environments: mount per page, none on Home, calm on focus pages, never block clicks', async () => {
+    const want = [['/communities', 'communities', 'full'], ['/notifications', 'notifications', 'full'], ['/saved', 'saved', 'full'], ['/messages', 'messages', 'calm'], ['/settings/privacy', 'settings', 'calm']];
+    for (const [path, env, mode] of want) {
+      await page.goto(`${BASE}/#${path}`); await page.waitForSelector('main h1'); await page.waitForSelector('canvas[data-env-canvas]', { timeout: 8000 });
+      const got = await page.evaluate(() => { const c = document.querySelector('canvas[data-env-canvas]'); return { env: c.dataset.envCanvas, mode: c.dataset.envMode, pe: getComputedStyle(c).pointerEvents, hidden: c.getAttribute('aria-hidden') }; });
+      if (got.env !== env) throw new Error(`${path}: expected environment ${env}, got ${got.env}`);
+      if (got.mode !== mode) throw new Error(`${path}: expected mode ${mode}, got ${got.mode}`);
+      if (got.pe !== 'none' || got.hidden !== 'true') throw new Error(`${path}: backdrop must be inert and hidden from assistive tech`);
+    }
+    await page.goto(`${BASE}/#/home`); await page.waitForSelector('main h1'); await page.waitForTimeout(400);
+    if (await page.locator('canvas[data-env-canvas]').count()) throw new Error('Home must not have a page environment');
+    await page.goto(`${BASE}/#/communities`); await page.waitForSelector('canvas[data-env-canvas]');
+    const live = await page.evaluate(() => window.FreeverseEnvironments.liveCount()); if (live !== 1) throw new Error(`expected exactly 1 live environment, got ${live}`);
+    await page.goto(`${BASE}/#/home`); await page.waitForTimeout(500);
+    const after = await page.evaluate(() => window.FreeverseEnvironments.liveCount()); if (after !== 0) throw new Error(`environment leaked after leaving the page (${after})`);
+  });
   if (who === 'member') await step('post (text)', async () => { await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
   if (who === 'member') await step('communities: create, then post with an image and two links', async () => {
     await page.goto(`${BASE}/#/communities`); await page.waitForSelector('main h1');

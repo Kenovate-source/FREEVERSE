@@ -8,6 +8,8 @@ import { PAGES } from '../pages';
 import { Loading, EmptyState, Button } from '../ui/kit';
 import { Link } from '../lib/router';
 import { MotionRouteSync } from '../motion/react';
+import { EnvironmentBackdrop } from '../features/EnvironmentBackdrop';
+import { envFor } from '../lib/env-map';
 
 export function App() {
   const { status, me, perms, configError, retryConnection } = useSession();
@@ -27,7 +29,7 @@ export function App() {
   const el = <Page params={g.match.params} query={query} />;
   const sync = <MotionRouteSync routeId={g.match.route.id} path={path} />;
   if (g.match.route.public || g.match.route.id === 'eligibility' || g.match.route.id === 'onboarding') return <>{sync}{banner}{el}</>;
-  return <Shell>{sync}{banner}<div className="env-page" data-env={g.match.route.section ?? 'default'} key={g.match.route.id}>{el}</div></Shell>;
+  return <Shell backdrop={<EnvironmentBackdrop env={envFor(g.match.route.id, path)} />}>{sync}{banner}<div className="env-page" data-env={g.match.route.section ?? 'default'} key={g.match.route.id}>{el}</div></Shell>;
 }
 function ConnectionBanner({ retry }: { retry: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);

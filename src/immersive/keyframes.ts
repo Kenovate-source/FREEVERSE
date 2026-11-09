@@ -1,6 +1,6 @@
 // The camera and scene state for each chapter of the landing journey, and how they blend while scrolling.
 // Pure data and maths: unit-testable without a browser or WebGL.
-export type Layer = 'identity' | 'nodes' | 'links' | 'labels' | 'paths' | 'pulses' | 'shells' | 'glow';
+export type Layer = 'identity' | 'nodes' | 'links' | 'labels' | 'paths' | 'pulses' | 'shells' | 'glow' | 'flow';
 export type Group = 'knowledge' | 'community' | 'work' | 'media';
 export interface Key {
   camZ: number; camY: number; y?: number;
@@ -10,19 +10,19 @@ export interface Key {
   layers: Record<Layer, number>;
   highlight: Group | null;
 }
-const L = (o: Partial<Record<Layer, number>>): Record<Layer, number> => ({ identity: 0, nodes: 0, links: 0, labels: 0, paths: 0, pulses: 0, shells: 0, glow: 0.6, ...o });
+const L = (o: Partial<Record<Layer, number>>): Record<Layer, number> => ({ identity: 0, nodes: 0, links: 0, labels: 0, paths: 0, pulses: 0, shells: 0, glow: 0.6, flow: 0, ...o });
 
 /** One entry per chapter, in page order. */
 export const KEYS: readonly Key[] = [
   /* 0 vision    */ { camZ: 9.5, camY: 0.2, x: 1.0, rotY: 0.0, rotX: 0.1, layers: L({ glow: 1 }), highlight: null },
   /* 1 identity  */ { camZ: 8.6, camY: 0.4, x: -0.8, rotY: 0.5, rotX: 0.25, layers: L({ identity: 1, glow: 0.9 }), highlight: null },
-  /* 2 universes */ { camZ: 19, camY: 0.4, y: -1.0, x: 0, rotY: 0.9, rotX: 0.15, layers: L({ identity: 0.25, nodes: 1, links: 0.55, labels: 1 }), highlight: null },
-  /* 3 knowledge */ { camZ: 10.5, camY: 0.3, x: 0.9, rotY: 1.55, rotX: 0.1, layers: L({ nodes: 1, links: 0.9, labels: 0 }), highlight: 'knowledge' },
-  /* 4 community */ { camZ: 10.5, camY: 0.2, x: -0.9, rotY: 2.6, rotX: 0.05, layers: L({ nodes: 1, links: 1, labels: 0 }), highlight: 'community' },
-  /* 5 work      */ { camZ: 10.5, camY: 0.4, x: 0.9, rotY: 3.7, rotX: 0.15, layers: L({ nodes: 1, links: 0.7, labels: 0, paths: 1 }), highlight: 'work' },
-  /* 6 media     */ { camZ: 10.5, camY: 0.3, x: -0.9, rotY: 4.8, rotX: 0.1, layers: L({ nodes: 1, links: 0.7, labels: 0, pulses: 1 }), highlight: 'media' },
+  /* 2 universes */ { camZ: 19, camY: 0.4, y: -1.0, x: 0, rotY: 0.9, rotX: 0.15, layers: L({ identity: 0.25, nodes: 1, links: 0.55, labels: 1, flow: 1 }), highlight: null },
+  /* 3 knowledge */ { camZ: 10.5, camY: 0.3, x: 0.9, rotY: 1.55, rotX: 0.1, layers: L({ nodes: 1, links: 0.9, labels: 0, flow: 0.8 }), highlight: 'knowledge' },
+  /* 4 community */ { camZ: 10.5, camY: 0.2, x: -0.9, rotY: 2.6, rotX: 0.05, layers: L({ nodes: 1, links: 1, labels: 0, flow: 0.8 }), highlight: 'community' },
+  /* 5 work      */ { camZ: 10.5, camY: 0.4, x: 0.9, rotY: 3.7, rotX: 0.15, layers: L({ nodes: 1, links: 0.8, labels: 0, paths: 1, flow: 1 }), highlight: 'work' },
+  /* 6 media     */ { camZ: 10.5, camY: 0.3, x: -0.9, rotY: 4.8, rotX: 0.1, layers: L({ nodes: 1, links: 0.7, labels: 0, pulses: 1, flow: 0.8 }), highlight: 'media' },
   /* 7 trust     */ { camZ: 9.2, camY: 1.2, x: 0, rotY: 5.6, rotX: 0.95, layers: L({ nodes: 0.2, shells: 1, glow: 0.8 }), highlight: null },
-  /* 8 invite    */ { camZ: 8.2, camY: 0.3, x: 0, rotY: Math.PI * 2, rotX: 0.12, layers: L({ identity: 0.6, nodes: 0.7, links: 0.4, glow: 1 }), highlight: null },
+  /* 8 invite    */ { camZ: 8.2, camY: 0.3, x: 0, rotY: Math.PI * 2, rotX: 0.12, layers: L({ identity: 0.6, nodes: 0.7, links: 0.4, glow: 1, flow: 0.7 }), highlight: null },
 ];
 
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));

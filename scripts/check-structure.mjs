@@ -10,7 +10,7 @@ export const REQUIRED_FILES = [
   'package.json', 'package-lock.json', 'tsconfig.json', 'vercel.json', 'render.yaml',
   'api/proxy.mjs', 'api/_proxy.mjs', 'api/_proxy.d.mts', 'api/proxy.d.mts',
   'server/index.ts', 'server/app.ts', 'server/config.ts', 'server/db/migrate.ts',
-  'src/main.tsx', 'src/app/App.tsx', 'src/pages/landing.tsx', 'src/immersive/index.ts', 'src/motion/mode.ts',
+  'src/main.tsx', 'src/app/App.tsx', 'src/pages/landing.tsx', 'src/immersive/index.ts', 'src/environments/index.ts', 'src/environments/engine.ts', 'src/motion/mode.ts',
   'shared/constants.ts', 'shared/universes.ts', 'shared/universe-theme.ts', 'shared/api/settings.ts',
   'scripts/build.mjs', 'scripts/render-migrations.mjs', 'public/index.html',
 ];

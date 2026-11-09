@@ -607,3 +607,12 @@ html[data-decor="full"] .eco-core { animation: eco-breathe 9s ease-in-out infini
   .kbd-hint { display: none; }
 }
 @media (hover: none) { .kbd-hint { display: none; } }
+
+/* Page environments: the canvas sits behind everything, never takes pointer events, and the content layer sits above it. */
+.env-backdrop { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.shell > .sidebar { z-index: 10; }
+.main { position: relative; z-index: 1; }
+@media print { .env-backdrop { display: none; } }
+@media (min-width: 920px) { .env-backdrop { left: var(--nav-w); width: calc(100% - var(--nav-w)); } }
+/* On a page with its own environment the cards let a little of it through. Text contrast is unchanged: the card is still mostly solid. */
+html[data-env] .card { background: linear-gradient(180deg, rgba(18, 27, 71, 0.58), rgba(12, 19, 52, 0.8)); }
