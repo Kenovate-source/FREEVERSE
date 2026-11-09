@@ -19,7 +19,7 @@ export const ROUTES: RouteDef[] = [
   R('terms', '/terms', 'Terms of Service', { public: true, always: true }), R('privacy', '/privacy', 'Privacy Policy', { public: true, always: true }), R('rules', '/rules', 'Community rules', { public: true, always: true }),
   R('signin', '/signin', 'Sign in', { public: true }), R('signup', '/signup', 'Create account', { public: true }), R('recover', '/recover', 'Reset password', { public: true }), R('reset-password', '/reset-password', 'Choose a new password', { public: true, always: true }),
   R('eligibility', '/eligibility', 'Confirm eligibility', { eligibility: true }), R('onboarding', '/onboarding', 'Welcome'),
-  R('home', '/home', 'Home', { section: 'home' }), R('explore', '/explore', 'Explore', { section: 'explore' }), R('search', '/search', 'Search', { section: 'explore' }),
+  R('home', '/home', 'Dashboard', { section: 'home' }), R('feed', '/feed', 'Feed', { section: 'feed' }), R('explore', '/explore', 'Explore', { section: 'explore' }), R('search', '/search', 'Search', { section: 'explore' }),
   R('communities', '/communities', 'Communities', { section: 'communities' }), R('community', '/communities/:slug', 'Community', { section: 'communities' }),
   R('post', '/post/:id', 'Post', { section: 'home' }), R('member', '/u/:handle', 'Profile', { section: 'communities' }),
   R('messages', '/messages', 'Messages', { section: 'messages' }), R('conversation', '/messages/:id', 'Messages', { section: 'messages' }),
@@ -43,7 +43,7 @@ export const ROUTES: RouteDef[] = [
 export interface NavItem { id: string; label: string; path: string; icon: string; soon?: boolean; perm?: string; badge?: 'notifications' | 'messages' }
 export interface NavGroup { id: NavGroupId; label: string; items: NavItem[] }
 export const NAV_GROUPS: NavGroup[] = [
-  { id: 'start', label: 'Start', items: [{ id: 'home', label: 'Home', path: '/home', icon: 'home' }, { id: 'explore', label: 'Explore', path: '/explore', icon: 'compass' }] },
+  { id: 'start', label: 'Start', items: [{ id: 'home', label: 'Dashboard', path: '/home', icon: 'home' }, { id: 'feed', label: 'Feed', path: '/feed', icon: 'message' }, { id: 'explore', label: 'Explore', path: '/explore', icon: 'compass' }] },
   { id: 'connect', label: 'Connect', items: [
     { id: 'communities', label: 'Communities', path: '/communities', icon: 'users' }, { id: 'messages', label: 'Messages', path: '/messages', icon: 'message', badge: 'messages' },
     { id: 'notifications', label: 'Notifications', path: '/notifications', icon: 'bell', badge: 'notifications' }, { id: 'saved', label: 'Saved', path: '/saved', icon: 'bookmark' },

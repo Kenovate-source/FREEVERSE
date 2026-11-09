@@ -3,7 +3,8 @@ import type { ComponentType } from 'react';
 import { Landing, Trust } from './landing';
 import { SignIn, SignUp, Recover, ResetPassword, Eligibility } from './auth';
 import { Onboarding } from './onboarding';
-import { HomePage, CommunitiesPage, CommunityPage, PostPage, MemberPage, ExplorePage, SearchPage } from './social';
+import { HomePage } from './dashboard';
+import { FeedPage, CommunitiesPage, CommunityPage, PostPage, MemberPage, ExplorePage, SearchPage } from './social';
 import { LearnPage, LearnItemPage, OpportunitiesPage, OpportunityPage, MentorsPage, EventsPage, EventPage } from './grow';
 import { MessagesPage, ConversationPage, NotificationsPage, SavedPage } from './inbox';
 import { PollsPage } from './polls';
@@ -20,7 +21,7 @@ type PageProps = { params: Record<string, string>; query: URLSearchParams };
 const w = (C: ComponentType<any>) => C as ComponentType<PageProps>;
 export const PAGES: Record<string, ComponentType<PageProps>> = {
   landing: w(Landing), trust: w(Trust), terms: w(TermsPage), privacy: w(PrivacyPage), rules: w(RulesPage), signin: w(SignIn), signup: w(SignUp), recover: w(Recover), 'reset-password': w(ResetPassword), eligibility: w(Eligibility), onboarding: w(Onboarding),
-  home: HomePage, explore: ExplorePage, search: SearchPage, communities: CommunitiesPage, community: CommunityPage, post: PostPage, member: MemberPage,
+  home: HomePage, feed: FeedPage, explore: ExplorePage, search: SearchPage, communities: CommunitiesPage, community: CommunityPage, post: PostPage, member: MemberPage,
   messages: MessagesPage, conversation: ConversationPage, notifications: NotificationsPage, saved: SavedPage,
   learn: LearnPage, 'learn-item': LearnItemPage, opportunities: OpportunitiesPage, opportunity: OpportunityPage, mentors: MentorsPage, events: EventsPage, event: EventPage,
   nova: NovaPage, suggestions: SuggestionsPage, polls: PollsPage, 'ai-preferences': AiPreferencesPage, 'nova-chat': NovaChatPage, journal: JournalPage, goals: GoalsPage, habits: HabitsPage, council: CouncilPage, 'council-agent': CouncilAgentPage,
