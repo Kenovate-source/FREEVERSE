@@ -10,7 +10,7 @@ import { useStepUp } from '../state/stepup';
 import { applyA11y } from '../state/a11y';
 import { AUDIENCE_LABEL, type Audience } from '../../shared/constants';
 import { FIELD_LABEL, PRESET_HELP, PROFILE_FIELDS, type ProfileField } from '../../shared/privacy';
-import type { PrivacyView, Settings } from '../../shared/api/settings';
+import type { PrivacyView, Settings, CursorStyle } from '../../shared/api/settings';
 import type { BlockListResponse, MemberListItem } from '../../shared/api/social';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
@@ -95,11 +95,13 @@ function MsgS() {
     <SelectField label="Conversation density" value={s.messaging.density} onChange={(e) => void patch({ messaging: { density: e.target.value as 'comfortable' | 'compact' } })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></SelectField></Card>}</Async></>;
 }
 function MotionNote() { const m = useMotion(); return <p className="faint" role="status" data-testid="motion-note">Right now: <strong>{m.level === 'less' ? 'Less' : m.level === 'off' ? 'Off' : 'Full'}</strong> ({m.mode} mode). {m.reason}.</p>; }
+const CURSOR_OPTIONS: [CursorStyle, string][] = [['standard', 'Standard (default)'], ['graduate', 'Graduate: arrow with a graduation cap'], ['creator-pen', 'Creator: pen'], ['creator-brush', 'Creator: brush'], ['developer', 'Developer: code'], ['entrepreneur', 'Entrepreneur: upward arrow']];
 function A11yS() {
   const { res, patch } = useSettings(); const set = async (p: Partial<Settings['accessibility']>, cur: Settings['accessibility']) => { applyA11y({ ...cur, ...p }); await patch({ accessibility: p }, 'Updated'); };
   return <><H>Accessibility & appearance</H><Async res={res}>{({ settings: { accessibility: a } }) => <Card className="stack-sm"><SelectField label="Text size" value={a.textSize} onChange={(e) => void set({ textSize: e.target.value as Settings['accessibility']['textSize'] }, a)}><option value="sm">Smaller</option><option value="md">Default</option><option value="lg">Larger</option><option value="xl">Largest</option></SelectField>
     <SelectField label="Decorative motion" value={a.decorativeMotion ?? 'auto'} onChange={(e) => void set({ decorativeMotion: e.target.value as 'auto' | 'full' | 'reduced' | 'off' }, a)} hint="Full: a living 3D scene with scroll and pointer effects. Less: a calm, slowly drifting scene with no scroll or pointer effects. Off: no 3D and no animation. FREEVERSE also pauses decoration while you read or write."><option value="auto">Automatic: follow my device</option><option value="full">Full</option><option value="reduced">Less</option><option value="off">Off</option></SelectField>
     <MotionNote />
+    <SelectField label="Pointer style" value={a.cursor ?? 'standard'} onChange={(e) => void set({ cursor: e.target.value as CursorStyle }, a)} hint="Replaces only the plain arrow on devices with a mouse or trackpad. Links, buttons and text fields keep their normal pointers, touch screens are unaffected, and it is off in forced-colours mode.">{CURSOR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</SelectField>
     <Switch label="Reduce motion" checked={a.reduceMotion} onChange={(v) => void set({ reduceMotion: v }, a)} hint="Turns off animations and transitions." /><Switch label="High contrast" checked={a.highContrast} onChange={(v) => void set({ highContrast: v }, a)} hint="Stronger text and border contrast." /><Switch label="Calm background" checked={a.calmBackground} onChange={(v) => void set({ calmBackground: v }, a)} hint="Removes the decorative glow." /><Switch label="Underline links" checked={a.underlineLinks} onChange={(v) => void set({ underlineLinks: v }, a)} /></Card>}</Async></>;
 }
 function NovaS() {

@@ -54,18 +54,6 @@ function EditIdentity({ i, onDone }: { i: IdentityView; onDone: () => void }) {
     <div className="row-wrap"><Button size="sm" variant="primary" onClick={() => void save()}>Save</Button><Button size="sm" variant="ghost" onClick={onDone}>Cancel</Button></div></div>;
 }
 
-// ───────── Identity space ─────────
-export function SpacePage({ params }: P) {
-  const res = useResource(() => api.get<{ space: SpaceView }>(`/api/spaces/${params.archetype}`), [params.archetype]);
-  return <Async res={res}>{({ space: s }) => <div className="stack-lg" style={{ ['--accent' as string]: s.accent }}>
-    <PageHead title={`${s.icon} ${s.label} space`} back={{ to: '/identities', label: 'Identities' }}>{s.tagline}</PageHead>
-    <nav aria-label={`${s.label} space`} className="row-wrap">{s.nav.map((n) => <Link key={n.id} to={n.href} className="chip chip-link">{n.label}</Link>)}</nav>
-    <div className="grid-cards">{s.widgets.map((w) => <Widget key={w.id} w={w} />)}</div>
-    <section className="stack" aria-labelledby="tools"><h2 id="tools">Tools</h2><div className="grid-cards">{s.tools.map((t) => <Card as="article" key={t.id}><div className="spread"><h3 className="h-sm">{t.label}</h3><Badge tone={t.status === 'available' ? 'ok' : undefined}>{t.status === 'available' ? 'Available' : 'Planned'}</Badge></div><p className="muted">{t.description}</p>{t.href ? <Link to={t.href} className="btn btn-secondary btn-sm">Open</Link> : <Link to={`/soon/${t.id}`} className="btn btn-ghost btn-sm">See what’s planned</Link>}</Card>)}</div></section>
-    <section className="stack" aria-labelledby="secs"><h2 id="secs">Your {s.label.toLowerCase()} profile</h2>{s.sections.map((sec) => <Card key={sec.kind}><h3 className="h-sm">{sec.label}</h3>{sec.entries.length === 0 ? <p className="muted">{sec.prompt}</p> : <ul className="plain stack-sm">{sec.entries.map((e) => <li key={e.id}><strong>{e.title}</strong> <Badge>{EVID[e.evidence]}</Badge></li>)}</ul>}</Card>)}<Link to="/me/profile#entries" className="btn btn-secondary" style={{ justifySelf: 'start' }}>Add or edit entries</Link></section>
-    <section className="stack" aria-labelledby="ach"><h2 id="ach">Milestones</h2><ul className="plain stack-sm">{s.achievements.map((a) => <li key={a.id} className="card"><strong>{a.label}</strong> {a.earned && <Badge tone="ok">Earned</Badge>}<div className="muted">{a.description}</div><div className="progress" role="progressbar" aria-label={a.label} aria-valuenow={Math.min(a.progress, a.target)} aria-valuemin={0} aria-valuemax={a.target}><span style={{ width: `${Math.min(100, (a.progress / a.target) * 100)}%` }} /></div></li>)}</ul><p className="faint">Milestones come from things you actually did on FREEVERSE. They’re private to you.</p></section></div>}</Async>;
-}
-
 // ───────── Profile editor ─────────
 async function uploadImage(file: File, purpose: 'avatar' | 'cover' | 'showcase') { const r = await api.upload<{ media: MediaItem }>(`/api/media?purpose=${purpose}`, file); return r.media; }
 

@@ -11,7 +11,7 @@ export function applyA11y(a: Partial<AccessibilitySettings>) {
   const r = document.documentElement;
   r.dataset.text = a.textSize ?? 'md'; r.dataset.motion = a.reduceMotion ? 'reduce' : 'full'; r.dataset.contrast = a.highContrast ? 'high' : 'normal';
   setPrefs({ pref: a.decorativeMotion ?? 'auto', reduceAll: !!a.reduceMotion });
-  r.dataset.calm = a.calmBackground ? 'on' : 'off'; r.dataset.links = a.underlineLinks ? 'underline' : 'default';
+  r.dataset.cursor = a.cursor ?? 'standard'; r.dataset.calm = a.calmBackground ? 'on' : 'off'; r.dataset.links = a.underlineLinks ? 'underline' : 'default';
   try { kv.set('a11y', JSON.stringify(a)); } catch { /* storage unavailable: the server copy still applies */ }
 }
 export function A11yApplier() {

@@ -3,6 +3,7 @@ import '@fontsource-variable/dm-sans';
 import './styles.css';
 import './journey.css';
 import './envs.css';
+import './cursors.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { SessionProvider } from './state/session';

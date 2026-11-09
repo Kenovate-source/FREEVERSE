@@ -5,7 +5,10 @@ import { DEFAULT_AI_STYLE, STYLE_NOTE_MAX, isStyleValue, type AiStyle, type Styl
 
 export interface NotificationSettings { comments: boolean; replies: boolean; reactions: boolean; follows: boolean; mentions: boolean; messages: boolean; message_request: boolean; system: boolean; events: boolean }
 export interface MessagingSettings { readReceipts: boolean; allowMessageRequests: boolean; /** Enter sends the message (Shift+Enter adds a line). */ enterToSend: boolean; density: 'comfortable' | 'compact' }
-export interface AccessibilitySettings { textSize: 'sm' | 'md' | 'lg' | 'xl'; reduceMotion: boolean; decorativeMotion?: 'auto' | 'full' | 'reduced' | 'off'; highContrast: boolean; calmBackground: boolean; underlineLinks: boolean }
+/** Pointer style for the default arrow only. Links, buttons and text fields keep their normal cursors, and touch devices never get one. */
+export const CURSOR_STYLES = ['standard', 'graduate', 'creator-pen', 'creator-brush', 'developer', 'entrepreneur'] as const;
+export type CursorStyle = (typeof CURSOR_STYLES)[number];
+export interface AccessibilitySettings { textSize: 'sm' | 'md' | 'lg' | 'xl'; reduceMotion: boolean; decorativeMotion?: 'auto' | 'full' | 'reduced' | 'off'; cursor?: CursorStyle; highContrast: boolean; calmBackground: boolean; underlineLinks: boolean }
 export interface NovaSettings extends AiStyle { journalEnabled: boolean; goalsEnabled: boolean; habitsEnabled: boolean; historyRetentionDays: null | 30 | 90 | 365; saveHistory: boolean }
 
 export interface Settings { notifications: NotificationSettings; messaging: MessagingSettings; accessibility: AccessibilitySettings; nova: NovaSettings }
@@ -14,7 +17,7 @@ export type SettingsPatch = { [K in keyof Settings]?: Partial<Settings[K]> };
 export const DEFAULT_SETTINGS: Settings = {
   notifications: { comments: true, replies: true, reactions: true, follows: true, mentions: true, messages: true, message_request: true, system: true, events: true },
   messaging: { readReceipts: true, allowMessageRequests: true, enterToSend: false, density: 'comfortable' },
-  accessibility: { textSize: 'md', reduceMotion: false, decorativeMotion: 'auto', highContrast: false, calmBackground: false, underlineLinks: false },
+  accessibility: { textSize: 'md', reduceMotion: false, decorativeMotion: 'auto', cursor: 'standard', highContrast: false, calmBackground: false, underlineLinks: false },
   nova: { journalEnabled: false, goalsEnabled: false, habitsEnabled: false, historyRetentionDays: null, saveHistory: true, ...DEFAULT_AI_STYLE },
 };
 
@@ -32,6 +35,8 @@ export function mergeSettings(stored: Partial<Record<keyof Settings, unknown>> |
       else if (k === 'tone' || k === 'formality' || k === 'humor' || k === 'detail' || k === 'coaching') { if (isStyleValue(k as StyleKey, v)) target[k] = v; }
       else if (k === 'density') { if (v === 'comfortable' || v === 'compact') target[k] = v; }
       else if (k === 'textSize') { if (v === 'sm' || v === 'md' || v === 'lg' || v === 'xl') target[k] = v; }
+      else if (k === 'decorativeMotion') { if (v === 'auto' || v === 'full' || v === 'reduced' || v === 'off') target[k] = v; }
+      else if (k === 'cursor') { if ((CURSOR_STYLES as readonly unknown[]).includes(v)) target[k] = v; }
       else if (typeof v === 'boolean') target[k] = v;
     }
   }

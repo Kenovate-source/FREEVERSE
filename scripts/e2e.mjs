@@ -50,6 +50,28 @@ async function run(size, who = 'member') {
     await page.locator('.dmap-uni').first().focus(); await page.keyboard.press('Enter'); await page.waitForURL(/#\/universes\//);
     await page.goto(`${BASE}/#/home`); await page.getByRole('link', { name: 'Open the Feed' }).click(); await page.waitForURL(/#\/feed/); await page.getByRole('heading', { name: 'Feed', level: 1 }).waitFor();
   });
+  if (who === 'member') await step('identity space: own environment, tool objects, sections, accessible list, pointer style setting', async () => {
+    await page.goto(`${BASE}/#/spaces/creator`); await page.waitForSelector('.sp-stage'); await page.waitForSelector('canvas[data-env-canvas]', { timeout: 8000 });
+    const env = await page.evaluate(() => document.querySelector('canvas[data-env-canvas]').dataset.envCanvas); if (env !== 'space-creator') throw new Error(`expected space-creator scene, got ${env}`);
+    if ((await page.getByRole('tab').count()) < 4) throw new Error('space sections missing');
+    const objs = page.locator('.tool-obj'); const n = await objs.count(); if (n < 2) throw new Error('no tool objects');
+    await objs.first().click(); const first = await objs.first().innerText(); await page.waitForTimeout(150);
+    if ((await objs.first().getAttribute('aria-pressed')) !== 'true') throw new Error('selected object not marked pressed');
+    if (!(await page.locator('#tool-detail').innerText()).includes(first.split('\n')[0])) throw new Error('detail does not show the selected tool');
+    await objs.nth(1).focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+    if ((await objs.nth(1).getAttribute('aria-pressed')) !== 'true') throw new Error('keyboard selection failed');
+    const planned = page.locator('.tool-obj.planned').first(); if (await planned.count()) { await planned.click(); if (!(await page.locator('#tool-detail').innerText()).includes('Not built yet')) throw new Error('planned tool must say it is not built'); }
+    await page.getByRole('tab', { name: 'Tools' }).click(); await page.waitForURL(/view=tools/);
+    const listed = await page.locator('main article h2').count(); if (listed !== n) throw new Error(`accessible list has ${listed} tools but the stage has ${n}`);
+    await page.getByRole('tab', { name: /Milestones/ }).click(); await page.waitForURL(/view=milestones/);
+    // pointer style: persists, applies to <html>, and standard stays available
+    await page.goto(`${BASE}/#/settings/accessibility`); await page.getByLabel('Pointer style').selectOption('creator-pen'); await page.waitForTimeout(500);
+    if ((await page.evaluate(() => document.documentElement.dataset.cursor)) !== 'creator-pen') throw new Error('cursor not applied');
+    await page.reload(); await page.waitForSelector('main h1'); await page.waitForTimeout(600);
+    if ((await page.evaluate(() => document.documentElement.dataset.cursor)) !== 'creator-pen') throw new Error('cursor did not persist across reload');
+    await page.getByLabel('Pointer style').selectOption('standard'); await page.waitForTimeout(400);
+    if ((await page.evaluate(() => document.documentElement.dataset.cursor)) !== 'standard') throw new Error('could not return to the standard cursor');
+  });
   if (who === 'member') await step('post (text) on the Feed page', async () => { await page.goto(`${BASE}/#/feed`); await page.getByRole('heading', { name: 'Feed', level: 1 }).waitFor(); await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
   if (who === 'member') await step('communities: create, then post with an image and two links', async () => {
     await page.goto(`${BASE}/#/communities`); await page.waitForSelector('main h1');
