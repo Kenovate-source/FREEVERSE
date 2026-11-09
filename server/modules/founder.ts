@@ -70,8 +70,14 @@ export async function collectOverview(s: Services) {
     findingsOpen: await count(s, "SELECT COUNT(*) AS n FROM founder_ai_findings WHERE status = 'open'").catch(() => 0),
     universesLive: universes.filter((u) => u.status === 'available' || u.status === 'partial').length, universesTotal: universes.length,
   };
+  const journey = [
+    { key: 'created', label: 'Created an account', value: (byStatus.active ?? 0) + (byStatus.pending_eligibility ?? 0) + (byStatus.suspended ?? 0) },
+    { key: 'eligible', label: 'Passed the eligibility check', value: byStatus.active ?? 0 },
+    { key: 'joined', label: 'Joined at least one community', value: await count(s, "SELECT COUNT(DISTINCT m.user_id) AS n FROM community_members m JOIN users u ON u.id = m.user_id WHERE u.status = 'active'") },
+    { key: 'posted', label: 'Has posted at least once', value: await count(s, "SELECT COUNT(DISTINCT p.author_id) AS n FROM posts p JOIN users u ON u.id = p.author_id WHERE u.status = 'active' AND p.status = 'published'") },
+  ];
   return {
-    attention, timeline: timelineRows.map((r) => ({ at: r.occurred_at, action: r.action, target: r.target_type ?? null, outcome: r.outcome ?? null, by: r.handle ?? null })),
+    journey, attention, timeline: timelineRows.map((r) => ({ at: r.occurred_at, action: r.action, target: r.target_type ?? null, outcome: r.outcome ?? null, by: r.handle ?? null })),
     generatedAt: nowIso, dataNote: 'Every figure below is computed live from this instance’s own database. Nothing is estimated.',
     platform, config: cfg, moderation, governance, council, security: sec,
     accessReview: { lastCompletedAt: lastReview?.completed_at ?? null, open: await count(s, "SELECT COUNT(*) AS n FROM access_reviews WHERE status = 'open'") },
@@ -105,7 +111,7 @@ export const founderModule: ModuleDef = {
     }, async (c) => {
       const params: unknown[] = []; const w: string[] = [];
       const p = (v: unknown) => { params.push(v); return `$${params.length}`; };
-      if (c.query.action) w.push(`action LIKE ${p(`${c.query.action.replace(/[%_]/g, '')}%`)}`);
+      if (c.query.action) w.push(`action LIKE ${p(`${c.query.action.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`)} ESCAPE '\\'`);
       if (c.query.actor) w.push(`actor_id = ${p(c.query.actor)}`);
       if (c.query.cursor) { const [t, i] = c.query.cursor.split('|'); w.push(`(occurred_at < ${p(t)} OR (occurred_at = ${p(t)} AND id < ${p(i)}))`); }
       const rows = await c.db.query<any>(`SELECT * FROM audit_events ${w.length ? `WHERE ${w.join(' AND ')}` : ''} ORDER BY occurred_at DESC, id DESC LIMIT ${c.query.limit + 1}`, params);

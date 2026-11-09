@@ -178,7 +178,7 @@ async function run(size, who = 'member') {
   });
   if (who === 'founder') await step('founder AI: tabbed workspace; prepared change shows its lifecycle at Decide; Mode lives under its own tab', async () => {
     await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Ask' }).waitFor({ timeout: 10000 });
-    if ((await page.getByRole('tab').count()) !== 6) throw new Error('expected 6 workspace tabs');
+    if ((await page.getByRole('tab').count()) !== 8) throw new Error('expected 8 workspace tabs');
     if (await page.getByRole('heading', { name: /^Mode:/ }).count()) throw new Error('mode card should not be on the Ask tab');
     await page.getByRole('tab', { name: 'Mode and boundaries' }).click(); await page.getByRole('heading', { name: /^Mode:/ }).waitFor({ timeout: 5000 });
     await page.getByRole('tab', { name: 'Prepare a change' }).click();
@@ -190,6 +190,32 @@ async function run(size, who = 'member') {
     if (!(await item.locator('.stage.st-current', { hasText: 'Decide' }).count())) throw new Error('Decide should be the current stage while waiting');
     if (await item.locator('.stage.st-done', { hasText: 'Execute' }).count()) throw new Error('Execute must not show done before approval');
     await page.screenshot({ path: `${OUT}/${size}-founder-ai-work.png` });
+  });
+  if (who === 'founder') await step('ecosystem: Universes are selectable nodes with a plain-words impact panel; legend hides a link kind; five views render', async () => {
+    await page.goto(`${BASE}/#/founder`); await page.getByRole('heading', { name: 'The ecosystem' }).waitFor({ timeout: 10000 });
+    const n = await page.locator('.ef-node.universe').count(); if (n !== 15) throw new Error(`expected 15 Universe nodes, saw ${n}`);
+    if (!(await page.locator('.ef-particle').count())) throw new Error('no moving particles on active links');
+    await page.locator('.ef-node.universe[aria-label^="FreeLearn"]').dispatchEvent('click'); await page.getByRole('heading', { name: 'FreeLearn', exact: true }).waitFor({ timeout: 5000 });
+    await page.getByText('Points its members to', { exact: true }).waitFor(); await page.getByText('Members are pointed here from', { exact: true }).waitFor();
+    await page.screenshot({ path: `${OUT}/${size}-founder-ecosystem-universe.png` });
+    const before = await page.locator('.ef-link.k-universe').count(); await page.getByRole('button', { name: 'Universe to Universe' }).click();
+    if ((await page.locator('.ef-link.k-universe').count()) !== 0 || before === 0) throw new Error('legend toggle did not hide universe links');
+    await page.getByRole('button', { name: 'Universe to Universe' }).click();
+    for (const h of [/^A\. How the Universes relate/, /^B\. Activity and information flow/, /^C\. Citizen journey/, /^D\. Shared resources/, /^E\. Ecosystem health/]) await page.getByRole('heading', { name: h }).waitFor({ timeout: 5000 });
+    await page.getByRole('heading', { name: /^A\./ }).scrollIntoViewIfNeeded(); await page.screenshot({ path: `${OUT}/${size}-founder-ecosystem-views.png` });
+  });
+  if (who === 'founder') await step('founder AI visual console: agent map, specialist workspace and task, finding review (accept), agent activity', async () => {
+    await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('heading', { name: 'Agents and how they connect' }).waitFor({ timeout: 10000 });
+    await page.screenshot({ path: `${OUT}/${size}-founder-ai-map.png` });
+    await page.locator('.ac-map .ef-node.universe').first().click(); await page.getByRole('button', { name: 'Assign task' }).waitFor({ timeout: 5000 });
+    await page.getByLabel('Give it a task').fill('E2E look at learning paths'); await page.getByLabel('What should it look at?').fill('Summarise what exists in learning today'); await page.getByRole('button', { name: 'Assign task' }).click();
+    await page.getByText(/E2E look at learning paths/).first().waitFor({ timeout: 10000 });
+    await page.getByRole('tab', { name: /^Findings/ }).click(); await page.getByRole('button', { name: 'Run analysis' }).click();
+    await page.getByRole('heading', { name: 'What happened' }).waitFor({ timeout: 10000 });
+    for (const h of ['Evidence', 'Expected impact']) await page.getByRole('heading', { name: h }).first().waitFor({ timeout: 3000 });
+    await page.screenshot({ path: `${OUT}/${size}-founder-ai-findings.png` });
+    await page.getByRole('button', { name: 'Accept', exact: true }).click(); await page.getByText(/Accepted\. Nothing was changed/).waitFor({ timeout: 5000 });
+    await page.getByRole('tab', { name: 'Agent activity' }).click(); await page.getByText(/Finding acknowledge/).first().waitFor({ timeout: 8000 });
   });
   if (who === 'founder') await step('universes admin: preview shows what members will see before saving; history is listed', async () => {
     await page.goto(`${BASE}/#/founder/universes`); await page.getByRole('heading', { name: 'Universes', exact: true }).waitFor({ timeout: 10000 });
