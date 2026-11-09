@@ -72,6 +72,25 @@ async function run(size, who = 'member') {
     await page.getByLabel('Pointer style').selectOption('standard'); await page.waitForTimeout(400);
     if ((await page.evaluate(() => document.documentElement.dataset.cursor)) !== 'standard') throw new Error('could not return to the standard cursor');
   });
+  if (who === 'member') await step('all fifteen identity spaces open with their own scene and layout', async () => {
+    const all = ['student', 'graduate', 'researcher', 'creator', 'gamer', 'professional', 'entrepreneur', 'developer', 'teacher', 'mentor', 'employer', 'investor', 'organization', 'volunteer', 'community_leader'];
+    // an account holds at most 8 identities, so make room by removing one that is not about to be visited
+    const ensure = (a, keep) => page.evaluate(async ([a, keep]) => {
+      const h = { authorization: `Bearer ${localStorage.getItem('fv.session')}`, 'content-type': 'application/json' }; const list = async () => ((await (await fetch('/api/identities', { headers: h })).json()).items ?? []).filter((i) => i.status !== 'removed');
+      let items = await list(); if (items.some((i) => i.archetype === a)) return;
+      if (items.length >= 8) { const victim = items.find((i) => i.archetype !== keep); await fetch(`/api/identities/${victim.id}`, { method: 'DELETE', headers: h }); }
+      await fetch('/api/identities', { method: 'POST', headers: h, body: JSON.stringify({ archetype: a, answers: {} }) });
+    }, [a, keep]);
+    const seen = new Set();
+    for (const a of all) {
+      await ensure(a, a);
+      await page.goto(`${BASE}/#/spaces/${a}`); await page.waitForSelector(`[data-space="${a}"] .sp-stage`, { timeout: 8000 });
+      const cls = await page.locator(`[data-space="${a}"] .sp-stage`).first().getAttribute('class'); seen.add(cls);
+      if ((await page.locator('.tool-obj').count()) < 1) throw new Error(`${a}: no tool objects`);
+      await page.waitForSelector('canvas[data-env-canvas]', { timeout: 8000 }); const env = await page.evaluate(() => document.querySelector('canvas[data-env-canvas]').dataset.envCanvas); if (env !== `space-${a}`) throw new Error(`${a}: scene ${env}`);
+    }
+    if (seen.size !== all.length) throw new Error(`expected ${all.length} distinct layouts, saw ${seen.size}`);
+  });
   if (who === 'member') await step('post (text) on the Feed page', async () => { await page.goto(`${BASE}/#/feed`); await page.getByRole('heading', { name: 'Feed', level: 1 }).waitFor(); await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
   if (who === 'member') await step('communities: create, then post with an image and two links', async () => {
     await page.goto(`${BASE}/#/communities`); await page.waitForSelector('main h1');

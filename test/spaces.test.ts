@@ -12,7 +12,7 @@ describe('identity space design', () => {
   test('every identity has a design, and it starts with its workspace', () => { for (const id of ids) { const d = (SPACE_DESIGN as any)[id]; assert.ok(d, id); assert.equal(d.views[0].id, 'workspace', id); } });
   test('views are unique per identity and only use known sections', () => { for (const [id, d] of Object.entries(SPACE_DESIGN)) { const v = d.views.map((x) => x.id); assert.equal(new Set(v).size, v.length, id); for (const x of v) assert.ok(['workspace', 'tools', 'entries', 'milestones', 'go'].includes(x), `${id}:${x}`); assert.ok(v.includes('tools'), `${id} keeps the plain tools list as the accessible alternative`); } });
   test('an identity without milestones does not show a Milestones section', () => { for (const [id, d] of Object.entries(SPACE_DESIGN)) { const has = d.views.some((v) => v.id === 'milestones'); assert.equal(has, ARCHETYPE_DEFS[id as keyof typeof ARCHETYPE_DEFS].achievements.length > 1 || has, id); } });
-  test('the spaces are not one layout: at least seven distinct environments are in use', () => { assert.ok(new Set(Object.values(SPACE_DESIGN).map((d) => d.layout)).size >= 7); });
+  test('every identity has its own layout: no two spaces share an arrangement', () => { const l = Object.values(SPACE_DESIGN).map((d) => d.layout); assert.equal(new Set(l).size, l.length); });
   test('every identity maps to its own scene and the scene exists', () => {
     const src = readFileSync('src/environments/envs/spaces.ts', 'utf8');
     for (const id of ids) { assert.equal(envFor('space', `/spaces/${id}`), `space-${id}`); assert.match(src, new RegExp(`def\\('${id}'`), `scene for ${id}`); }

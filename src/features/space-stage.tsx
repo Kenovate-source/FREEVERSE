@@ -73,6 +73,38 @@ export function SpaceStage({ s, design }: { s: SpaceView; design: SpaceDesign })
     <div className="sp-pins">{s.tools.map(obj)}{entries.slice(0, 3).map((e, k) => <article key={e.id} className="sp-index-card" style={{ ['--i' as string]: k } as CSSProperties}><strong>{e.title}</strong><span className="faint">{e.label}</span></article>)}</div>
     <div className="sp-board-nav" aria-label="Places">{s.nav.map((n) => go(n, 'sp-board-tab'))}</div>{detail}</div>;
 
+  if (L === 'desk') { const today = (new Date().getDay() + 6) % 7; return <div className="sp-stage sp-stage-desk" aria-label={design.stageLabel}>
+    <div className="sp-week" aria-label="This week">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => <span key={d} className={`sp-day${i === today ? ' now' : ''}`} aria-current={i === today ? 'date' : undefined}>{d}</span>)}</div>
+    <div className="sp-shelf" aria-label="Study tools">{s.tools.map(obj)}</div>
+    <ul className="sp-sheet" aria-label="Milestones">{s.achievements.map((a) => <li key={a.id} className={a.earned ? 'earned' : ''}><span aria-hidden="true">{a.earned ? '☑' : '☐'}</span> {a.label}<span className="faint"> {a.earned ? 'earned' : `${a.progress} of ${a.target}`}</span></li>)}</ul>
+    <div className="sp-folders" aria-label="Places">{s.nav.map((n) => go(n, 'sp-folder'))}</div>{detail}</div>; }
+
+  if (L === 'reading') return <div className="sp-stage sp-stage-reading" aria-label={design.stageLabel}>
+    <div className="sp-spines" aria-label="Research tools">{s.tools.map(obj)}</div>
+    <ol className="sp-refs" aria-label="Your outputs">{entries.length ? entries.slice(0, 5).map((e) => <li key={e.id}>{e.title} <span className="faint">({e.label})</span></li>) : <li className="muted">Your outputs are listed here as references once you add them.</li>}</ol>
+    <p className="sp-foot" aria-label="Places">{s.nav.map((n, k) => <span key={n.id}>{go(n, 'sp-footnote')}{k < s.nav.length - 1 ? ' · ' : ''}</span>)}</p>{detail}</div>;
+
+  if (L === 'pipeline') return <div className="sp-stage sp-stage-pipeline" aria-label={design.stageLabel}>
+    <div className="sp-funnel">{s.tools.map((t, i) => <div key={t.id} className="sp-gate" style={{ ['--w' as string]: `${100 - i * 16}%` } as CSSProperties}>{obj(t, i)}</div>)}</div>
+    <div className="sp-exits" aria-label="Places">{s.nav.map((n) => go(n, 'sp-exit'))}</div>{detail}</div>;
+
+  if (L === 'portfolio' || L === 'gathering') { const arc = L === 'gathering'; const inner = s.tools.map((t, i) => ({ k: 'tool' as const, t, i })); const outer = s.nav.map((n) => ({ k: 'nav' as const, n }));
+    const ang = (i: number, n: number) => arc ? -170 + (160 * (i + 0.5)) / Math.max(n, 1) : (360 / Math.max(n, 1)) * i - 90 + (n === 1 ? 0 : 0);
+    return <div className={`sp-stage sp-stage-${L}`} aria-label={design.stageLabel}>
+      <div className="sp-orbit"><div className="sp-orbit-core" aria-hidden="true"><span>{s.icon}</span><strong>{arc ? 'You' : 'Portfolio'}</strong></div>
+        {inner.map((x, i) => <div key={`i${i}`} className="sp-orb sp-orb-in" style={{ ['--a' as string]: `${ang(i, inner.length)}deg` } as CSSProperties}>{obj(x.t, x.i)}</div>)}
+        {outer.map((x, i) => <div key={`o${i}`} className="sp-orb sp-orb-out" style={{ ['--a' as string]: `${ang(i, outer.length) + (arc ? 0 : 30)}deg` } as CSSProperties}>{go(x.n, 'sp-moon')}</div>)}</div>{detail}</div>; }
+
+  if (L === 'mentorship') return <div className="sp-stage sp-stage-mentorship" aria-label={design.stageLabel}>
+    <div className="sp-pair"><div className="sp-person" aria-label="You"><span aria-hidden="true">{s.icon}</span><strong>You</strong></div>
+      <div className="sp-stones">{s.tools.map(obj)}</div>
+      <div className="sp-person sp-person-other" aria-label="Someone you mentor"><span aria-hidden="true">🌱</span><strong>Someone you mentor</strong></div></div>
+    <div className="sp-exits" aria-label="Places">{s.nav.map((n) => go(n, 'sp-exit'))}</div>{detail}</div>;
+
+  if (L === 'impact') { const pos = [[12, 28], [34, 62], [58, 24], [76, 58], [46, 44], [88, 30], [22, 74]]; const pins = [...s.tools.map((t, i) => ({ t, i, n: null as null | { id: string; label: string; href: string } })), ...s.nav.map((n, i) => ({ t: null as Tool | null, i: s.tools.length + i, n }))];
+    return <div className="sp-stage sp-stage-impact" aria-label={design.stageLabel}>
+      <div className="sp-map">{pins.map((p, k) => <div key={k} className="sp-pin-slot" style={{ left: `${pos[k % pos.length]![0]}%`, top: `${pos[k % pos.length]![1]}%` }}>{p.t ? obj(p.t, p.i) : go(p.n!, 'sp-mappin')}</div>)}</div>{detail}</div>; }
+
   // commons: a hub with everything it connects to arranged around it
   const nodes = [...s.tools.map((t) => ({ kind: 'tool' as const, t })), ...s.nav.map((n) => ({ kind: 'nav' as const, n }))];
   return <div className="sp-stage stage-commons" aria-label={design.stageLabel}>
