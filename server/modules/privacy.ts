@@ -31,7 +31,7 @@ const styleZod = { tone: z.enum(['warm', 'neutral', 'direct']).optional(), forma
 const settingsPatch = z.object({
   notifications: z.object(Object.fromEntries(Object.keys(DEFAULT_SETTINGS.notifications).map((k) => [k, z.boolean().optional()]))).strict().optional(),
   messaging: z.object({ readReceipts: z.boolean().optional(), allowMessageRequests: z.boolean().optional(), enterToSend: z.boolean().optional(), density: z.enum(['comfortable', 'compact']).optional() }).strict().optional(),
-  accessibility: z.object({ textSize: z.enum(['sm', 'md', 'lg', 'xl']).optional(), reduceMotion: z.boolean().optional(), decorativeMotion: z.enum(['auto', 'full', 'reduced', 'off']).optional(), highContrast: z.boolean().optional(), calmBackground: z.boolean().optional(), underlineLinks: z.boolean().optional() }).strict().optional(),
+  accessibility: z.object({ textSize: z.enum(['sm', 'md', 'lg', 'xl']).optional(), reduceMotion: z.boolean().optional(), decorativeMotion: z.enum(['auto', 'full', 'reduced', 'off']).optional(), cursor: z.enum(['standard', 'graduate', 'creator-pen', 'creator-brush', 'developer', 'entrepreneur']).optional(), highContrast: z.boolean().optional(), calmBackground: z.boolean().optional(), underlineLinks: z.boolean().optional() }).strict().optional(),
   nova: z.object({ journalEnabled: z.boolean().optional(), goalsEnabled: z.boolean().optional(), habitsEnabled: z.boolean().optional(), historyRetentionDays: z.union([z.literal(30), z.literal(90), z.literal(365), z.null()]).optional(), saveHistory: z.boolean().optional(), ...styleZod }).strict().optional(),
 }).strict();
 

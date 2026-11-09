@@ -63,7 +63,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: 'moderation', label: 'Moderation', path: '/moderation', icon: 'flag', perm: 'moderation.queue.view' } ] },
 ];
 /** Five destinations on the phone tab bar; everything else is under “More”. */
-export const TAB_BAR: string[] = ['home', 'explore', 'learn', 'messages'];
+export const TAB_BAR: string[] = ['home', 'explore', 'feed', 'messages'];
 
 export interface RouteMatch { route: RouteDef; params: Record<string, string> }
 export function splitHash(hash: string): { path: string; query: URLSearchParams } {

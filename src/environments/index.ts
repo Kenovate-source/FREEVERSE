@@ -10,9 +10,10 @@ import { settings } from './envs/settings';
 import { posts } from './envs/posts';
 import { council } from './envs/council';
 import { nova } from './envs/nova';
+import { SPACE_ENVS } from './envs/spaces';
 
 // The registry. A new page or Universe gets its own environment by adding one file here: nothing else in the engine changes.
-const ALL: EnvDef[] = [messages, calls, profile, communities, notifications, saved, settings, posts, council, nova];
+const ALL: EnvDef[] = [messages, calls, profile, communities, notifications, saved, settings, posts, council, nova, ...SPACE_ENVS];
 const byId = new Map(ALL.map((e) => [e.id, e]));
 const api: EnvironmentsApi = {
   ids: ALL.map((e) => e.id),
