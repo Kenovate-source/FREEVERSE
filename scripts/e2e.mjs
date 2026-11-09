@@ -40,7 +40,17 @@ async function run(size, who = 'member') {
     await page.goto(`${BASE}/#/home`); await page.waitForTimeout(500);
     const after = await page.evaluate(() => window.FreeverseEnvironments.liveCount()); if (after !== 0) throw new Error(`environment leaked after leaving the page (${after})`);
   });
-  if (who === 'member') await step('post (text)', async () => { await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
+  if (who === 'member') await step('dashboard is a command centre, not a feed', async () => {
+    await page.evaluate(async () => { await fetch('/api/identities', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${localStorage.getItem('fv.session')}` }, body: JSON.stringify({ archetype: 'creator', answers: {} }) }); });
+    await page.goto(`${BASE}/#/home`); await page.reload(); await page.waitForSelector('.dmap-svg', { timeout: 8000 });
+    if (await page.locator('[aria-label="Feed order"], section[aria-label="New post"]').count()) throw new Error('the Dashboard must not contain the feed or composer');
+    for (const h of ['Recommended for you', 'Recent messages', 'Quick access', 'Continue where you left off']) await page.getByRole('heading', { name: h }).waitFor();
+    const unis = await page.locator('.dmap-uni').count(); if (unis < 1) throw new Error('ecosystem map shows no Universes for a chosen identity');
+    const hrefs = await page.locator('.dmap-node').evaluateAll((a) => a.map((x) => x.getAttribute('href'))); if (hrefs.some((h) => !h || h === '#')) throw new Error('a map node has no destination');
+    await page.locator('.dmap-uni').first().focus(); await page.keyboard.press('Enter'); await page.waitForURL(/#\/universes\//);
+    await page.goto(`${BASE}/#/home`); await page.getByRole('link', { name: 'Open the Feed' }).click(); await page.waitForURL(/#\/feed/); await page.getByRole('heading', { name: 'Feed', level: 1 }).waitFor();
+  });
+  if (who === 'member') await step('post (text) on the Feed page', async () => { await page.goto(`${BASE}/#/feed`); await page.getByRole('heading', { name: 'Feed', level: 1 }).waitFor(); await page.getByRole('button', { name: /Share something/ }).click(); await page.getByLabel('What would you like to say?').fill(`Hello from e2e ${size}`); await page.locator('section[aria-label="New post"]').getByRole('button', { name: 'Post', exact: true }).last().click(); await page.getByText(`Hello from e2e ${size}`).first().waitFor(); });
   if (who === 'member') await step('communities: create, then post with an image and two links', async () => {
     await page.goto(`${BASE}/#/communities`); await page.waitForSelector('main h1');
     await page.getByRole('button', { name: 'Start a community' }).click();

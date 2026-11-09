@@ -8,6 +8,7 @@ import { PAGES } from '../pages';
 import { Loading, EmptyState, Button } from '../ui/kit';
 import { Link } from '../lib/router';
 import { MotionRouteSync } from '../motion/react';
+import { recordVisit } from '../lib/visits';
 import { EnvironmentBackdrop } from '../features/EnvironmentBackdrop';
 import { envFor } from '../lib/env-map';
 
@@ -19,6 +20,7 @@ export function App() {
   const session = status === 'in' && me ? { status: me.status, onboarded: me.onboarding.completed, permissions: perms } : null;
   const g = status === 'loading' ? null : guardRoute(match, session);
   useEffect(() => { if (g?.kind === 'redirect') navigate(g.to, { replace: true }); }, [g]);
+  useEffect(() => { if (match && status === 'in' && !match.route.public) recordVisit(path, match.route.title, !Object.keys(match.params).length); }, [path, status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.title = match ? `${match.route.title} · FREEVERSE` : 'Not found · FREEVERSE'; }, [match]);
 
   if (status === 'loading' || !g || g.kind === 'redirect') return <div className="auth-wrap"><Loading rows={2} label="Starting FREEVERSE" /></div>;

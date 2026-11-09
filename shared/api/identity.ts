@@ -15,4 +15,8 @@ export interface WidgetData { id: string; title: string; source: string; wide: b
 export interface SpaceView { archetype: Archetype; label: string; icon: string; accent: string; tagline: string; vocab: Record<string, string>; nav: { id: string; label: string; href: string }[]; widgets: WidgetData[]; tools: { id: string; label: string; description: string; status: 'available' | 'planned'; href: string | null }[]; sections: { kind: EntryKind; label: string; prompt: string; entries: EntryView[] }[]; achievements: AchievementView[]; identity: IdentityView }
 export interface HomeView { greeting: string; identities: { id: string; archetype: Archetype; label: string; icon: string; accent: string; isPrimary: boolean }[]; widgets: (WidgetData & { fromIdentity: Archetype | null })[]; nextSteps: { id: string; title: string; description: string; href: string }[]; mode: 'identity' | 'general';
   /** Counts and names only, never message text. */
-  activity: { unreadNotifications: number; unreadConversations: number; messageRequests: number; earned: { id: string; label: string }[]; earnedTotal: number } }
+  activity: { unreadNotifications: number; unreadConversations: number; messageRequests: number; earned: { id: string; label: string }[]; earnedTotal: number };
+  /** Universes this person's chosen identities are really connected to (from the identity definitions); `via` says which identities. */
+  ecosystem: { universes: { id: string; name: string; accent: string; route: string; status: string; via: Archetype[] }[] };
+  /** Catalogue items the person has not started or tracked yet. Sample catalogue items are marked `demo`. */
+  recommended: { learn: { title: string; href: string; subtitle: string; demo: boolean }[]; opportunities: { title: string; href: string; subtitle: string; demo: boolean }[] } }

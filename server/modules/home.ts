@@ -3,6 +3,7 @@ import { ARCHETYPE_DEFS } from '../../shared/archetypes';
 import type { HomeView, WidgetData } from '../../shared/api/identity';
 import { evaluate, userStats, widgetData, widgetItems } from '../identity/stats';
 import { myIdentities } from './identities';
+import { UNIVERSES } from '../../shared/universes';
 
 export const homeModule: ModuleDef = {
   name: 'home',
@@ -38,9 +39,19 @@ export const homeModule: ModuleDef = {
       const reqs = await c.db.get<any>("SELECT COUNT(*) AS n FROM conversation_members WHERE user_id = $1 AND status = 'request'", [me]);
       const st = await userStats(c.db, me); const earnedAll = [] as { id: string; label: string }[];
       for (const i of ids) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) { const e = evaluate(a, st, i.archetype); if (e.earned) earnedAll.push({ id: e.id, label: e.label }); }
+      const viaMap = new Map<string, HomeView['identities'][number]['archetype'][]>();
+      for (const i of ids) for (const u of ARCHETYPE_DEFS[i.archetype].universes) viaMap.set(u, [...(viaMap.get(u) ?? []), i.archetype]);
+      const ecoUniverses = UNIVERSES.filter((u) => viaMap.has(u.id)).map((u) => ({ id: u.id, name: u.name, accent: u.accent, route: u.route ?? `/universes/${u.id}`, status: u.status, via: viaMap.get(u.id)! }));
+      const lrn = await c.db.query<any>("SELECT l.title, l.slug, l.format, l.minutes, l.is_demo FROM learn_items l WHERE l.status = 'published' AND NOT EXISTS (SELECT 1 FROM learn_progress p WHERE p.item_id = l.id AND p.user_id = $1) ORDER BY l.created_at DESC, l.title LIMIT 3", [me]);
+      const opp = await c.db.query<any>("SELECT o.title, o.id, o.type, o.is_demo FROM opportunities o WHERE o.status = 'published' AND NOT EXISTS (SELECT 1 FROM opportunity_tracking t WHERE t.opportunity_id = o.id AND t.user_id = $1) ORDER BY o.created_at DESC, o.title LIMIT 3", [me]);
+      const recommended: HomeView['recommended'] = {
+        learn: lrn.map((r) => ({ title: r.title, href: `#/learn/${r.slug}`, subtitle: `${r.format}${r.minutes ? ` · ${r.minutes} min` : ''}`, demo: !!r.is_demo })),
+        opportunities: opp.map((r) => ({ title: r.title, href: `#/opportunities/${r.id}`, subtitle: String(r.type).replace(/_/g, ' '), demo: !!r.is_demo })),
+      };
       const out: HomeView = {
         greeting: prof?.display_name ? `Hi, ${String(prof.display_name).split(' ')[0]}` : 'Welcome',
         identities: ids.map((i) => ({ id: i.id, archetype: i.archetype, label: ARCHETYPE_DEFS[i.archetype].label, icon: ARCHETYPE_DEFS[i.archetype].icon, accent: ARCHETYPE_DEFS[i.archetype].accent, isPrimary: i.isPrimary })),
+        ecosystem: { universes: ecoUniverses }, recommended,
         widgets, nextSteps: next.slice(0, 4), mode: ids.length ? 'identity' : 'general',
         activity: { unreadNotifications: Number(unreadN?.n ?? 0), unreadConversations: Number(unreadC?.n ?? 0), messageRequests: Number(reqs?.n ?? 0), earned: earnedAll.slice(0, 3), earnedTotal: earnedAll.length },
       };
