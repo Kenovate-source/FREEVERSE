@@ -74,7 +74,7 @@ export function CommunityOversight({ c, onDone }: { c: { slug: string; name: str
 }
 
 // ───────── findings: what it means and what to do ─────────
-const NEXT: Record<string, { matters: string; limits: string; next: { label: string; to: string }[] }> = {
+export const NEXT: Record<string, { matters: string; limits: string; next: { label: string; to: string }[] }> = {
   'mod.overdue': { matters: 'People who reported something are waiting longer than the target time.', limits: 'Counts open cases against their target times. It doesn’t judge how serious each one is.', next: [{ label: 'Open the moderation queue', to: '/moderation' }, { label: 'Review who can moderate', to: '/founder/appointments' }] },
   'mod.none': { matters: 'Without moderators, reports have nobody to review them.', limits: 'Counts current moderator appointments only.', next: [{ label: 'Appoint a moderator', to: '/founder/governance' }] },
   'ai.demo': { matters: 'Members see scripted replies, not real AI.', limits: 'This only reports configuration. Connecting a provider costs money and has not been tested live here.', next: [{ label: 'Review the AI Council', to: '/founder/council' }] },

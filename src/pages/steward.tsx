@@ -9,6 +9,7 @@ import { timeAgo } from '../lib/time';
 import type { AiMessageView } from '../../shared/api/ai';
 import { FounderHome, CommandBar } from './founder-console';
 import { SuggestionsAdmin } from './founder-suggestions';
+import { AgentConsole, AgentActivity, FindingReview } from './founder-agents';
 import { AppointmentsAdmin, PollsAdmin, CommunityOversight, FindingNext } from './founder-governance';
 
 type P = { params: Record<string, string>; query: URLSearchParams };
@@ -59,22 +60,20 @@ function Overview() {
 // ───────── Founder AI ─────────
 function FounderAi() {
   const { say } = useToast(); const guarded = useGuarded(); const st = useResource(() => api.get<any>('/api/founder-ai/state'), []); const fnd = useResource(() => api.get<{ items: any[] }>('/api/founder-ai/findings'), []);
-  const [busy, setBusy] = useState(false); const [reason, setReason] = useState(''); const [tab, setTab] = useState<(typeof FAI_TABS)[number]['id']>('ask');
+  const [busy, setBusy] = useState(false); const [reason, setReason] = useState(''); const [tab, setTab] = useState<(typeof FAI_TABS)[number]['id']>('map'); const [seed, setSeed] = useState<{ title: string; rationale: string; findingId: string } | null>(null);
   const analyze = async () => { setBusy(true); try { const r = await api.post<any>('/api/founder-ai/analyze'); say(`${r.newFindings} new finding(s). ${r.actions.length} action(s) routed through the approval workflow.`); fnd.reload(); st.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
   const setMode = async (mode: string) => { if (reason.trim().length < 10) { say('Add a reason of at least 10 characters.', 'error'); return; } const r = await guarded('Changing the Founder AI’s mode changes the AI’s own boundaries.', (tok) => api.post('/api/founder-ai/mode', { mode, reason }, { stepUp: tok })); if (r) { say('Mode changed and recorded'); setReason(''); st.reload(); } };
   return <Async res={st}>{(s) => <>
     <Notice tone={s.provider === 'demo' ? 'demo' : 'info'} title={s.provider === 'demo' ? 'Demo mode' : 'Model connected'}>{s.honesty}</Notice>
     <div role="tablist" aria-label="Founder AI workspace" className="row-wrap fai-tabs">{FAI_TABS.map((t) => <button key={t.id} type="button" role="tab" id={`fai-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="fai-panel" className={`fai-tab${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>{t.label}{t.id === 'findings' && s.openFindings ? <span className="fai-count">{s.openFindings}</span> : null}{t.id === 'work' && s.pendingProposals ? <span className="fai-count">{s.pendingProposals}</span> : null}</button>)}</div>
     <div role="tabpanel" id="fai-panel" aria-labelledby={`fai-tab-${tab}`} className="stack">
+    {tab === 'map' && <AgentConsole st={s} goTab={(t) => setTab(t as any)} onPrepare={() => { setSeed(null); setTab('prepare'); }} />}
+    {tab === 'activity' && <AgentActivity />}
     {tab === 'ask' && <FaiChat />}
-    {tab === 'findings' && <>
-    <Card className="stack-sm"><div className="spread"><h2 className="h-sm">Findings ({fnd.data?.items.length ?? 0} open)</h2><Button variant="primary" busy={busy} onClick={() => void analyze()}>Run analysis</Button></div>
-      <p className="faint">Each finding is labelled: {Object.keys(s.epistemic).map((k) => k.replace('_', ' ')).join(', ')}. Analysis reads aggregate counts only, never private content.</p>
-      <Async res={fnd} empty={(d) => (d.items.length ? null : <p className="muted">No open findings. Run an analysis to check.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((f: any) => <li key={f.id} className="card stack-sm"><div className="row-wrap"><Badge tone="violet">{String(f.epistemic).replace('_', ' ')}</Badge><Badge tone={f.severity === 'high' ? 'warn' : undefined}>{f.severity}</Badge><strong>{f.title}</strong></div><p>{f.body}</p>{Array.isArray(f.evidence) && f.evidence.length > 0 && <details><summary>Evidence ({f.evidence.length})</summary><ul>{f.evidence.map((e: any, i: number) => <li key={i}>{typeof e === 'string' ? e : `${e.label ?? e.key ?? ''}: ${e.value ?? ''}`}</li>)}</ul></details>}<FindingNext f={f} />{f.proposalId && <p className="faint">A proposal exists: see <Link to="/founder/decisions">Decisions</Link>.</p>}<div className="row-wrap"><Button size="sm" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/acknowledge`); fnd.reload(); }}>Mark as reviewed (keeps it on record)</Button><Button size="sm" variant="ghost" onClick={async () => { await api.post(`/api/founder-ai/findings/${f.id}/dismiss`); fnd.reload(); }}>Dismiss (not relevant)</Button></div></li>)}</ul>}</Async></Card>
-    </>}
+    {tab === 'findings' && <Card className="stack-sm"><h2 className="h-sm">Findings</h2><p className="faint">Each one shows what happened, why it matters, the evidence, how confident it is, what you can do and what each choice would change. Analysis reads aggregate counts only, never private content.</p><FindingReview onChanged={() => { st.reload(); fnd.reload(); }} onModify={(sd) => { setSeed(sd); setTab('prepare'); }} /></Card>}
     {tab === 'work' && <AiWork />}
     {tab === 'delegate' && <Delegate />}
-    {tab === 'prepare' && <Proposer onDone={() => setTab('work')} />}
+    {tab === 'prepare' && <Proposer seed={seed} onDone={() => { setSeed(null); setTab('work'); }} />}
     {tab === 'bounds' && <>
     <Card className="stack-sm"><h2 className="h-sm">Mode: {s.modeLabel}</h2><fieldset className="stack-sm fieldset"><legend>Choose how much Founder AI can do</legend>{s.modes.map((m: any) => <label key={m.id} className="radio-row"><input type="radio" name="mode" checked={s.mode === m.id} onChange={() => void setMode(m.id)} /><span><strong>{m.label}</strong><span className="muted"> — {m.help}</span></span></label>)}</fieldset>
       <TextField label="Reason for a mode change" value={reason} onChange={(e) => setReason(e.target.value)} hint="Recorded in the audit log. Changing the mode needs you to confirm it’s you." />
@@ -83,7 +82,7 @@ function FounderAi() {
     </>}
     </div></>}</Async>;
 }
-const FAI_TABS = [{ id: 'ask', label: 'Ask' }, { id: 'findings', label: 'Findings' }, { id: 'work', label: 'Work' }, { id: 'delegate', label: 'Delegate' }, { id: 'prepare', label: 'Prepare a change' }, { id: 'bounds', label: 'Mode and boundaries' }] as const;
+const FAI_TABS = [{ id: 'map', label: 'Agent map' }, { id: 'ask', label: 'Ask' }, { id: 'findings', label: 'Findings' }, { id: 'work', label: 'Work' }, { id: 'delegate', label: 'Delegate' }, { id: 'activity', label: 'Agent activity' }, { id: 'prepare', label: 'Prepare a change' }, { id: 'bounds', label: 'Mode and boundaries' }] as const;
 const STAGE_GLYPH: Record<string, string> = { done: '✓', current: '●', waiting: '○', skipped: '–', stopped: '■', failed: '✕' };
 function AiWork() {
   const [f, setF] = useState<'all' | 'active' | 'finished'>('active'); const res = useResource(() => api.get<{ items: any[] }>(`/api/founder-ai/work?filter=${f}`), [f]);
@@ -114,11 +113,11 @@ function Delegate() {
     <TextArea label="What should they look at?" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} /><Button disabled={!to || title.length < 3 || prompt.length < 5} onClick={async () => { try { const r = await api.post<{ delegation: { status: string } }>('/api/founder-ai/delegate', { to, title, prompt }); say(`Delegation ${r.delegation.status}`); setTitle(''); setPrompt(''); list.reload(); } catch (e) { say(errMsg(e), 'error'); } }} style={{ justifySelf: 'start' }}>Delegate</Button>
     <Async res={list} empty={(d) => (d.items.length ? null : null)}>{(d) => <ul className="plain stack-sm">{d.items.slice(0, 8).map((x: any) => <li key={x.id}><strong>{x.task.title}</strong> → {x.to} <Badge>{x.status}</Badge>{x.result?.text && <div className="muted">{String(x.result.text).slice(0, 300)}</div>}</li>)}</ul>}</Async></Card>;
 }
-function Proposer({ onDone }: { onDone?: () => void }) {
-  const { say } = useToast(); const acts = useResource(() => api.get<{ actions: { type: string; label: string; risk: string }[] }>('/api/governance/actions'), []); const [type, setType] = useState('universe.set_status'); const [payload, setPayload] = useState('{\n  "universeId": "freeplay",\n  "status": "concept",\n  "note": ""\n}'); const [title, setTitle] = useState(''); const [rat, setRat] = useState('');
+function Proposer({ onDone, seed }: { onDone?: () => void; seed?: { title: string; rationale: string; findingId: string } | null }) {
+  const { say } = useToast(); const acts = useResource(() => api.get<{ actions: { type: string; label: string; risk: string }[] }>('/api/governance/actions'), []); const [type, setType] = useState('universe.set_status'); const [payload, setPayload] = useState('{\n  "universeId": "freeplay",\n  "status": "concept",\n  "note": ""\n}'); const [title, setTitle] = useState(seed?.title ?? ''); const [rat, setRat] = useState(seed?.rationale ?? '');
   return <Card className="stack-sm"><h2 className="h-sm">Have Founder AI prepare a proposal</h2><p className="muted">It goes into the approval workflow. Founder AI’s authority is checked by the workflow, not by what it claims.</p>
     <SelectField label="Action" value={type} onChange={(e) => setType(e.target.value)}>{acts.data?.actions.map((a) => <option key={a.type} value={a.type}>{a.label} ({a.risk})</option>)}</SelectField><TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} /><TextArea label="Why" value={rat} onChange={(e) => setRat(e.target.value)} rows={2} /><TextArea label="Details (JSON)" value={payload} onChange={(e) => setPayload(e.target.value)} rows={5} />
-    <Button disabled={title.length < 5} onClick={async () => { try { const r = await api.post<{ status: string; outcome?: string }>('/api/founder-ai/proposals', { actionType: type, payload: JSON.parse(payload), title, rationale: rat }); say(`Proposal ${r.outcome ?? r.status}. See it under Work.`); setTitle(''); setRat(''); onDone?.(); } catch (e) { say(e instanceof SyntaxError ? 'The details aren’t valid JSON.' : errMsg(e), 'error'); } }} style={{ justifySelf: 'start' }}>Prepare proposal</Button></Card>;
+    <Button disabled={title.length < 5} onClick={async () => { try { const r = await api.post<{ status: string; outcome?: string }>('/api/founder-ai/proposals', { actionType: type, payload: JSON.parse(payload), title, rationale: rat, ...(seed ? { findingId: seed.findingId } : {}) }); say(`Proposal ${r.outcome ?? r.status}. See it under Work.`); setTitle(''); setRat(''); onDone?.(); } catch (e) { say(e instanceof SyntaxError ? 'The details aren’t valid JSON.' : errMsg(e), 'error'); } }} style={{ justifySelf: 'start' }}>Prepare proposal</Button></Card>;
 }
 
 // ───────── Decisions ─────────

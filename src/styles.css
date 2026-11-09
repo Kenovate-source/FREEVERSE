@@ -746,3 +746,65 @@ html[data-motion-level="full"] .tool-obj { animation: obj-in .45s both; animatio
   .sp-stage-mentorship .sp-pair { grid-template-columns: 1fr; justify-items: center; } .sp-person { width: 96px; height: 96px; }
   .sp-map { height: auto; display: grid; gap: 10px; padding: 14px; justify-items: start; } .sp-pin-slot { position: static; transform: none; } .tool-obj--impact { transform: none; border-radius: 16px; width: 100%; height: auto; padding: 12px; } .tool-obj--impact > * { transform: none; } .tool-obj--impact:hover, .tool-obj--impact.on { transform: translateY(-2px); }
 }
+
+/* Phase 2D: Founder ecosystem map and views */
+.ef { margin: 0; display: grid; gap: .6rem; }
+.ef-legend { display: flex; flex-wrap: wrap; gap: .4rem .5rem; align-items: center; }
+.ef-key { min-height: 44px; display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .65rem; border-radius: 999px; border: 1px solid var(--border-strong, rgba(255,255,255,.25)); background: var(--surface-2, transparent); color: inherit; font: inherit; font-size: .8rem; cursor: pointer; }
+.ef-key[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
+.ef-swatch { width: .8rem; height: .22rem; border-radius: 2px; display: inline-block; }
+.ef-key-note { font-size: .78rem; opacity: .8; display: inline-flex; align-items: center; gap: .35rem; }
+.ef-dot { width: .7rem; height: .7rem; border-radius: 50%; border: 2px solid currentColor; display: inline-block; } .ef-dot.on { background: currentColor; }
+.ef-stage { position: relative; border: 1px solid var(--border, rgba(255,255,255,.14)); border-radius: 1rem; background: radial-gradient(circle at 50% 50%, rgba(120,140,255,.12), transparent 62%); overflow-x: auto; overflow-y: hidden; }
+.ef-tools { display: flex; gap: .3rem; justify-content: flex-end; }
+.ef-link.hl .ef-path { opacity: 1; stroke-width: 3; }
+.ef-svg { width: 100%; height: auto; display: block; }
+.ef-ring { fill: none; stroke: rgba(150,175,255,.16); stroke-dasharray: 3 7; }
+.ef-path { fill: none; stroke-width: 1.8; transition: opacity .2s; }
+.ef-link.off .ef-path { stroke-dasharray: 3 6; opacity: .22; }
+.ef-link.on .ef-path { opacity: .55; }
+.ef-link.k-contains .ef-path { stroke-width: 1; opacity: .18; }
+.ef-link.dim { opacity: .12; }
+.ef-particle { filter: drop-shadow(0 0 4px currentColor); }
+.ef-core circle { fill: rgba(47,216,238,.14); stroke: var(--cyan, #2fd8ee); stroke-width: 2; } .ef-core text { fill: var(--text, #eaf0ff); font-size: 8.5px; letter-spacing: .1em; font-weight: 700; }
+.ef-node { cursor: pointer; outline: none; transition: opacity .2s; } .ef-node.dim { opacity: .28; }
+.ef-box { fill: var(--surface, #141a3a); stroke: var(--border-strong, rgba(255,255,255,.35)); stroke-width: 2; }
+.ef-node.lv-watch .ef-box { stroke: #b69cff; stroke-dasharray: 6 4; } .ef-node.lv-act .ef-box { stroke: #ff9d6b; stroke-width: 3; }
+.ef-node.off .ef-box { opacity: .6; }
+.ef-pulse { fill: none; stroke: #ff9d6b; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ef-pulse 2.4s ease-out infinite; }
+.ef-ripple { fill: none; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: ef-ripple 3.4s ease-out infinite; }
+html[data-motion-level="less"] .ef-pulse, html[data-motion-level="less"] .ef-ripple { animation-duration: 8s; }
+@keyframes ef-pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.35); opacity: 0; } }
+@keyframes ef-ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(2.4); opacity: 0; } }
+.ef-name { fill: var(--text, #eaf0ff); font-size: 12px; font-weight: 600; } .ef-val { fill: var(--text, #eaf0ff); font-size: 18px; font-weight: 700; }
+.ef-udot { stroke-width: 2.5; transition: transform .2s; transform-box: fill-box; transform-origin: center; } .ef-node.off .ef-udot { stroke-dasharray: 3 3; opacity: .7; }
+.ef-node:hover .ef-udot, .ef-node.sel .ef-udot, .ef-node:focus-visible .ef-udot { transform: scale(1.4); } .ef-node.sel .ef-box { stroke: #fff; stroke-width: 3; }
+.ef-node:focus-visible .ef-box, .ef-node:focus-visible .ef-udot { stroke: #fff; stroke-width: 3.5; }
+.ef-ulabel { fill: var(--text, #eaf0ff); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: rgba(4,8,28,.85); stroke-width: 3px; } .ef-node.off .ef-ulabel { fill: var(--muted, #aab4de); font-weight: 500; }
+.ef-cap { margin: 0; font-size: .8rem; }
+@media (max-width: 640px) { .ef-svg { min-width: 700px; } .ef-ulabel { font-size: 17px; } .ef-name { font-size: 15px; } .ef-val { font-size: 22px; } }
+.ev-sec { padding-top: .5rem; border-top: 1px solid var(--border, rgba(255,255,255,.12)); }
+.ev-scroll { overflow-x: auto; } .ev-matrix { border-collapse: collapse; font-size: .78rem; } .ev-matrix th, .ev-matrix td { padding: 0; width: 1.7rem; min-width: 1.7rem; height: 1.6rem; text-align: center; border: 1px solid rgba(150,175,255,.12); }
+.ev-matrix tbody th { width: auto; min-width: 7rem; text-align: left; padding: 0 .5rem; white-space: nowrap; font-weight: 600; } .ev-vert { writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; padding: .3rem 0; font-weight: 600; }
+.ev-matrix td.one { background: rgba(110,231,168,.18); } .ev-matrix td.mutual { background: rgba(110,231,168,.4); font-weight: 700; }
+.ev-flow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; } .ev-flow li { position: relative; display: grid; gap: .1rem; padding: .6rem .9rem; border: 1px solid var(--border, rgba(255,255,255,.18)); border-radius: .8rem; min-width: 7rem; }
+.ev-fnum { font-size: 1.5rem; font-weight: 700; line-height: 1; } .ev-fl { font-weight: 600; font-size: .85rem; } .ev-arrow { position: absolute; right: -.75rem; top: 50%; transform: translateY(-50%); opacity: .6; }
+@media (max-width: 640px) { .ev-arrow { display: none; } }
+.ev-track { height: .6rem; border-radius: 999px; background: rgba(150,175,255,.14); overflow: hidden; } .ev-track span { display: block; height: 100%; background: var(--cyan, #2fd8ee); border-radius: 999px; }
+.ev-hubs { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; } .ev-hubs li { display: flex; gap: .5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ev-health { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.ac-areas { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); margin: 0; padding: 0; }
+.ac-area { display: grid; gap: .15rem; width: 100%; height: 100%; text-align: left; padding: .6rem .75rem; border-radius: .8rem; border: 1px solid var(--border-strong, rgba(255,255,255,.25)); background: var(--surface, transparent); color: inherit; font: inherit; cursor: pointer; align-content: start; }
+.ac-area:hover { border-color: var(--cyan, #2fd8ee); } .ac-area.off { border-style: dashed; opacity: .65; cursor: default; }
+.ac-area .fai-count { justify-self: start; }
+.fr { display: grid; gap: .8rem; grid-template-columns: minmax(12rem, 18rem) 1fr; align-items: start; } @media (max-width: 760px) { .fr { grid-template-columns: 1fr; } }
+.fr-list { display: grid; gap: .4rem; margin: 0; padding: 0; }
+.fr-item { display: grid; gap: .1rem; width: 100%; text-align: left; padding: .55rem .7rem; border-radius: .7rem; border: 1px solid var(--border, rgba(255,255,255,.18)); border-left-width: 5px; background: var(--surface, transparent); color: inherit; font: inherit; cursor: pointer; }
+.fr-item.on { outline: 2px solid var(--cyan, #2fd8ee); } .fr-item.sev-high { border-left-color: #ff9d6b; } .fr-item.sev-medium { border-left-color: #b69cff; } .fr-item.sev-low { border-left-color: #6ee7a8; } .fr-item.sev-info { border-left-color: #8793c9; }
+.fr-sev { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.fr-facts { display: grid; gap: .4rem; margin: 0; } .fr-facts > div { display: flex; gap: .6rem; flex-wrap: wrap; align-items: baseline; } .fr-facts dt { min-width: 6rem; opacity: .75; } .fr-facts dd { margin: 0; }
+.ac-map { margin: 0; }
+.ac-map .ef-ulabel { font-size: 15px; } .ac-map .ef-name { font-size: 15px; }
+.ef-pulse, .ef-ripple, .ef-particle { pointer-events: none; }
+.console-grid > *, .ef, .ac-map { min-width: 0; max-width: 100%; }
+.ef-tools .btn { min-height: 44px; }

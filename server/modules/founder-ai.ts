@@ -118,6 +118,7 @@ export const founderAiModule: ModuleDef = {
       const status = act === 'acknowledge' ? 'acknowledged' : act === 'dismiss' ? 'dismissed' : 'open';
       const r = await c.db.run('UPDATE founder_ai_findings SET status = $2, updated_at = $3 WHERE id = $1', [id.safeParse(c.params.id).data ?? '', status, c.now().toISOString()]);
       if (!r.changes) throw notFound();
+      await audit(c.db, { actorId: c.me.userId, actorRole: 'founder', action: `founder_ai.finding_${act}`, targetType: 'finding', targetId: c.params.id, outcome: 'success' }, c.now());
       return { ok: true };
     });
 
