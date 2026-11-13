@@ -18,8 +18,11 @@ import { personalToolsModule } from './personal-tools';
 import { governanceModule } from './governance';
 import { founderModule } from './founder';
 import { founderAiModule } from './founder-ai';
+import { founderMeetingsModule } from './founder-meetings';
 import { learnModule } from './learn';
 import { opportunitiesModule } from './opportunities';
+import { mentoringModule } from './mentoring';
+import { projectsModule } from './projects';
 import { eventsModule } from './events';
 import { exploreModule } from './explore';
 import { searchModule } from './search';
@@ -55,9 +58,11 @@ export const modules: ModuleDef[] = [
   personalToolsModule,
   governanceModule,
   founderModule,
-  founderAiModule,
+  founderAiModule, founderMeetingsModule,
   learnModule,
   opportunitiesModule,
+  mentoringModule,
+  projectsModule,
   eventsModule,
   exploreModule,
   searchModule,

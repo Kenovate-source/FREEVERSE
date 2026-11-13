@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, inQuietHours, mergeSettings } from '../../shared/api/
 
 /** Notification types that belong to conversations. Quiet hours hold these back; the messages themselves still wait in the Inbox. */
 const PREF_KEY: Record<string, string> = { comment: 'comments', reply: 'replies', reaction: 'reactions', follow: 'follows', connection: 'follows', mention: 'mentions', message: 'messages',
-  event_reminder: 'events', opportunity_deadline: 'opportunities', learning: 'learning', achievement: 'achievements', ai_activity: 'ai', announcement: 'announcements',
+  event_reminder: 'events', opportunity_deadline: 'opportunities', learning: 'learning', achievement: 'achievements', achievement_new: 'achievements_new', mentorship: 'mentorship', project: 'projects', ai_activity: 'ai', announcement: 'announcements',
   moderation: 'safety', report_update: 'safety', appeal: 'safety' };
 const CHAT_TYPES = new Set(['message', 'message_request']);
 

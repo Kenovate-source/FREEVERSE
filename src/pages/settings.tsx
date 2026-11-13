@@ -87,11 +87,11 @@ function SecurityS() {
 }
 const NOTIF_GROUPS: { title: string; help: string; keys: [string, string, string?][] }[] = [
   { title: 'Community activity', help: 'What people do with your posts and profile.', keys: [['comments', 'Comments on your posts'], ['replies', 'Replies to your comments'], ['reactions', 'Reactions to your posts'], ['follows', 'New followers and connections'], ['mentions', 'Mentions']] },
-  { title: 'Reminders and progress', help: 'Things you set up yourself. Each is sent once, and only about your own activity.', keys: [['events', 'Event reminders', 'A reminder when an event you said yes or maybe to starts within a day.'], ['opportunities', 'Opportunity deadlines', 'A notice when an opportunity you marked as interested closes within three days.'], ['learning', 'Learning', 'A note when you finish a learning item.'], ['achievements', 'Achievements', 'A note when you earn one.']] },
+  { title: 'Reminders and progress', help: 'Things you set up yourself. Each is sent once, and only about your own activity.', keys: [['events', 'Event reminders', 'A reminder when an event you said yes or maybe to starts within a day.'], ['opportunities', 'Opportunity deadlines', 'A notice when an opportunity you marked as interested closes within three days.'], ['learning', 'Learning', 'A note when you finish a learning item.'], ['achievements', 'Achievements earned', 'A note when you earn one.'], ['achievements_new', 'New achievements to work toward', 'A note when new achievements become available to you. Never a reminder to do more.']] },
+  { title: 'Mentoring and projects', help: 'Requests and answers between you and other members.', keys: [['mentorship', 'Mentoring', 'Requests sent to you as a mentor, and answers to requests you made.'], ['projects', 'Projects', 'Join requests, decisions, team updates and changes to projects you’re part of.']] },
   { title: 'Nova and AI', help: 'Nova never sends notifications on its own.', keys: [['ai', 'AI activity', 'Only tells you when Nova’s automatic cleanup removes saved conversations you chose to expire.']] },
   { title: 'Announcements', help: 'Notices from FREEVERSE itself.', keys: [['announcements', 'Product announcements', 'New features and changes, written by the Founder. Never promotional.'], ['system', 'Platform notices', 'Poll results, updates on suggestions you made, governance appointments and similar.']] },
 ];
-const SOON = ['Mentorship (mentors are demo profiles, so nothing real can reach you)', 'Projects'];
 function NotifS() {
   const { res, patch } = useSettings(); const [ask, setAsk] = useState(false);
   return <><H>Notifications</H><Async res={res}>{({ settings: s }) => <>
@@ -102,7 +102,7 @@ function NotifS() {
       <Link to="/help" className="btn btn-ghost btn-sm" style={{ justifySelf: 'start' }}>Open Help & safety</Link></Card>
     <Confirm open={ask} title="Turn off safety notices?" confirmLabel="Turn off" onConfirm={async () => { await patch({ notifications: { safety: false } }, 'Safety notices are off'); }} onClose={() => setAsk(false)}><p>You won’t be told in Notifications when a moderator acts on your content or when a report or appeal is decided. Check Help &amp; safety now and then so nothing is missed. You can turn this back on at any time.</p></Confirm>
     <Card className="stack-sm"><h3 className="h-sm">Messages</h3><p className="muted">Message and request notifications, quiet hours and per-conversation muting live with your other messaging controls, so they aren’t repeated here.</p><Link to="/settings/messaging" className="btn btn-secondary btn-sm" style={{ justifySelf: 'start' }}>Open messaging notifications</Link></Card>
-    <Card className="stack-sm"><div className="row-wrap"><h3 className="h-sm">Not available yet</h3><Badge>In development</Badge></div><p className="muted">These don’t send notifications yet, so there is nothing to switch on or off: {SOON.join('; ')}.</p></Card></>}</Async></>;
+</>}</Async></>;
 }
 function MsgS() { return <><H>Messaging</H><MessagingSettingsPanel /></>; }
 function MotionNote() { const m = useMotion(); return <p className="faint" role="status" data-testid="motion-note">Right now: <strong>{m.level === 'less' ? 'Less' : m.level === 'off' ? 'Off' : 'Full'}</strong> ({m.mode} mode). {m.reason}.</p>; }

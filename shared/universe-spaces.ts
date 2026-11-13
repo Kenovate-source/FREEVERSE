@@ -62,7 +62,7 @@ const T = {
   question: (label = 'Question', verb = 'Ask a question'): Template => ({ id: 'question', label, kind: 'question', verb, blurb: 'Ask the community. Be specific so people can help.', titleLabel: 'Your question', titleRequired: true, bodyLabel: 'More detail', fields: [] }),
 };
 
-export const UNIVERSE_SPECS: readonly UniverseSpec[] = [
+const BASE_SPECS: readonly UniverseSpec[] = [
   {
     id: 'freeconnect', related: S(['freelearn', 'freeevents', 'freevolunteer']),
     templates: [],
@@ -116,7 +116,7 @@ export const UNIVERSE_SPECS: readonly UniverseSpec[] = [
     ],
     spaces: [
       { id: 'overview', label: 'Overview', type: 'overview' },
-      { id: 'projects', label: 'Projects', type: 'browse', templates: S(['project']) },
+      { id: 'project-posts', label: 'Project showcase', type: 'browse', templates: S(['project']) },
       { id: 'logs', label: 'Build logs', type: 'browse', templates: S(['build-log']) },
       { id: 'mentors', label: 'Find a mentor', type: 'link', to: '/mentors' },
     ],
@@ -321,6 +321,9 @@ export const UNIVERSE_SPECS: readonly UniverseSpec[] = [
   },
 ];
 
+/** Every Universe gets its own Projects space, with the same rules everywhere. */
+export const PROJECTS_SPACE: Space = { id: 'projects', label: 'Projects', type: 'tool', tool: 'projects' };
+export const UNIVERSE_SPECS: readonly UniverseSpec[] = BASE_SPECS.map((u) => (u.spaces.some((x) => x.id === 'projects') ? u : { ...u, spaces: [...u.spaces, PROJECTS_SPACE] }));
 export const specFor = (universe: string): UniverseSpec | undefined => UNIVERSE_SPECS.find((u) => u.id === universe);
 export const templateFor = (universe: string, templateId: string): Template | undefined => specFor(universe)?.templates.find((t) => t.id === templateId);
 

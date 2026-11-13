@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ProjectsSpace } from '../../pages/projects';
 import { api } from '../../api/client';
 import { Link } from '../../lib/router';
 import { Async, Badge, Button, Card, EmptyState, Notice, TextField, useResource } from '../../ui/kit';
@@ -73,6 +74,7 @@ export function MyPublications({ universe }: { universe: string }) {
 
 export function renderTool(tool: string, universe: string, query: URLSearchParams): React.ReactNode {
   switch (tool) {
+    case 'projects': return <ProjectsSpace universe={universe} />;
     case 'games': return <GamesHub initial={query.get('game') ?? undefined} />;
     case 'finance-tools': return <FinanceTools />;
     case 'wellbeing-guides': return <WellbeingGuides />;

@@ -14,7 +14,7 @@ export interface LearnDetail extends LearnCard { body: LearnBlock[]; pathItems?:
 export interface LearnList { items: LearnCard[]; total: number; categories: { key: string; count: number }[]; formats: { key: LearnFormat; count: number }[]; notice: string | null }
 
 export interface OpportunityCard { id: string; type: OppType; title: string; organisation: string; description: string; category: string; workMode: string; location: string | null; deadline: string | null; applyUrl: string | null; tags: string[]; isDemo: boolean; saved: boolean; tracking: TrackStatus | null }
-export interface MentorCard { id: string; name: string; headline: string; bio: string; expertise: string[]; availabilityNote: string | null; art: string | null; isDemo: boolean; saved: boolean; requested: boolean }
+export interface MentorCard { id: string; name: string; handle: string | null; mine: boolean; full: boolean; headline: string; bio: string; expertise: string[]; availabilityNote: string | null; art: string | null; isDemo: boolean; saved: boolean; requested: boolean }
 export interface EventCard { id: string; title: string; description: string; category: string; format: string; location: string | null; startsAt: string; endsAt: string | null; capacity: number | null; art: string | null; isDemo: boolean; saved: boolean; myResponse: 'yes' | 'maybe' | 'no' | null; counts: { yes: number; maybe: number } }
 
 export interface UniverseView { id: string; name: string; tagline: string; description: string; status: string; statusLabel: string; today: string[]; route: string | null; basis: string; accent: string; note: string | null; interested: boolean; interestedCount: number }

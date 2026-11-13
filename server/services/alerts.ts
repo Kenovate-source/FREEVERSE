@@ -21,7 +21,25 @@ export async function checkAchievements(db: Db, now: Date, userId: string): Prom
     const e = evaluate(a, st, i.archetype);
     if (e.earned && (await firstTime(db, userId, `achievement:${e.id}`, now))) { await notify(db, { userId, type: 'achievement', data: { text: `You earned “${e.label}”.`, href: '#/identities' } }, now); n++; }
   }
+  await checkNewAchievable(db, now, userId);
   return n;
+}
+
+/**
+ * Tells someone when new achievements become available to them (a new definition, or a new identity). The first time we look at a person we only record
+ * what already exists, so nobody is told about things that were always there. New ones are announced in a single notice.
+ */
+export async function checkNewAchievable(db: Db, now: Date, userId: string): Promise<number> {
+  const all: { id: string; label: string }[] = [];
+  for (const i of await myIdentities(db, userId)) for (const a of ARCHETYPE_DEFS[i.archetype].achievements) all.push({ id: `${i.archetype}:${a.id}`, label: a.label });
+  if (!all.length) return 0; // nothing to look at yet: the first identity becomes the quiet baseline
+  const seeded = !(await firstTime(db, userId, 'avail-baseline', now));
+  const fresh: { id: string; label: string }[] = [];
+  for (const a of all) if (await firstTime(db, userId, `avail:${a.id}`, now)) fresh.push(a);
+  if (!seeded || !fresh.length) return 0;
+  const names = fresh.slice(0, 3).map((a) => `“${a.label}”`).join(', ');
+  await notify(db, { userId, type: 'achievement_new', data: { text: fresh.length === 1 ? `A new achievement you can work toward: ${names}.` : `${fresh.length} new achievements you can work toward, including ${names}.`, href: '#/identities' } }, now);
+  return fresh.length;
 }
 
 /** Notices for finishing a learning item. */
@@ -30,7 +48,8 @@ export async function learningDone(db: Db, now: Date, userId: string, itemId: st
 }
 
 /** Scheduled: reminders for events starting within a day, deadline notices, Nova history cleanup notices, and expired disappearing messages. Idempotent. */
-export async function runAlerts(s: Services): Promise<{ events: number; deadlines: number; novaCleanups: number; messagesPurged: number }> {
+let lastAchievableSweep = 0;
+export async function runAlerts(s: Services): Promise<{ events: number; deadlines: number; novaCleanups: number; messagesPurged: number; newAchievable: number }> {
   const now = s.now(); const nowIso = now.toISOString(); let events = 0; let deadlines = 0; let novaCleanups = 0;
   const soon = new Date(now.getTime() + DAY).toISOString();
   for (const r of await s.db.query<any>(`SELECT r.user_id, e.id, e.title, e.starts_at FROM event_rsvps r JOIN events e ON e.id = r.event_id WHERE r.response IN ('yes','maybe') AND e.status = 'published' AND e.starts_at > $1 AND e.starts_at <= $2`, [nowIso, soon])) {
@@ -49,5 +68,11 @@ export async function runAlerts(s: Services): Promise<{ events: number; deadline
   }
   // Disappearing messages are removed for everyone when they expire, not only when someone opens the conversation.
   const messagesPurged = (await s.db.run('DELETE FROM messages WHERE expires_at IS NOT NULL AND expires_at <= $1', [nowIso])).changes;
-  return { events, deadlines, novaCleanups, messagesPurged };
+  // New achievements can appear whenever definitions change, so look hourly across active members.
+  let newAchievable = 0;
+  if (now.getTime() - lastAchievableSweep >= 3600_000) {
+    lastAchievableSweep = now.getTime();
+    for (const u of await s.db.query<{ id: string }>("SELECT id FROM users WHERE status = 'active'")) { await checkAchievements(s.db, now, u.id); newAchievable += await checkNewAchievable(s.db, now, u.id); }
+  }
+  return { events, deadlines, novaCleanups, messagesPurged, newAchievable };
 }
