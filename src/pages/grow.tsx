@@ -4,6 +4,7 @@ import { Link, setQuery } from '../lib/router';
 import { Icon } from '../ui/Icon';
 import { Async, Badge, Button, Card, Chip, DemoBadge, EmptyState, Notice, PageHead, SelectField, TextArea, TextField, Seg, errMsg, useResource } from '../ui/kit';
 import { useToast } from '../state/toast';
+import { useSession } from '../state/session';
 import { LEARN_FORMATS, LEARN_FORMAT_LABEL, OPP_TYPES, OPP_TYPE_LABEL, TRACK_STATUSES, type EventCard, type LearnBlock, type LearnCard, type LearnDetail, type LearnList, type MentorCard, type OpportunityCard, type TrackStatus } from '../../shared/api/catalog';
 import type { SavedKind } from '../../shared/api/content';
 
@@ -101,12 +102,21 @@ export function OpportunityPage({ params }: P) {
 
 // ───────── Mentors ─────────
 export function MentorsPage({ query }: P) {
+  const { perms } = useSession();
   const q = query.get('q') ?? ''; const res = useResource(() => api.get<{ items: MentorCard[]; notice: string }>(`/api/mentors${qs({ q: q || undefined })}`), [q]); const { say } = useToast(); const [open, setOpen] = useState<string | null>(null); const [msg, setMsg] = useState('');
   const send = async (id: string) => { try { await api.post(`/api/mentors/${id}/requests`, { message: msg || undefined }); say('Request recorded'); setOpen(null); setMsg(''); res.reload(); } catch (e) { say(errMsg(e), 'error'); } };
-  return <div className="stack-lg"><PageHead title="Mentors">People who offer guidance. Always check a mentor’s credentials yourself.</PageHead><SearchBar label="Search mentors" q={q} />
-    <Async res={res} empty={(d) => (d.items.length ? null : <EmptyState icon="compass2" title="No mentors match" />)}>{(d) => <><Notice tone="demo">{d.notice}</Notice><div className="grid-cards">{d.items.map((m) => <Card as="article" key={m.id}><div className="row-wrap"><h2 className="h-sm">{m.name}</h2>{m.isDemo && <DemoBadge />}</div><p className="muted">{m.headline}</p><p>{m.bio}</p><div className="row-wrap">{m.expertise.map((x) => <Badge key={x}>{x}</Badge>)}</div>{m.availabilityNote && <p className="faint">{m.availabilityNote}</p>}
-      <div className="row-wrap"><SaveButton kind="mentor" refId={m.id} saved={m.saved} />{m.requested ? <Button onClick={async () => { await api.del(`/api/mentors/${m.id}/requests`); res.reload(); }}>Withdraw request</Button> : <Button variant="primary" onClick={() => setOpen(m.id)}>Request mentoring</Button>}</div>
+  return <div className="stack-lg"><PageHead title="Mentors">People who offer guidance. Always check a mentor’s credentials yourself.</PageHead><div className="row-wrap"><Link to="/mentoring/profile" className="btn btn-secondary btn-sm">Become a mentor</Link><Link to="/mentoring" className="btn btn-ghost btn-sm">Requests to me</Link>{perms.has('mentors.review') && <Link to="/mentoring/review" className="btn btn-ghost btn-sm">Review applications</Link>}</div><SearchBar label="Search mentors" q={q} /><MyMentorRequests refresh={res.data} />
+    <Async res={res} empty={(d) => (d.items.length ? null : <EmptyState icon="compass2" title="No mentors match" />)}>{(d) => <><Notice tone="demo">{d.notice}</Notice><div className="grid-cards">{d.items.map((m) => <Card as="article" key={m.id}><div className="row-wrap"><h2 className="h-sm">{m.name}</h2>{m.isDemo ? <DemoBadge /> : <Badge>Community mentor</Badge>}{m.full && <Badge>Full right now</Badge>}</div><p className="muted">{m.headline}</p><p>{m.bio}</p><div className="row-wrap">{m.expertise.map((x) => <Badge key={x}>{x}</Badge>)}</div>{m.availabilityNote && <p className="faint">{m.availabilityNote}</p>}
+      <div className="row-wrap"><SaveButton kind="mentor" refId={m.id} saved={m.saved} />{m.handle && <Link to={`/u/${m.handle}`} className="btn btn-ghost btn-sm">Profile</Link>}{m.mine ? <Badge>You</Badge> : m.requested ? <Button onClick={async () => { await api.del(`/api/mentors/${m.id}/requests`); res.reload(); }}>Withdraw request</Button> : <Button variant="primary" disabled={m.full} onClick={() => setOpen(m.id)}>Request mentoring</Button>}</div>
       {open === m.id && <div className="stack-sm"><TextArea label="A short note" optional maxLength={500} value={msg} onChange={(e) => setMsg(e.target.value)} /><div className="row-wrap"><Button variant="primary" size="sm" onClick={() => void send(m.id)}>Send request</Button><Button variant="ghost" size="sm" onClick={() => setOpen(null)}>Cancel</Button></div></div>}</Card>)}</div></>}</Async></div>;
+}
+
+/** What mentors have answered, so a reply is never missed. */
+function MyMentorRequests({ refresh }: { refresh: unknown }) {
+  const res = useResource(() => api.get<{ items: { id: string; mentorName: string; status: string; reply: string | null; mentorHandle: string | null }[] }>('/api/mentor-requests'), [refresh]);
+  const answered = (res.data?.items ?? []).filter((r) => r.status !== 'received');
+  if (!answered.length) return null;
+  return <Card className="stack-sm"><h2 className="h-sm">Answers to your requests</h2><ul className="plain stack-sm">{answered.map((r) => <li key={r.id}><strong>{r.mentorName}</strong> <Badge>{r.status === 'facilitated' ? 'Accepted' : 'Declined'}</Badge>{r.reply && <p className="muted">{r.reply}</p>}{r.mentorHandle && <Link to={`/u/${r.mentorHandle}`}>Open their profile to message them</Link>}</li>)}</ul></Card>;
 }
 
 // ───────── Events ─────────

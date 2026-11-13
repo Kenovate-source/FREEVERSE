@@ -20,6 +20,15 @@ const TEXT: Record<string, (who: string, d: any) => string> = {
   system: (_w, d) => String(d.text ?? 'Update from FREEVERSE'),
   appeal: () => 'Your appeal has a decision.',
   report_update: () => 'There is an update on a report you made.',
+  event_reminder: (_w, d) => String(d.text ?? 'An event you said you’d attend is coming up'),
+  opportunity_deadline: (_w, d) => String(d.text ?? 'An opportunity you saved is closing soon'),
+  learning: (_w, d) => String(d.text ?? 'You finished a learning item'),
+  mentorship: (_w, d) => String(d.text ?? 'Update on mentoring'),
+  project: (_w, d) => String(d.text ?? 'Update on a project'),
+  achievement_new: (_w, d) => String(d.text ?? 'New achievements you can work toward'),
+  achievement: (_w, d) => String(d.text ?? 'You earned an achievement'),
+  ai_activity: (_w, d) => String(d.text ?? 'Nova made a change you asked for'),
+  announcement: (_w, d) => String(d.text ?? 'Announcement from FREEVERSE'),
 };
 
 function hrefFor(n: any, d: any): string | null {
@@ -27,7 +36,7 @@ function hrefFor(n: any, d: any): string | null {
   if (d.postId) return `#/post/${d.postId}`;
   if (n.type === 'follow' || n.type === 'connection') return n.handle ? `#/u/${n.handle}` : null;
   if (n.type === 'message' || n.type === 'message_request') return d.conversationId ? `#/messages/${d.conversationId}` : '#/messages';
-  if (n.type === 'moderation' || n.type === 'appeal') return '#/settings/safety';
+  if (n.type === 'moderation' || n.type === 'appeal') return '#/help';
   return null;
 }
 

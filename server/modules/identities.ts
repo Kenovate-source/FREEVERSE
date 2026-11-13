@@ -1,4 +1,5 @@
 import { screenLabel } from '../../shared/label-screen';
+import { checkNewAchievable } from '../services/alerts';
 import { z } from 'zod';
 import type { ModuleDef } from './types';
 import { badRequest, conflict, notFound } from '../http/errors';
@@ -61,6 +62,7 @@ export const identitiesModule: ModuleDef = {
       const old = await c.db.get<any>("SELECT id FROM user_identities WHERE user_id = $1 AND archetype = $2 AND status = 'removed'", [c.me.userId, c.body.archetype]);
       if (old) await c.db.run('DELETE FROM user_identities WHERE id = $1', [old.id]);
       const i = await addIdentity(c.db, c.me.userId, c.body.archetype, c.now(), { headline: c.body.headline, answers: c.body.answers, makePrimary: c.body.primary });
+      await checkNewAchievable(c.db, c.now(), c.me.userId);
       return created({ identity: i });
     });
     router.patch('/api/identities/:id', { auth: 'active', body: z.object({ status: z.enum(['active', 'paused']).optional(), headline: z.string().trim().max(120).nullable().optional(), visibility: aud.optional(), answers: answers.optional(), primary: z.literal(true).optional() }).strict() }, async (c) => {

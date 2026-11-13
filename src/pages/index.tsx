@@ -1,4 +1,6 @@
 import { TermsPage, PrivacyPage, RulesPage } from './legal';
+import { ProjectPage } from './projects';
+import { MentoringPage, MentorProfilePage, MentorReviewPage } from './mentoring';
 import type { ComponentType } from 'react';
 import { Landing, Trust } from './landing';
 import { SignIn, SignUp, Recover, ResetPassword, Eligibility } from './auth';
@@ -24,7 +26,7 @@ export const PAGES: Record<string, ComponentType<PageProps>> = {
   landing: w(Landing), trust: w(Trust), terms: w(TermsPage), privacy: w(PrivacyPage), rules: w(RulesPage), signin: w(SignIn), signup: w(SignUp), recover: w(Recover), 'reset-password': w(ResetPassword), eligibility: w(Eligibility), onboarding: w(Onboarding),
   home: HomePage, feed: FeedPage, explore: ExplorePage, search: SearchPage, communities: CommunitiesPage, community: CommunityPage, post: PostPage, member: MemberPage,
   messages: MessagesPage, conversation: ConversationPage, notifications: NotificationsPage, saved: SavedPage,
-  learn: LearnPage, 'learn-item': LearnItemPage, opportunities: OpportunitiesPage, opportunity: OpportunityPage, mentors: MentorsPage, events: EventsPage, event: EventPage,
+  learn: LearnPage, 'learn-item': LearnItemPage, opportunities: OpportunitiesPage, opportunity: OpportunityPage, mentors: MentorsPage, mentoring: MentoringPage, project: ProjectPage, 'mentoring-profile': MentorProfilePage, 'mentoring-review': MentorReviewPage, events: EventsPage, event: EventPage,
   nova: NovaPage, suggestions: SuggestionsPage, polls: PollsPage, 'ai-preferences': AiPreferencesPage, 'nova-chat': NovaChatPage, journal: JournalPage, goals: GoalsPage, habits: HabitsPage, council: CouncilPage, 'council-agent': CouncilAgentPage,
   identities: IdentitiesPage, space: SpacePage, 'profile-edit': ProfileEditPage, settings: SettingsPage, 'settings-section': SettingsPage,
   universes: UniversesPage, universe: UniversePage, 'universe-space': UniversePage, soon: SoonPage, help: HelpPage,

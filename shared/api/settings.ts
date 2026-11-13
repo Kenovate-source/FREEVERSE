@@ -3,7 +3,7 @@ import type { Audience } from '../constants';
 import type { PrivacySettings, ProfileField } from '../privacy';
 import { DEFAULT_AI_STYLE, STYLE_NOTE_MAX, isStyleValue, type AiStyle, type StyleKey } from '../ai-style';
 
-export interface NotificationSettings { comments: boolean; replies: boolean; reactions: boolean; follows: boolean; mentions: boolean; messages: boolean; message_request: boolean; system: boolean; events: boolean }
+export interface NotificationSettings { comments: boolean; replies: boolean; reactions: boolean; follows: boolean; mentions: boolean; messages: boolean; message_request: boolean; system: boolean; events: boolean; opportunities: boolean; learning: boolean; achievements: boolean; achievements_new: boolean; mentorship: boolean; projects: boolean; ai: boolean; announcements: boolean; safety: boolean }
 /** Allowed values for the messaging choices. The server refuses anything else, and the settings page builds its menus from these. */
 export const MSG_CHOICES = {
   requestsFrom: ['everyone', 'followers', 'nobody'], requestHandling: ['allow', 'filter', 'restrict'], lastActiveVisibility: ['members', 'connections', 'nobody'],
@@ -31,7 +31,7 @@ export interface Settings { notifications: NotificationSettings; messaging: Mess
 export type SettingsPatch = { [K in keyof Settings]?: Partial<Settings[K]> };
 
 export const DEFAULT_SETTINGS: Settings = {
-  notifications: { comments: true, replies: true, reactions: true, follows: true, mentions: true, messages: true, message_request: true, system: true, events: true },
+  notifications: { comments: true, replies: true, reactions: true, follows: true, mentions: true, messages: true, message_request: true, system: true, events: true, opportunities: true, learning: true, achievements: true, achievements_new: true, mentorship: true, projects: true, ai: true, announcements: true, safety: true },
   messaging: {
     readReceipts: true, allowMessageRequests: true, enterToSend: false, density: 'comfortable', requestsFrom: 'everyone', requestHandling: 'allow', lastActiveVisibility: 'connections',
     defaultExpiry: 'never', allowReactions: true, allowReplies: true, archiveBehaviour: 'return', deleteWindow: 'anytime', quietEnabled: false, quietStart: '22:00', quietEnd: '07:00', quietOffset: 0,

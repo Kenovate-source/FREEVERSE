@@ -230,6 +230,36 @@ async function run(size, who = 'member') {
     await page.screenshot({ path: `${OUT}/${size}-founder-ai-meeting.png` });
     await page.getByRole('button', { name: 'Mark as held' }).click(); await page.getByText('Marked as held.').waitFor({ timeout: 5000 });
   });
+  if (who === 'member') await step('safety notices: switching off asks first, then persists; switching on is immediate', async () => {
+    await page.goto(`${BASE}/#/settings/notifications`); const sw = page.getByRole('switch', { name: /safety notices/i }); await sw.waitFor();
+    await sw.click(); await page.getByRole('heading', { name: 'Turn off safety notices?' }).waitFor(); await page.getByRole('button', { name: 'Turn off' }).click(); await page.waitForTimeout(700);
+    await page.reload(); if ((await page.getByRole('switch', { name: /safety notices/i }).getAttribute('aria-checked')) !== 'false') throw new Error('safety did not switch off');
+    await page.getByRole('switch', { name: /safety notices/i }).click(); await page.waitForTimeout(700); await page.reload();
+    if ((await page.getByRole('switch', { name: /safety notices/i }).getAttribute('aria-checked')) !== 'true') throw new Error('safety did not switch on');
+  });
+  if (who === 'founder') await step('founder: send a product announcement, it is listed and arrives in Notifications', async () => {
+    await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Reports' }).click(); await page.getByRole('heading', { name: 'Product announcements' }).waitFor();
+    await page.getByLabel('Announcement').fill('Messaging settings are now live.'); await page.getByRole('button', { name: 'Send to members' }).click();
+    await page.getByRole('list', { name: 'Sent announcements' }).getByText('Messaging settings are now live.').waitFor();
+    await page.goto(`${BASE}/#/notifications`); await page.getByText('Messaging settings are now live.').first().waitFor();
+  });
+  if (who === 'member') await step('projects: start one inside a Universe, post an update, see it listed; mentor application goes to review', async () => {
+    await page.goto(`${BASE}/#/universes/freebuild/projects`); await page.getByRole('heading', { name: /Projects in FreeBuild/ }).waitFor();
+    await page.getByRole('button', { name: 'Start a project' }).click(); await page.getByLabel('Project name').fill('Garden map ' + size);
+    await page.getByLabel('What is it?').fill('Mapping shared gardens so newcomers can find one nearby.'); await page.getByRole('button', { name: 'Start project' }).click();
+    await page.getByRole('heading', { name: 'Garden map ' + size }).waitFor(); await page.getByLabel('Post an update').fill('First layer drafted.'); await page.getByRole('button', { name: 'Post update' }).click();
+    await page.getByRole('list', { name: 'Project updates' }).getByText('First layer drafted.').waitFor();
+    await page.goto(`${BASE}/#/universes/freelearn/projects`); await page.getByText('No projects yet').waitFor();
+    await page.goto(`${BASE}/#/universes/freebuild/projects`); await page.getByText('Garden map ' + size).first().waitFor();
+    await page.goto(`${BASE}/#/mentoring/profile`); await page.getByRole('heading', { name: 'Become a mentor' }).waitFor();
+    await page.getByLabel('Headline').fill('Designer for ' + size); await page.getByLabel('About your mentoring').fill('I help early-career people build portfolios and prepare for interviews with honest feedback.');
+    await page.getByLabel('Topics you can help with').fill('Design, Portfolios'); await page.getByLabel('I agree to these rules').click(); await page.getByRole('button', { name: 'Send for review' }).click();
+    await page.getByText('Waiting for review').first().waitFor();
+    if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow');
+  });
+  if (who === 'founder') await step('mentor applications queue opens for reviewers', async () => {
+    await page.goto(`${BASE}/#/mentoring/review`); await page.getByRole('heading', { name: 'Mentor applications' }).waitFor();
+  });
   if (who === 'founder') await step('universes admin: preview shows what members will see before saving; history is listed', async () => {
     await page.goto(`${BASE}/#/founder/universes`); await page.getByRole('heading', { name: 'Universes', exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: 'Change' }).first().click();
@@ -261,7 +291,7 @@ async function run(size, who = 'member') {
     await page.reload(); await page.getByLabel('Search messaging settings').fill('read receipts');
     const after = await page.getByRole('switch', { name: /Read receipts/ }).first().getAttribute('aria-checked'); if (after === before) throw new Error('read receipts did not persist');
     await page.goto(`${BASE}/#/settings/messaging`); await page.getByLabel('Search messaging settings').fill('calls'); await page.getByText('In development').first().waitFor();
-    await page.goto(`${BASE}/#/settings/notifications`); await page.getByRole('heading', { name: 'Community activity' }).waitFor(); await page.getByText('Always on').first().waitFor(); await page.getByText('Not available yet').first().waitFor();
+    await page.goto(`${BASE}/#/settings/notifications`); await page.getByRole('heading', { name: 'Community activity' }).waitFor(); await page.getByRole('heading', { name: 'Safety notices' }).waitFor(); await page.getByRole('switch', { name: /safety notices/i }).waitFor(); await page.getByRole('heading', { name: 'Reminders and progress' }).waitFor(); await page.getByRole('heading', { name: 'Mentoring and projects' }).waitFor();
     if (await page.getByLabel('Event updates').count()) throw new Error('dead Event updates toggle still shown');
     await page.goto(`${BASE}/#/settings/security`); await page.getByText('Not available yet').first().waitFor();
     await page.goto(`${BASE}/#/messages`); await page.getByText('No conversations yet').waitFor(); await page.getByRole('link', { name: 'Messaging settings' }).waitFor();

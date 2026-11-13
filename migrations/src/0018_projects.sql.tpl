@@ -1,0 +1,35 @@
+-- Projects: every Universe has its own. A member starts one, others ask to join, the owner decides.
+CREATE TABLE projects (
+  id @ID PRIMARY KEY,
+  universe_id TEXT NOT NULL,
+  owner_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  details TEXT,
+  looking_for TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  max_members INTEGER NOT NULL DEFAULT 8,
+  hidden_reason TEXT,
+  created_at @TS NOT NULL,
+  updated_at @TS NOT NULL
+);
+CREATE INDEX projects_universe_idx ON projects (universe_id, status, created_at);
+CREATE INDEX projects_owner_idx ON projects (owner_id);
+CREATE TABLE project_members (
+  project_id @ID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  state TEXT NOT NULL,
+  message TEXT,
+  created_at @TS NOT NULL,
+  decided_at @TS,
+  PRIMARY KEY (project_id, user_id)
+);
+CREATE INDEX project_members_user_idx ON project_members (user_id);
+CREATE TABLE project_updates (
+  id @ID PRIMARY KEY,
+  project_id @ID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  author_id @ID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at @TS NOT NULL
+);
+CREATE INDEX project_updates_project_idx ON project_updates (project_id, created_at);

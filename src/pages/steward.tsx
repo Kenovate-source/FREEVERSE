@@ -9,6 +9,7 @@ import { timeAgo } from '../lib/time';
 import type { AiMessageView } from '../../shared/api/ai';
 import { FounderHome, CommandBar } from './founder-console';
 import { SuggestionsAdmin } from './founder-suggestions';
+import { ReportsPanel, MeetingsPanel, AnnouncementsPanel } from './founder-reports';
 import { AgentConsole, AgentActivity, FindingReview } from './founder-agents';
 import { AppointmentsAdmin, PollsAdmin, CommunityOversight, FindingNext } from './founder-governance';
 
@@ -60,6 +61,7 @@ function Overview() {
 // ───────── Founder AI ─────────
 function FounderAi() {
   const { say } = useToast(); const guarded = useGuarded(); const st = useResource(() => api.get<any>('/api/founder-ai/state'), []); const fnd = useResource(() => api.get<{ items: any[] }>('/api/founder-ai/findings'), []);
+  const council = useResource(() => api.get<{ agents: { id: string; name: string }[] }>('/api/council'), []); const councilAgents = (council.data?.agents ?? []).filter((a) => a.id !== 'founder-ai');
   const [busy, setBusy] = useState(false); const [reason, setReason] = useState(''); const [tab, setTab] = useState<(typeof FAI_TABS)[number]['id']>('map'); const [seed, setSeed] = useState<{ title: string; rationale: string; findingId: string } | null>(null);
   const analyze = async () => { setBusy(true); try { const r = await api.post<any>('/api/founder-ai/analyze'); say(`${r.newFindings} new finding(s). ${r.actions.length} action(s) routed through the approval workflow.`); fnd.reload(); st.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
   const setMode = async (mode: string) => { if (reason.trim().length < 10) { say('Add a reason of at least 10 characters.', 'error'); return; } const r = await guarded('Changing the Founder AI’s mode changes the AI’s own boundaries.', (tok) => api.post('/api/founder-ai/mode', { mode, reason }, { stepUp: tok })); if (r) { say('Mode changed and recorded'); setReason(''); st.reload(); } };
@@ -69,6 +71,8 @@ function FounderAi() {
     <div role="tabpanel" id="fai-panel" aria-labelledby={`fai-tab-${tab}`} className="stack">
     {tab === 'map' && <AgentConsole st={s} goTab={(t) => setTab(t as any)} onPrepare={() => { setSeed(null); setTab('prepare'); }} />}
     {tab === 'activity' && <AgentActivity />}
+    {tab === 'meetings' && <MeetingsPanel agents={councilAgents} />}
+    {tab === 'reports' && <><ReportsPanel /><AnnouncementsPanel /></>}
     {tab === 'ask' && <FaiChat />}
     {tab === 'findings' && <Card className="stack-sm"><h2 className="h-sm">Findings</h2><p className="faint">Each one shows what happened, why it matters, the evidence, how confident it is, what you can do and what each choice would change. Analysis reads aggregate counts only, never private content.</p><FindingReview onChanged={() => { st.reload(); fnd.reload(); }} onModify={(sd) => { setSeed(sd); setTab('prepare'); }} /></Card>}
     {tab === 'work' && <AiWork />}
@@ -82,7 +86,7 @@ function FounderAi() {
     </>}
     </div></>}</Async>;
 }
-const FAI_TABS = [{ id: 'map', label: 'Agent map' }, { id: 'ask', label: 'Ask' }, { id: 'findings', label: 'Findings' }, { id: 'work', label: 'Work' }, { id: 'delegate', label: 'Delegate' }, { id: 'activity', label: 'Agent activity' }, { id: 'prepare', label: 'Prepare a change' }, { id: 'bounds', label: 'Mode and boundaries' }] as const;
+const FAI_TABS = [{ id: 'map', label: 'Agent map' }, { id: 'ask', label: 'Ask' }, { id: 'findings', label: 'Findings' }, { id: 'work', label: 'Work' }, { id: 'delegate', label: 'Delegate' }, { id: 'activity', label: 'Agent activity' }, { id: 'meetings', label: 'Meetings' }, { id: 'reports', label: 'Reports' }, { id: 'prepare', label: 'Prepare a change' }, { id: 'bounds', label: 'Mode and boundaries' }] as const;
 const STAGE_GLYPH: Record<string, string> = { done: '✓', current: '●', waiting: '○', skipped: '–', stopped: '■', failed: '✕' };
 function AiWork() {
   const [f, setF] = useState<'all' | 'active' | 'finished'>('active'); const res = useResource(() => api.get<{ items: any[] }>(`/api/founder-ai/work?filter=${f}`), [f]);

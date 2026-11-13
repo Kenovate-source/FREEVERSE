@@ -10,7 +10,7 @@ export const PERMISSIONS = [
   'audit.view', 'security.view',
   'proposals.view', 'proposals.decide',
   'ai.founder.use', 'ai.autonomy.manage', 'ai.council.view', 'ai.council.manage',
-  'config.manage',
+  'config.manage', 'mentors.review', 'suggestions.view', 'suggestions.review',
   'analytics.view', 'ops.dashboard.view', 'community.health.view',
   'moderation.queue.view', 'moderation.case.act', 'moderation.case.review_content', 'moderation.reveal_anonymous', 'moderation.user.suspend',
 ] as const;
@@ -18,13 +18,13 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 const moderator: Permission[] = ['moderation.queue.view', 'moderation.case.act', 'moderation.case.review_content', 'moderation.reveal_anonymous', 'moderation.user.suspend'];
 const guardian: Permission[] = ['community.health.view', 'moderation.queue.view'];
-const director: Permission[] = ['ops.dashboard.view', 'community.health.view', 'moderation.queue.view', 'analytics.view', 'governance.view'];
+const director: Permission[] = ['suggestions.view', 'ops.dashboard.view', 'community.health.view', 'moderation.queue.view', 'analytics.view', 'governance.view'];
 const highCouncil: Permission[] = [...director, 'ai.council.view', 'proposals.view'];
-const council: Permission[] = [...highCouncil, 'governance.propose', 'access_review.view', 'audit.view', 'security.view'];
+const council: Permission[] = [...highCouncil, 'mentors.review', 'governance.propose', 'access_review.view', 'audit.view', 'security.view'];
 const founder: Permission[] = [
   ...council,
   'founder.console', 'governance.manage', 'governance.appoint', 'governance.remove', 'roles.grant_moderator', 'access_review.run',
-  'proposals.decide', 'ai.founder.use', 'ai.autonomy.manage', 'ai.council.manage', 'config.manage',
+  'suggestions.review', 'proposals.decide', 'ai.founder.use', 'ai.autonomy.manage', 'ai.council.manage', 'config.manage',
   // The Founder may act as the final reviewer on a case (reason required, audited) but does not get anonymous-author reveal by default.
   'moderation.case.act', 'moderation.case.review_content',
 ];

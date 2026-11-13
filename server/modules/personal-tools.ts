@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { checkAchievements } from '../services/alerts';
 import type { ModuleDef } from './types';
 import { conflict, notFound } from '../http/errors';
 import { created } from '../http/router';
@@ -113,6 +114,7 @@ export const personalToolsModule: ModuleDef = {
         if (b.addStep) { const m = await t.get<{ n: number | null }>('SELECT MAX(sort_order) AS n FROM goal_steps WHERE goal_id = $1', [g.id]); await t.run('INSERT INTO goal_steps (id, goal_id, title, sort_order) VALUES ($1,$2,$3,$4)', [uuid(), g.id, b.addStep, Number(m?.n ?? -1) + 1]); }
         if (b.toggleStep) { const st = await t.get<any>('SELECT done_at FROM goal_steps WHERE id = $1 AND goal_id = $2', [b.toggleStep, g.id]); if (st) await t.run('UPDATE goal_steps SET done_at = $2 WHERE id = $1', [b.toggleStep, st.done_at ? null : now]); }
       });
+      if (b.status === 'done') await checkAchievements(c.db, c.now(), c.me.userId);
       return { goal: await goalOut(c, await c.db.get('SELECT * FROM goals WHERE id = $1', [g.id])) };
     });
     router.delete('/api/goals/:id', { auth: 'active' }, async (c) => {

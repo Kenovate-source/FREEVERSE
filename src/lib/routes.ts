@@ -26,7 +26,7 @@ export const ROUTES: RouteDef[] = [
   R('notifications', '/notifications', 'Notifications', { section: 'notifications' }), R('saved', '/saved', 'Saved', { section: 'saved' }),
   R('learn', '/learn', 'Learn', { section: 'learn' }), R('learn-item', '/learn/:slug', 'Learn', { section: 'learn' }),
   R('opportunities', '/opportunities', 'Opportunities', { section: 'opportunities' }), R('opportunity', '/opportunities/:id', 'Opportunity', { section: 'opportunities' }),
-  R('mentors', '/mentors', 'Mentors', { section: 'mentors' }), R('events', '/events', 'Events', { section: 'events' }), R('event', '/events/:id', 'Event', { section: 'events' }),
+  R('mentors', '/mentors', 'Mentors', { section: 'mentors' }), R('project', '/projects/:id', 'Project', { section: 'universes' }), R('mentoring', '/mentoring', 'Mentoring requests', { section: 'mentors' }), R('mentoring-profile', '/mentoring/profile', 'Become a mentor', { section: 'mentors' }), R('mentoring-review', '/mentoring/review', 'Mentor applications', { perm: 'mentors.review', section: 'mentors' }), R('events', '/events', 'Events', { section: 'events' }), R('event', '/events/:id', 'Event', { section: 'events' }),
   R('nova', '/ai', 'Nova', { section: 'nova' }), R('nova-chat', '/ai/chat/:id', 'Nova', { section: 'nova' }), R('journal', '/ai/journal', 'Journal', { section: 'nova' }),
   R('ai-preferences', '/ai/preferences', 'AI preferences', { section: 'nova' }), R('goals', '/ai/goals', 'Goals', { section: 'nova' }), R('habits', '/ai/habits', 'Habits', { section: 'nova' }),
   R('council', '/ai/council', 'AI Council', { section: 'council' }), R('council-agent', '/ai/council/:agent', 'AI Council', { section: 'council' }),

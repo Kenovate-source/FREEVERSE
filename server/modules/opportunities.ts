@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { checkAchievements } from '../services/alerts';
+import { notify } from '../services/notify';
 import type { ModuleDef } from './types';
 import { conflict, notFound } from '../http/errors';
 import { created } from '../http/router';
@@ -38,29 +40,40 @@ export const opportunitiesModule: ModuleDef = {
       const now = c.now().toISOString();
       const r = await c.db.run('UPDATE opportunity_tracking SET status = $3, updated_at = $4 WHERE user_id = $1 AND opportunity_id = $2', [c.me.userId, c.params.id, c.body.status, now]);
       if (!r.changes) await c.db.run('INSERT INTO opportunity_tracking (user_id, opportunity_id, status, updated_at) VALUES ($1,$2,$3,$4)', [c.me.userId, c.params.id, c.body.status, now]);
+      await checkAchievements(c.db, c.now(), c.me.userId);
       return { ok: true, status: c.body.status };
     });
     router.delete('/api/opportunities/:id/tracking', { auth: 'active' }, async (c) => { await c.db.run('DELETE FROM opportunity_tracking WHERE user_id = $1 AND opportunity_id = $2', [c.me.userId, c.params.id]); return { ok: true }; });
 
     // ───────── mentors ─────────
     router.get('/api/mentors', { auth: 'active', query: z.object({ q: z.string().trim().max(80).optional() }) }, async (c) => {
-      const rows = await c.db.query<any>("SELECT * FROM mentors WHERE status = 'active' ORDER BY name");
+      const rows = await c.db.query<any>(`SELECT m.*, u.handle, u.display_name AS live_name,
+          (SELECT COUNT(*) FROM mentor_requests x WHERE x.mentor_id = m.id AND x.status = 'facilitated') AS taken FROM mentors m LEFT JOIN users u ON u.id = m.user_id
+        WHERE m.status = 'active' AND m.review_status = 'approved' AND (m.user_id IS NULL OR (u.status = 'active' AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = m.user_id) OR (b.blocker_id = m.user_id AND b.blocked_id = $1)))) ORDER BY m.name`, [c.me.userId]);
       const saved = await savedSet(c.db, c.me.userId, 'mentor');
       const req = new Set((await c.db.query<any>('SELECT mentor_id FROM mentor_requests WHERE user_id = $1', [c.me.userId])).map((x) => x.mentor_id));
       const q = c.query.q?.toLowerCase();
-      const items: MentorCard[] = rows.map((r) => ({ id: r.id, name: r.name, headline: r.headline, bio: r.bio, expertise: tagsOf(r.expertise), availabilityNote: r.availability_note ?? null, art: r.art ?? null, isDemo: bool(r.is_demo), saved: saved.has(r.id), requested: req.has(r.id) }))
+      const items: MentorCard[] = rows.map((r) => ({ id: r.id, name: r.live_name ?? r.name, handle: r.handle ?? null, mine: r.user_id === c.me.userId, full: r.user_id ? Number(r.taken) >= Number(r.capacity) : false, headline: r.headline, bio: r.bio, expertise: tagsOf(r.expertise), availabilityNote: r.availability_note ?? null, art: r.art ?? null, isDemo: bool(r.is_demo), saved: saved.has(r.id), requested: req.has(r.id) }))
         .filter((m) => !q || `${m.name} ${m.headline} ${m.expertise.join(' ')}`.toLowerCase().includes(q));
-      return { items, notice: 'Demo directory: these mentors are fictional and illustrative. A request is recorded for you, but nobody real receives it in this build.' };
+      return { items, notice: items.some((m) => m.isDemo) ? 'Mentors marked Demo are fictional and illustrative: a request to them is recorded for you, but nobody real receives it. Other mentors are community members who applied and were reviewed. FREEVERSE does not verify their credentials, so always check for yourself.' : 'These mentors are community members who applied and were reviewed. FREEVERSE does not verify their credentials, so always check for yourself.' };
     });
     router.post('/api/mentors/:id/requests', { auth: 'active', body: z.object({ message: z.string().trim().max(500).optional() }).strict(), rate: { key: 'mentor-request', limit: 10, windowMs: 3600_000 } }, async (c) => {
-      const m = await c.db.get<any>("SELECT id, is_demo FROM mentors WHERE id = $1 AND status = 'active'", [c.params.id]);
+      const m = await c.db.get<any>("SELECT id, is_demo, user_id, capacity FROM mentors WHERE id = $1 AND status = 'active' AND review_status = 'approved'", [c.params.id]);
       if (!m) throw notFound('We couldn’t find that mentor.');
+      if (m.user_id === c.me.userId) throw conflict('That’s your own mentor profile.', 'own_profile');
+      if (m.user_id) {
+        if (await c.db.get('SELECT 1 AS x FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)', [c.me.userId, m.user_id])) throw notFound('We couldn’t find that mentor.');
+        const n = await c.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM mentor_requests WHERE mentor_id = $1 AND status = 'facilitated'", [m.id]);
+        if (Number(n?.n ?? 0) >= Number(m.capacity)) throw conflict('This mentor isn’t taking new mentees right now.', 'mentor_full');
+      }
       if (await c.db.get('SELECT 1 AS x FROM mentor_requests WHERE user_id = $1 AND mentor_id = $2', [c.me.userId, m.id])) throw conflict('You have already asked this mentor.', 'already_requested');
       await c.db.run('INSERT INTO mentor_requests (id, user_id, mentor_id, message, status, created_at) VALUES ($1,$2,$3,$4,$5,$6)', [uuid(), c.me.userId, m.id, c.body.message ?? null, 'received', c.now().toISOString()]);
-      return created({ ok: true, demo: bool(m.is_demo), note: bool(m.is_demo) ? 'Recorded. This is a demo mentor, so no real person will see it.' : 'Recorded.' });
+      if (m.user_id) await notify(c.db, { userId: m.user_id, type: 'mentorship', actorId: c.me.userId, data: { text: 'You have a new mentoring request.', href: '#/mentoring' } }, c.now());
+      await checkAchievements(c.db, c.now(), c.me.userId);
+      return created({ ok: true, demo: bool(m.is_demo), note: bool(m.is_demo) ? 'Recorded. This is a demo mentor, so no real person will see it.' : 'Sent. The mentor has been notified.' });
     });
     router.delete('/api/mentors/:id/requests', { auth: 'active' }, async (c) => { await c.db.run('DELETE FROM mentor_requests WHERE user_id = $1 AND mentor_id = $2', [c.me.userId, c.params.id]); return { ok: true }; });
-    router.get('/api/mentor-requests', { auth: 'active' }, async (c) => ({ items: (await c.db.query<any>('SELECT r.id, r.status, r.created_at, m.name, m.id AS mentor_id FROM mentor_requests r JOIN mentors m ON m.id = r.mentor_id WHERE r.user_id = $1 ORDER BY r.created_at DESC', [c.me.userId])).map((r) => ({ id: r.id, mentorId: r.mentor_id, mentorName: r.name, status: r.status, createdAt: r.created_at })) }));
+    router.get('/api/mentor-requests', { auth: 'active' }, async (c) => ({ items: (await c.db.query<any>('SELECT r.id, r.status, r.created_at, r.reply, r.responded_at, m.name, m.id AS mentor_id, u.handle AS mentor_handle FROM mentor_requests r JOIN mentors m ON m.id = r.mentor_id LEFT JOIN users u ON u.id = m.user_id WHERE r.user_id = $1 ORDER BY r.created_at DESC', [c.me.userId])).map((r) => ({ id: r.id, mentorId: r.mentor_id, mentorName: r.name, status: r.status, reply: r.reply ?? null, mentorHandle: r.status === 'facilitated' ? r.mentor_handle ?? null : null, createdAt: r.created_at })) }));
 
     registerEraser('opportunities', async (db, userId) => {
       const a = await db.run('DELETE FROM opportunity_tracking WHERE user_id = $1', [userId]);

@@ -9,20 +9,45 @@
 - The page states plainly that messages are **not end-to-end encrypted**. No false claims.
 
 **Part 8, wider settings audit**
-- Notifications regrouped: Community activity, Announcements and updates, a pointer to Messaging for message notifications (no duplicate toggles), "Always on" safety notices, and a "Not available yet" list (Mentorship, Learning, Opportunities, Events, Projects, Achievements, AI activity, Product announcements) because nothing sends those yet.
+- Notifications rebuilt on your three decisions:
+  - **Safety notices stay on by default, with an on/off control.** Turning it off asks for confirmation and explains that the decision still applies and every action stays listed under Help & safety, where appeals are filed. It covers moderation, report updates and appeal outcomes.
+  - **New categories are real, each with its own switch:** Event reminders (yes/maybe RSVP, starts within a day), Opportunity deadlines (marked interested, closes within three days), Learning (finished an item), Achievements (newly earned), AI activity (only when Nova's automatic cleanup removes saved chats), Product announcements (the Founder writes them; Founder AI > Reports > Product announcements; audited with the exact words). Each one-off notice is sent once (new `notice_log` table).
+  - Still "In development": **Mentorship** (mentors are demo profiles; no real person can answer, so nothing can honestly be sent) and **Projects** (no Projects feature to notify about yet).
+  - Message toggles live only under Messaging; Notifications links there.
+- **Scheduled cleanup job:** the existing 10-minute maintenance job now also removes expired disappearing messages for everyone (not only when someone opens a chat), runs each person's chosen Nova history cleanup and tells them, and sends the event and deadline reminders.
 - Security: added recovery and age-declaration pointers and an honest "Not available yet" card (device list, two-step verification, Google/Apple/phone sign-in).
 - Nova & AI data: added an honest "Not available yet" card (voice, per-topic data permissions, AI notifications).
 - Bug found and fixed: the Notifications toggles never worked. The settings stored plural keys (`comments`) and notifications used singular types (`comment`), so switching a toggle off did nothing. `notify.ts` now maps both. The dead "Event updates" toggle was removed from the page (nothing emits it).
+
+## Follow-up requested after review (also in this delivery)
+1. **Achievements:** you're notified when you earn one *and* when new ones become available to you (a single notice, with its own switch). Anything that already existed is recorded silently the first time, so nobody is flooded; the first identity is a quiet baseline.
+2. **Mentor onboarding (real mentors):** apply with a headline, about text, topics, availability and capacity, and agree to the ground rules. Every text field is screened. A reviewer (Founder or Council, permission `mentors.review`) approves or declines, with a required reason on decline, and **cannot review their own application**. Approved mentors appear in the directory as "Community mentor" next to the clearly labelled demo ones. Requests now reach the mentor (notified), who accepts or declines with a reply; the requester is notified and, on acceptance, gets a link to the mentor's profile to message them under the usual messaging rules. Capacity limits, blocks, duplicate and self-requests are enforced. Editing the headline, about text or topics sends the profile back to review (hidden meanwhile); pausing, availability and capacity are immediate; stepping down closes open requests with a note. All decisions are audited. The directory says FREEVERSE does not verify credentials.
+3. **Projects in every Universe (all 15):** a Projects space in each Universe where members start a project (name, summary, who they're looking for, team limit), others ask to join, and the owner accepts or declines. Team members post updates and the team is notified. Owners can set status (looking for people / in progress / completed / archived), remove members or delete; members can leave. Limits: five active projects per owner, team size 2 to 12. Blocks hide projects both ways. Moderators can hide a project with a recorded reason (audited, the owner is told), and members can Report the owner through the existing report flow. FreeBuild's older "Projects" tab of showcase posts is now called "Project showcase"; nothing was removed. Mentorship and Projects notifications are now real, so they've left the "In development" list.
+
+## Changed files (follow-up)
+`migrations/src/0017_mentoring.sql.tpl`, `migrations/src/0018_projects.sql.tpl` (+ rendered), `server/modules/mentoring.ts`, `server/modules/projects.ts`, `server/modules/opportunities.ts`, `server/modules/identities.ts`, `server/modules/index.ts`, `server/authz/permissions.ts`, `server/services/alerts.ts`, `server/services/notify.ts`, `server/modules/notifications.ts`, `shared/api/projects.ts`, `shared/api/catalog.ts`, `shared/api/settings.ts`, `shared/universe-spaces.ts`, `src/pages/mentoring.tsx`, `src/pages/projects.tsx`, `src/pages/grow.tsx`, `src/pages/index.tsx`, `src/pages/settings.tsx`, `src/features/universe/tools.tsx`, `src/lib/routes.ts`, `test/mentoring.test.ts`, `test/projects.test.ts`, `test/notification-categories.test.ts`, `scripts/e2e.mjs`.
+
+## DB changes (follow-up)
+`0017_mentoring`: mentors gain `user_id`, `review_status`, review fields, `capacity`; mentor requests gain `reply`, `responded_at`. `0018_projects`: `projects`, `project_members`, `project_updates`. **Apply 0007 to 0018 to Supabase.**
+
+## Tests (final)
+`npm test`: **540/540** (sqlite and PostgreSQL). e2e: **258/258** on phone, tablet and desktop, including starting a project and posting an update, the mentor application going to review, and the reviewer queue opening.
+
+## Limits and decisions
+- Mentors and project owners are not identity-verified; the pages say so. Reporting a project goes through reporting its owner, since the report system covers posts, comments, people and messages; a project-specific report type would need a database change to the moderation tables. Want that next?
+- Existing members who already earned achievements will each get one notice on their next qualifying action.
+- Mentor review is open to Founder and Council. Say if moderators should review too.
+- Mentors currently reply with text only; there is no scheduling or video.
 
 ## Changed files
 `migrations/src/0015_messaging_controls.sql.tpl` (+ rendered sqlite/postgres), `shared/api/settings.ts`, `shared/api/messages.ts`, `server/modules/messages.ts`, `server/modules/privacy.ts`, `server/services/notify.ts`, `src/lib/links.ts`, `src/pages/messages.tsx` (new), `src/pages/inbox.tsx`, `src/pages/settings-messaging.tsx` (new), `src/pages/settings.tsx`, `src/styles.css`, `test/messaging-controls.test.ts`, `test/links.test.ts`, `scripts/e2e.mjs`, `package.json`.
 
 ## DB changes
-Migration `0015_messaging_controls`: `messages.reply_to_id`, `messages.expires_at`; `conversation_members.archived_at`, `muted`, `filtered`; new table `message_reactions`. Backward compatible. **Apply 0007 to 0015 to Supabase.**
+Migration `0016_notice_log` (new table `notice_log`, one row per one-off notice already sent). Migration `0015_messaging_controls`: `messages.reply_to_id`, `messages.expires_at`; `conversation_members.archived_at`, `muted`, `filtered`; new table `message_reactions`. Backward compatible. **Apply 0007 to 0016 to Supabase.**
 
 ## Tests actually run
-- `npm test`: **500/500 pass** (sqlite and PostgreSQL), including 14 new messaging-controls tests and 2 link tests.
-- Playwright e2e on phone, tablet and desktop, including a new step covering messaging search, tab switching, a setting that persists after reload, and honest labels on Notifications and Security. Result is in the delivery message.
+- `npm test`: **515/515 pass** (sqlite and PostgreSQL), including 14 messaging-controls tests, 2 link tests and 15 notification-category tests (reminders sent once and only to the right people, safety off/on, announcements founder-only and audited, expired messages and Nova history cleaned by the job).
+- Playwright e2e on phone, tablet and desktop, including a new step covering messaging search, tab switching, a setting that persists after reload, and honest labels on Notifications and Security. **254/254 pass**, including safety-toggle confirmation and a founder announcement arriving in Notifications.
 
 ## Limitations
 - Presence is coarse ("Active today") by design.
@@ -32,7 +57,11 @@ Migration `0015_messaging_controls`: `messages.reply_to_id`, `messages.expires_a
 - Calls, groups, typing indicators, forwarding, previews and media are not built, so they have no controls.
 - The wider audit relabelled and regrouped Notifications, Security and AI; Privacy and Accessibility were reviewed and left as they are because their controls are real.
 
-## Decisions needing your approval
-1. Should safety notices stay permanently on (current), or may members mute them?
-2. Do you want Notifications categories for Mentorship, Learning, Opportunities, Events and Projects built next, or kept as labelled placeholders until those areas send alerts?
-3. Should disappearing-message cleanup get a scheduled job later?
+## Earlier decisions (now answered)
+1. Achievement notices: people who already earned achievements will each get one notice the next time they do something that can earn one. Fine, or should existing ones be marked as already seen?
+2. Mentorship notifications need real mentors who can answer requests. Do you want a mentor onboarding flow before that category is built?
+3. Projects notifications need a Projects feature first. Which Universe should own it?
+
+## Known limits
+- Reminders arrive within about 10 minutes of the scheduled run, not to the minute.
+- The Nova cleanup scan reads every member's settings each run; fine at this size, to be indexed when membership grows.
