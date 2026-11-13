@@ -259,6 +259,8 @@ async function run(size, who = 'member') {
   });
   if (who === 'founder') await step('mentor applications queue opens for reviewers', async () => {
     await page.goto(`${BASE}/#/mentoring/review`); await page.getByRole('heading', { name: 'Mentor applications' }).waitFor();
+    const sw = page.getByRole('switch', { name: /moderators review mentor applications/i }); await sw.waitFor(); await sw.click(); await page.waitForTimeout(600); await page.reload();
+    if ((await page.getByRole('switch', { name: /moderators review mentor applications/i }).getAttribute('aria-checked')) !== 'true') throw new Error('policy did not persist');
   });
   if (who === 'founder') await step('universes admin: preview shows what members will see before saving; history is listed', async () => {
     await page.goto(`${BASE}/#/founder/universes`); await page.getByRole('heading', { name: 'Universes', exact: true }).waitFor({ timeout: 10000 });

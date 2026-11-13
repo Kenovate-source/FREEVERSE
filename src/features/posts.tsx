@@ -26,7 +26,7 @@ export const Author = ({ a, time, extra }: { a: AuthorView; time?: string; extra
 
 const KIND_LABEL: Record<PostKind, string> = { text: 'Post', image: 'Image', link: 'Link', video_link: 'Video link', question: 'Question', poll: 'Poll', article: 'Article', creative: 'Creative', resource: 'Resource', event: 'Event' };
 
-export function ReportDialog({ target, onClose }: { target: { type: 'post' | 'comment' | 'user' | 'message'; id: string } | null; onClose: () => void }) {
+export function ReportDialog({ target, onClose }: { target: { type: 'post' | 'comment' | 'user' | 'message' | 'project'; id: string } | null; onClose: () => void }) {
   const { say } = useToast(); const cats = useResource(() => api.get<{ categories: { id: string; label: string }[]; note: string }>('/api/reports/categories'), []);
   const [cat, setCat] = useState(''); const [details, setDetails] = useState(''); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   useEffect(() => { if (target) { setCat(''); setDetails(''); setErr(null); } }, [target]);

@@ -8,12 +8,13 @@ const PRIORITY: Record<string, Priority> = { self_harm_crisis: 'crisis', illegal
 /** Target response windows in hours. These are internal goals, NOT a promise to users: FREEVERSE has no 24/7 moderation. */
 export const TARGET_HOURS: Record<Priority, number> = { crisis: 4, high: 24, normal: 72, low: 168 };
 
-export interface FileReportInput { reporterId: string; targetType: 'post' | 'comment' | 'user' | 'message'; targetId: string; category: ReportCategory; details?: string | null; now: Date }
+export interface FileReportInput { reporterId: string; targetType: 'post' | 'comment' | 'user' | 'message' | 'project'; targetId: string; category: ReportCategory; details?: string | null; now: Date }
 
 async function targetUser(db: Db, type: string, id: string): Promise<string | null> {
   if (type === 'post') return (await db.get<{ author_id: string | null }>('SELECT author_id FROM posts WHERE id = $1', [id]))?.author_id ?? null;
   if (type === 'comment') return (await db.get<{ author_id: string | null }>('SELECT author_id FROM comments WHERE id = $1', [id]))?.author_id ?? null;
   if (type === 'user') return id;
+  if (type === 'project') return (await db.get<{ owner_id: string }>('SELECT owner_id FROM projects WHERE id = $1', [id]))?.owner_id ?? null;
   if (type === 'message') return (await db.get<{ sender_id: string | null }>('SELECT sender_id FROM messages WHERE id = $1', [id]))?.sender_id ?? null;
   return null;
 }
@@ -24,6 +25,10 @@ async function snapshotFor(db: Db, type: string, id: string): Promise<Record<str
   if (type === 'message') {
     const m = await db.get<any>('SELECT id, body, created_at FROM messages WHERE id = $1', [id]);
     return m ? { type: 'message', id: m.id, body: String(m.body).slice(0, 2000), sentAt: m.created_at, note: 'Only the reported message is included, not the rest of the conversation.' } : { type: 'message', missing: true };
+  }
+  if (type === 'project') {
+    const p = await db.get<any>('SELECT id, universe_id, title, summary, details, looking_for, status, created_at FROM projects WHERE id = $1', [id]);
+    return p ? { type: 'project', id: p.id, universe: p.universe_id, title: p.title, summary: p.summary, details: p.details ? String(p.details).slice(0, 2000) : null, lookingFor: p.looking_for, status: p.status, createdAt: p.created_at, note: 'Only the project page is included, not its team’s updates or private messages.' } : { type: 'project', missing: true };
   }
   const u = await db.get<any>('SELECT handle, display_name FROM users WHERE id = $1', [id]);
   return { type: 'user', handle: u?.handle ?? null, displayName: u?.display_name ?? null };
