@@ -1,0 +1,66 @@
+// Founder reports and meetings: real, stored records. See server/modules/founder-meetings.ts for what they can and cannot do.
+import { useState } from 'react';
+import { api } from '../api/client';
+import { Link } from '../lib/router';
+import { Async, Badge, Button, Card, TextArea, TextField, errMsg, useResource } from '../ui/kit';
+import { useToast } from '../state/toast';
+import { timeAgo } from '../lib/time';
+
+const rid = () => Math.random().toString(36).slice(2, 10);
+const toMarkdown = (r: any) => [`# ${r.title}`, `Generated ${r.body.generatedAt}`, '', r.body.basis, '', ...(r.body.changes.length ? ['## Changed since the previous report', ...r.body.changes.map((c: any) => `- ${c.label}: ${c.before} → ${c.after}`), ''] : []), ...r.body.sections.flatMap((s: any) => [`## ${s.heading}`, ...s.rows.map((x: any) => `- ${x.label}${x.value !== '' ? `: ${x.value}` : ''}${x.note ? ` (${x.note})` : ''}`), ''])].join('\n');
+
+export function ReportsPanel() {
+  const { say } = useToast(); const list = useResource(() => api.get<{ items: any[] }>('/api/founder-ai/reports'), []); const [open, setOpen] = useState<any>(null); const [busy, setBusy] = useState(false);
+  const view = async (id: string) => { try { setOpen((await api.get<{ report: any }>(`/api/founder-ai/reports/${id}`)).report); } catch (e) { say(errMsg(e), 'error'); } };
+  const make = async () => { setBusy(true); try { const r = await api.post<{ report: any }>('/api/founder-ai/reports', {}); setOpen(r.report); say('Report saved.'); list.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  const download = () => { const url = URL.createObjectURL(new Blob([toMarkdown(open)], { type: 'text/markdown' })); const a = document.createElement('a'); a.href = url; a.download = `${open.title.replace(/[^\w-]+/g, '-')}.md`; a.click(); URL.revokeObjectURL(url); };
+  return <div className="fr"><Card className="stack-sm"><div className="spread"><h2 className="h-sm">Reports</h2><Button size="sm" variant="primary" busy={busy} onClick={() => void make()}>Generate report</Button></div>
+    <p className="faint">A report is a saved snapshot of counted facts. It never contains private content. Each new one also shows what changed since the last.</p>
+    <Async res={list} empty={(d) => (d.items.length ? null : <p className="muted">No reports yet.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((r) => <li key={r.id}><button type="button" className={`fr-item${open?.id === r.id ? ' on' : ''}`} aria-pressed={open?.id === r.id} onClick={() => void view(r.id)}><strong>{r.title}</strong><span className="faint">{timeAgo(r.createdAt, Date.now())}</span></button></li>)}</ul>}</Async></Card>
+    {open ? <article className="card stack-sm" aria-labelledby="rep-h"><div className="spread"><h3 id="rep-h" className="h-md">{open.title}</h3><Button size="sm" onClick={download}>Download (.md)</Button></div>
+      <p className="faint">{open.body.basis}</p>
+      {open.body.changes.length > 0 && <section><h4 className="h-sm">Changed since the previous report</h4><ul>{open.body.changes.map((c: any) => <li key={c.label}>{c.label}: {c.before} → <strong>{c.after}</strong></li>)}</ul></section>}
+      {open.body.sections.map((s: any) => <section key={s.heading}><h4 className="h-sm">{s.heading}</h4><dl className="kv">{s.rows.map((r: any, i: number) => <div key={i} className="kv-row"><dt>{r.label}</dt><dd><strong>{String(r.value)}</strong>{r.note ? <span className="faint"> {r.note}</span> : null}</dd></div>)}</dl></section>)}</article> : <Card><p className="muted">Pick a report, or generate a new one.</p></Card>}</div>;
+}
+
+export function MeetingsPanel({ agents }: { agents: { id: string; name: string }[] }) {
+  const { say } = useToast(); const list = useResource(() => api.get<{ items: any[] }>('/api/founder-ai/meetings'), []); const [sel, setSel] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(''); const [when, setWhen] = useState(''); const [at, setAt] = useState<string[]>([]);
+  const create = async () => { setBusy(true); try { const r = await api.post<{ meeting: any }>('/api/founder-ai/meetings', { title, scheduledAt: new Date(when).toISOString(), attendees: at, agenda: [] }); setTitle(''); setWhen(''); setAt([]); setSel(r.meeting.id); say('Meeting added.'); list.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  return <div className="fr"><div className="stack-sm"><Card className="stack-sm"><h2 className="h-sm">Plan a meeting</h2><form className="stack-sm" onSubmit={(e) => { e.preventDefault(); void create(); }}>
+    <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} /><TextField label="When" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+    <fieldset className="stack-sm"><legend className="h-sm">Who is on the agenda to be consulted</legend><div className="row-wrap">{agents.map((a) => <label key={a.id} className="chip-check"><input type="checkbox" checked={at.includes(a.id)} onChange={(e) => setAt(e.target.checked ? [...at, a.id] : at.filter((x) => x !== a.id))} /> {a.name}</label>)}</div></fieldset>
+    <div><Button type="submit" size="sm" variant="primary" busy={busy} disabled={title.trim().length < 3 || !when}>Add meeting</Button></div></form></Card>
+    <Async res={list} empty={(d) => (d.items.length ? null : <p className="muted">No meetings yet.</p>)}>{(d) => <ul className="plain stack-sm">{d.items.map((m) => <li key={m.id}><button type="button" className={`fr-item${sel === m.id ? ' on' : ''}`} aria-pressed={sel === m.id} onClick={() => setSel(m.id)}><strong>{m.title}</strong><span className="faint">{new Date(m.scheduledAt).toLocaleString()} · {m.status}</span></button></li>)}</ul>}</Async></div>
+    {list.data?.items.find((m) => m.id === sel) ? <MeetingDetail key={sel} m={list.data.items.find((m) => m.id === sel)} agents={agents} reload={list.reload} /> : <Card><p className="muted">Pick a meeting to see its agenda, briefing, notes and action items.</p></Card>}</div>;
+}
+
+function MeetingDetail({ m, agents, reload }: { m: any; agents: { id: string; name: string }[]; reload: () => void }) {
+  const { say } = useToast(); const [notes, setNotes] = useState<string>(m.notes); const [item, setItem] = useState(''); const [act, setAct] = useState(''); const [owner, setOwner] = useState('founder'); const [busy, setBusy] = useState(false);
+  const name = (id: string) => agents.find((a) => a.id === id)?.name ?? id;
+  const patch = async (body: any, msg?: string) => { setBusy(true); try { await api.patch(`/api/founder-ai/meetings/${m.id}`, body); if (msg) say(msg); reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  const brief = async () => { setBusy(true); try { await api.post(`/api/founder-ai/meetings/${m.id}/briefing`, {}); say('Briefing saved with this meeting.'); reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  const sendTask = async (a: any) => { setBusy(true); try { const r = await api.post<{ delegation: { id: string; status: string } }>('/api/founder-ai/delegate', { to: a.owner, title: a.text.slice(0, 100).padEnd(3, '.'), prompt: `From the meeting “${m.title}”: ${a.text}`.slice(0, 2000) }); await api.patch(`/api/founder-ai/meetings/${m.id}`, { actions: m.actions.map((x: any) => (x.id === a.id ? { ...x, delegationId: r.delegation.id } : x)) }); say('Sent to the specialist as a task. It can only advise.'); reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  return <article className="card stack-sm" aria-labelledby="mt-h"><div className="spread"><h3 id="mt-h" className="h-md">{m.title}</h3><Badge tone={m.status === 'held' ? 'ok' : m.status === 'cancelled' ? 'warn' : 'violet'}>{m.status}</Badge></div>
+    <p className="muted">{new Date(m.scheduledAt).toLocaleString()}. To consult: {m.attendees.length ? m.attendees.map(name).join(', ') : 'nobody yet'}. Agents are only listed. They don’t speak, vote or decide in a meeting.</p>
+    <section className="stack-sm"><h4 className="h-sm">Briefing</h4>{m.briefing ? <><ul>{m.briefing.items.length ? m.briefing.items.map((b: any, i: number) => <li key={i}>{b.text} <Button size="sm" variant="ghost" onClick={() => void patch({ agenda: [...m.agenda, { id: rid(), text: b.text.slice(0, 300) }] }, 'Added to the agenda.')}>Add to agenda</Button></li>) : <li>Nothing is waiting.</li>}</ul><p className="faint">{m.briefing.basis} Taken {timeAgo(m.briefing.at, Date.now())}.</p></> : <p className="muted">No briefing yet.</p>}<div><Button size="sm" busy={busy} onClick={() => void brief()}>{m.briefing ? 'Refresh briefing' : 'Prepare briefing from real records'}</Button></div></section>
+    <section className="stack-sm"><h4 className="h-sm">Agenda</h4><ol>{m.agenda.map((a: any) => <li key={a.id}>{a.text} <Button size="sm" variant="ghost" aria-label={`Remove ${a.text}`} onClick={() => void patch({ agenda: m.agenda.filter((x: any) => x.id !== a.id) })}>Remove</Button></li>)}</ol>
+      <form className="row-wrap" onSubmit={(e) => { e.preventDefault(); if (item.trim()) { void patch({ agenda: [...m.agenda, { id: rid(), text: item.trim() }] }); setItem(''); } }}><TextField label="Add an agenda item" value={item} onChange={(e) => setItem(e.target.value)} /><Button type="submit" size="sm" disabled={!item.trim()}>Add</Button></form></section>
+    <section className="stack-sm"><h4 className="h-sm">Notes</h4><TextArea label="What was said and decided" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} /><div><Button size="sm" busy={busy} onClick={() => void patch({ notes }, 'Notes saved.')}>Save notes</Button></div></section>
+    <section className="stack-sm"><h4 className="h-sm">Action items</h4><ul className="plain stack-sm">{m.actions.map((a: any) => <li key={a.id} className="row-wrap"><label><input type="checkbox" checked={a.done} onChange={(e) => void patch({ actions: m.actions.map((x: any) => (x.id === a.id ? { ...x, done: e.target.checked } : x)) })} /> <span style={a.done ? { textDecoration: 'line-through' } : undefined}>{a.text}</span></label> <Badge>{a.owner === 'founder' ? 'You' : name(a.owner)}</Badge>
+      {a.owner !== 'founder' && !a.done && (a.delegationId ? <span className="faint">task sent</span> : <Button size="sm" variant="ghost" onClick={() => void sendTask(a)}>Send as task</Button>)}</li>)}</ul>
+      <form className="row-wrap" onSubmit={(e) => { e.preventDefault(); if (act.trim()) { void patch({ actions: [...m.actions, { id: rid(), text: act.trim(), owner, done: false }] }); setAct(''); } }}><TextField label="New action item" value={act} onChange={(e) => setAct(e.target.value)} /><label>Owner <select value={owner} onChange={(e) => setOwner(e.target.value)}><option value="founder">You</option>{agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><Button type="submit" size="sm" disabled={!act.trim()}>Add</Button></form></section>
+    <div className="row-wrap">{m.status === 'scheduled' && <><Button size="sm" variant="primary" busy={busy} onClick={() => void patch({ status: 'held' }, 'Marked as held.')}>Mark as held</Button><Button size="sm" variant="ghost" busy={busy} onClick={() => void patch({ status: 'cancelled' }, 'Cancelled.')}>Cancel</Button></>}{m.status !== 'scheduled' && <Button size="sm" onClick={() => void patch({ status: 'scheduled' })}>Reopen</Button>}<Link to="/founder/audit" className="btn btn-ghost btn-sm">Audit log</Link></div></article>;
+}
+
+/** Product announcements: the Founder's own words, delivered as in-app notifications to members who haven't turned them off. */
+export function AnnouncementsPanel() {
+  const { say } = useToast(); const list = useResource(() => api.get<{ items: { id: string; at: string; text: string; sent: number }[] }>('/api/founder-ai/announcements'), []);
+  const [text, setText] = useState(''); const [busy, setBusy] = useState(false);
+  const send = async () => { setBusy(true); try { const r = await api.post<{ sent: number }>('/api/founder-ai/announcements', { text }); say(`Sent to ${r.sent} member${r.sent === 1 ? '' : 's'}.`); setText(''); list.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
+  return <Card className="stack-sm"><h2 className="h-sm">Product announcements</h2>
+    <p className="muted">Goes to every active member as a notification, except people who switched announcements off. Keep it short and factual. It is recorded in the audit log with your exact words, and it can’t be recalled once sent.</p>
+    <TextArea label="Announcement" value={text} maxLength={280} onChange={(e) => setText(e.target.value)} hint={`${text.length}/280`} />
+    <Button variant="primary" busy={busy} disabled={text.trim().length < 5} onClick={() => void send()} style={{ justifySelf: 'start' }}>Send to members</Button>
+    <Async res={list} empty={(d) => (d.items.length ? null : <p className="muted">Nothing sent yet.</p>)}>{(d) => <ul className="plain stack-sm" aria-label="Sent announcements">{d.items.map((a) => <li key={a.id}><span>{a.text}</span> <span className="faint">{timeAgo(a.at, Date.now())} · {a.sent} sent</span></li>)}</ul>}</Async></Card>;
+}

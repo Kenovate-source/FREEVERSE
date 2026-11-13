@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { checkAchievements } from '../services/alerts';
 import type { ModuleDef } from './types';
 import { conflict, notFound } from '../http/errors';
 import { created } from '../http/router';
@@ -38,6 +39,7 @@ export const opportunitiesModule: ModuleDef = {
       const now = c.now().toISOString();
       const r = await c.db.run('UPDATE opportunity_tracking SET status = $3, updated_at = $4 WHERE user_id = $1 AND opportunity_id = $2', [c.me.userId, c.params.id, c.body.status, now]);
       if (!r.changes) await c.db.run('INSERT INTO opportunity_tracking (user_id, opportunity_id, status, updated_at) VALUES ($1,$2,$3,$4)', [c.me.userId, c.params.id, c.body.status, now]);
+      await checkAchievements(c.db, c.now(), c.me.userId);
       return { ok: true, status: c.body.status };
     });
     router.delete('/api/opportunities/:id/tracking', { auth: 'active' }, async (c) => { await c.db.run('DELETE FROM opportunity_tracking WHERE user_id = $1 AND opportunity_id = $2', [c.me.userId, c.params.id]); return { ok: true }; });
@@ -57,6 +59,7 @@ export const opportunitiesModule: ModuleDef = {
       if (!m) throw notFound('We couldn’t find that mentor.');
       if (await c.db.get('SELECT 1 AS x FROM mentor_requests WHERE user_id = $1 AND mentor_id = $2', [c.me.userId, m.id])) throw conflict('You have already asked this mentor.', 'already_requested');
       await c.db.run('INSERT INTO mentor_requests (id, user_id, mentor_id, message, status, created_at) VALUES ($1,$2,$3,$4,$5,$6)', [uuid(), c.me.userId, m.id, c.body.message ?? null, 'received', c.now().toISOString()]);
+      await checkAchievements(c.db, c.now(), c.me.userId);
       return created({ ok: true, demo: bool(m.is_demo), note: bool(m.is_demo) ? 'Recorded. This is a demo mentor, so no real person will see it.' : 'Recorded.' });
     });
     router.delete('/api/mentors/:id/requests', { auth: 'active' }, async (c) => { await c.db.run('DELETE FROM mentor_requests WHERE user_id = $1 AND mentor_id = $2', [c.me.userId, c.params.id]); return { ok: true }; });

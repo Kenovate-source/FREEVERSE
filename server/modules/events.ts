@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { checkAchievements } from '../services/alerts';
 import type { ModuleDef } from './types';
 import { notFound } from '../http/errors';
 import { bool } from '../db';
@@ -41,6 +42,7 @@ export const eventsModule: ModuleDef = {
       const now = c.now().toISOString();
       const r = await c.db.run('UPDATE event_rsvps SET response = $3, updated_at = $4 WHERE event_id = $1 AND user_id = $2', [c.params.id, c.me.userId, c.body.response, now]);
       if (!r.changes) await c.db.run('INSERT INTO event_rsvps (event_id, user_id, response, updated_at) VALUES ($1,$2,$3,$4)', [c.params.id, c.me.userId, c.body.response, now]);
+      await checkAchievements(c.db, c.now(), c.me.userId);
       return { ok: true, response: c.body.response };
     });
     router.delete('/api/events/:id/rsvp', { auth: 'active' }, async (c) => { await c.db.run('DELETE FROM event_rsvps WHERE event_id = $1 AND user_id = $2', [c.params.id, c.me.userId]); return { ok: true }; });

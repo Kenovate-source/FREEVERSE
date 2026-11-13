@@ -7,6 +7,7 @@ import { registerEraser, registerExporter } from '../services/erasure';
 import { likeTerm, savedSet, tagsOf } from '../catalog/common';
 import { LEARN_FORMATS, type LearnCard, type LearnDetail, type LearnFormat, type LearnList } from '../../shared/api/catalog';
 import type { Db } from '../db';
+import { checkAchievements, learningDone } from '../services/alerts';
 
 const DEMO_NOTICE = 'Demo content: this entry illustrates how Learn works. It is not a live, reviewed catalogue.';
 
@@ -75,6 +76,7 @@ export const learnModule: ModuleDef = {
       const had = await c.db.get('SELECT 1 AS x FROM learn_progress WHERE user_id = $1 AND item_id = $2', [c.me.userId, r.id]);
       if (had) await c.db.run('UPDATE learn_progress SET status = $3, percent = $4, data = $5, updated_at = $6, completed_at = $7 WHERE user_id = $1 AND item_id = $2', [c.me.userId, r.id, completed ? 'completed' : 'in_progress', percent, JSON.stringify(data), now, completed ? now : null]);
       else await c.db.run('INSERT INTO learn_progress (user_id, item_id, status, percent, data, updated_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7)', [c.me.userId, r.id, completed ? 'completed' : 'in_progress', percent, JSON.stringify(data), now, completed ? now : null]);
+      if (completed) { const t = await c.db.get<{ title: string }>('SELECT title FROM learn_items WHERE id = $1', [r.id]); await learningDone(c.db, c.now(), c.me.userId, r.id, t?.title ?? 'a learning item'); await checkAchievements(c.db, c.now(), c.me.userId); }
       return { ok: true, status: completed ? 'completed' : 'in_progress', percent, result: (data as any).results ? data : undefined };
     });
     router.delete('/api/learn/:slug/progress', { auth: 'active' }, async (c) => {
