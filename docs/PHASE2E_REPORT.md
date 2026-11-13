@@ -19,6 +19,26 @@
 - Nova & AI data: added an honest "Not available yet" card (voice, per-topic data permissions, AI notifications).
 - Bug found and fixed: the Notifications toggles never worked. The settings stored plural keys (`comments`) and notifications used singular types (`comment`), so switching a toggle off did nothing. `notify.ts` now maps both. The dead "Event updates" toggle was removed from the page (nothing emits it).
 
+## Follow-up requested after review (also in this delivery)
+1. **Achievements:** you're notified when you earn one *and* when new ones become available to you (a single notice, with its own switch). Anything that already existed is recorded silently the first time, so nobody is flooded; the first identity is a quiet baseline.
+2. **Mentor onboarding (real mentors):** apply with a headline, about text, topics, availability and capacity, and agree to the ground rules. Every text field is screened. A reviewer (Founder or Council, permission `mentors.review`) approves or declines, with a required reason on decline, and **cannot review their own application**. Approved mentors appear in the directory as "Community mentor" next to the clearly labelled demo ones. Requests now reach the mentor (notified), who accepts or declines with a reply; the requester is notified and, on acceptance, gets a link to the mentor's profile to message them under the usual messaging rules. Capacity limits, blocks, duplicate and self-requests are enforced. Editing the headline, about text or topics sends the profile back to review (hidden meanwhile); pausing, availability and capacity are immediate; stepping down closes open requests with a note. All decisions are audited. The directory says FREEVERSE does not verify credentials.
+3. **Projects in every Universe (all 15):** a Projects space in each Universe where members start a project (name, summary, who they're looking for, team limit), others ask to join, and the owner accepts or declines. Team members post updates and the team is notified. Owners can set status (looking for people / in progress / completed / archived), remove members or delete; members can leave. Limits: five active projects per owner, team size 2 to 12. Blocks hide projects both ways. Moderators can hide a project with a recorded reason (audited, the owner is told), and members can Report the owner through the existing report flow. FreeBuild's older "Projects" tab of showcase posts is now called "Project showcase"; nothing was removed. Mentorship and Projects notifications are now real, so they've left the "In development" list.
+
+## Changed files (follow-up)
+`migrations/src/0017_mentoring.sql.tpl`, `migrations/src/0018_projects.sql.tpl` (+ rendered), `server/modules/mentoring.ts`, `server/modules/projects.ts`, `server/modules/opportunities.ts`, `server/modules/identities.ts`, `server/modules/index.ts`, `server/authz/permissions.ts`, `server/services/alerts.ts`, `server/services/notify.ts`, `server/modules/notifications.ts`, `shared/api/projects.ts`, `shared/api/catalog.ts`, `shared/api/settings.ts`, `shared/universe-spaces.ts`, `src/pages/mentoring.tsx`, `src/pages/projects.tsx`, `src/pages/grow.tsx`, `src/pages/index.tsx`, `src/pages/settings.tsx`, `src/features/universe/tools.tsx`, `src/lib/routes.ts`, `test/mentoring.test.ts`, `test/projects.test.ts`, `test/notification-categories.test.ts`, `scripts/e2e.mjs`.
+
+## DB changes (follow-up)
+`0017_mentoring`: mentors gain `user_id`, `review_status`, review fields, `capacity`; mentor requests gain `reply`, `responded_at`. `0018_projects`: `projects`, `project_members`, `project_updates`. **Apply 0007 to 0018 to Supabase.**
+
+## Tests (final)
+`npm test`: **540/540** (sqlite and PostgreSQL). e2e: **258/258** on phone, tablet and desktop, including starting a project and posting an update, the mentor application going to review, and the reviewer queue opening.
+
+## Limits and decisions
+- Mentors and project owners are not identity-verified; the pages say so. Reporting a project goes through reporting its owner, since the report system covers posts, comments, people and messages; a project-specific report type would need a database change to the moderation tables. Want that next?
+- Existing members who already earned achievements will each get one notice on their next qualifying action.
+- Mentor review is open to Founder and Council. Say if moderators should review too.
+- Mentors currently reply with text only; there is no scheduling or video.
+
 ## Changed files
 `migrations/src/0015_messaging_controls.sql.tpl` (+ rendered sqlite/postgres), `shared/api/settings.ts`, `shared/api/messages.ts`, `server/modules/messages.ts`, `server/modules/privacy.ts`, `server/services/notify.ts`, `src/lib/links.ts`, `src/pages/messages.tsx` (new), `src/pages/inbox.tsx`, `src/pages/settings-messaging.tsx` (new), `src/pages/settings.tsx`, `src/styles.css`, `test/messaging-controls.test.ts`, `test/links.test.ts`, `scripts/e2e.mjs`, `package.json`.
 
@@ -37,7 +57,7 @@ Migration `0016_notice_log` (new table `notice_log`, one row per one-off notice 
 - Calls, groups, typing indicators, forwarding, previews and media are not built, so they have no controls.
 - The wider audit relabelled and regrouped Notifications, Security and AI; Privacy and Accessibility were reviewed and left as they are because their controls are real.
 
-## Decisions needing your approval
+## Earlier decisions (now answered)
 1. Achievement notices: people who already earned achievements will each get one notice the next time they do something that can earn one. Fine, or should existing ones be marked as already seen?
 2. Mentorship notifications need real mentors who can answer requests. Do you want a mentor onboarding flow before that category is built?
 3. Projects notifications need a Projects feature first. Which Universe should own it?
