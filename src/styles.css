@@ -808,3 +808,22 @@ html[data-motion-level="less"] .ef-pulse, html[data-motion-level="less"] .ef-rip
 .ef-pulse, .ef-ripple, .ef-particle { pointer-events: none; }
 .console-grid > *, .ef, .ac-map { min-width: 0; max-width: 100%; }
 .ef-tools .btn { min-height: 44px; }
+
+/* Phase 2E: conversation appearance (driven by Messaging settings) and message extras */
+.thread[data-chat-size="sm"] { font-size: .9rem; } .thread[data-chat-size="lg"] { font-size: 1.12rem; }
+.thread[data-chat-bg="soft"] { background: linear-gradient(180deg, rgba(120,140,255,.10), rgba(47,216,238,.06)); border-radius: 16px; padding: 12px; }
+.thread[data-chat-bg="dots"] { background-image: radial-gradient(rgba(150,175,255,.18) 1px, transparent 1px); background-size: 18px 18px; border-radius: 16px; padding: 12px; }
+.thread[data-bubble="square"] .bubble { border-radius: 4px; }
+.thread[data-bubble="minimal"] .bubble { background: transparent !important; border: 0; border-left: 3px solid var(--border-strong, rgba(255,255,255,.3)); border-radius: 0; color: inherit; padding: 4px 12px; }
+.thread[data-bubble="minimal"] .bubble.mine { border-left-color: var(--cyan, #2fd8ee); }
+.thread[data-chat-theme="calm"] .bubble.mine { background: linear-gradient(120deg, #2a6b63, #3b5f8a); }
+.thread[data-chat-theme="contrast"] .bubble.mine { background: #000; color: #fff; border: 2px solid #fff; }
+.thread[data-chat-theme="contrast"] .bubble.theirs { background: #fff; color: #000; border: 2px solid #000; }
+.bubble a { color: inherit; text-decoration: underline; }
+.bubble .quote, .composer-quote { font-size: .82rem; opacity: .85; border-left: 3px solid currentColor; padding: 2px 8px; margin-bottom: 6px; }
+.reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.react { min-height: 32px; min-width: 32px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); background: rgba(0,0,0,.18); color: inherit; font: inherit; cursor: pointer; }
+.react.mine { outline: 2px solid currentColor; }
+.bubble-tools { margin-top: 4px; gap: 2px; } .bubble-tools .btn { min-height: 44px; color: inherit; }
+.presence.on { color: #6ee7a8; font-weight: 600; }
+.msg-row { padding: 14px; }

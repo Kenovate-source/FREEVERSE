@@ -15,38 +15,8 @@ import { MESSAGE_LIMITS, type ConversationView, type MessageView } from '../../s
 
 type P = { params: Record<string, string>; query: URLSearchParams };
 
-// ───────── Messages ─────────
-export function MessagesPage(_: P) {
-  const res = useResource(() => api.get<{ items: ConversationView[]; requests: ConversationView[] }>('/api/conversations'), []);
-  const row = (c: ConversationView) => <Link key={c.id} to={`/messages/${c.id}`} className="card convo"><Avatar avatar={c.other.avatar} name={c.other.displayName} size={44} /><div className="grow stack-0"><strong>{c.other.displayName}</strong><div className="muted ellipsis">{c.lastMessage ? `${c.lastMessage.mine ? 'You: ' : ''}${c.lastMessage.preview}` : 'No messages yet'}</div></div>{c.unread > 0 && <Badge tone="pink">{c.unread} new</Badge>}</Link>;
-  return <div className="stack-lg"><PageHead title="Messages">Start a conversation from someone’s profile. First messages go to their requests until they accept.</PageHead>
-    <Async res={res} empty={(d) => (!d.items.length && !d.requests.length ? <EmptyState icon="message" title="No conversations yet">Find people in <Link to="/communities">communities</Link> or <Link to="/explore">Explore</Link>, then message them from their profile.</EmptyState> : null)}>{(d) => <>
-      {d.requests.length > 0 && <section className="stack-sm" aria-label="Message requests"><h2 className="h-sm">Requests ({d.requests.length})</h2><p className="muted">They can’t see that you’ve read these until you reply.</p>{d.requests.map(row)}</section>}
-      {d.items.length > 0 && <section className="stack-sm" aria-label="Conversations"><h2 className="h-sm">Conversations</h2>{d.items.map(row)}</section>}</>}</Async></div>;
-}
-
-export function ConversationPage({ params }: P) {
-  const { say } = useToast(); const conv = useResource(() => api.get<{ conversation: ConversationView }>(`/api/conversations/${params.id}`), [params.id]);
-  const msgs = useResource(() => api.get<{ items: MessageView[]; pendingRequest: boolean }>(`/api/conversations/${params.id}/messages`), [params.id]);
-  const prefs = useResource(() => api.get<{ settings: { messaging: { enterToSend: boolean; density: 'comfortable' | 'compact' } } }>('/api/settings'), []); const mp = prefs.data?.settings.messaging;
-  const [text, setText] = useState(''); const [busy, setBusy] = useState(false); const [rep, setRep] = useState(false); const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs.data?.items.length]);
-  useEffect(() => { const t = setInterval(() => msgs.reload(), 15000); return () => clearInterval(t); /* eslint-disable-next-line */ }, [params.id]);
-  const send = async () => { setBusy(true); try { await api.post(`/api/conversations/${params.id}/messages`, { body: text }); setText(''); msgs.reload(); conv.reload(); } catch (e) { say(errMsg(e), 'error'); } finally { setBusy(false); } };
-  const act = async (p: 'accept' | 'decline') => { try { await api.post(`/api/conversations/${params.id}/${p}`); if (p === 'decline') navigate('/messages'); else { conv.reload(); msgs.reload(); } } catch (e) { say(errMsg(e), 'error'); } };
-  return <Async res={conv}>{({ conversation: c }) => (
-    <div className="stack">
-      <PageHead title={c.other.displayName} back={{ to: '/messages', label: 'Messages' }} actions={<>{c.other.handle && <Link className="btn btn-ghost btn-sm" to={`/u/${c.other.handle}`}>Profile</Link>}<Button size="sm" variant="ghost" onClick={() => setRep(true)}><Icon name="flag" size={14} /> Report</Button></>} />
-      {c.status === 'request' && <Notice tone="warn" title="Message request">Replying accepts it. Declining hides it.<div className="row-wrap"><Button size="sm" variant="primary" onClick={() => void act('accept')}>Accept</Button><Button size="sm" onClick={() => void act('decline')}>Decline</Button></div></Notice>}
-      {c.awaitingAcceptance && <Notice>{c.other.displayName} hasn’t accepted yet. They’ll see your message as a request.</Notice>}
-      <div className="thread" data-density={mp?.density ?? 'comfortable'} role="log" aria-live="polite" aria-label="Messages">
-        {msgs.data?.items.map((m) => <div key={m.id} className={`bubble ${m.mine ? 'mine' : 'theirs'}`}>{m.deleted ? <em className="faint">Message deleted</em> : m.body}<div className="faint small">{timeAgo(m.at, Date.now())}{m.mine && m.seen ? ' · Seen' : ''}{m.mine && !m.deleted && <> · <button type="button" className="linkish" onClick={async () => { await api.del(`/api/messages/${m.id}`); msgs.reload(); }}>Delete</button></>}</div></div>)}
-        <div ref={end} />
-      </div>
-      {c.canSend ? <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) void send(); }}><TextArea label="Message" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (mp?.enterToSend && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (text.trim() && !busy) void send(); } }} maxLength={MESSAGE_LIMITS.bodyMax} rows={2} /><Button type="submit" variant="primary" busy={busy} disabled={!text.trim()}>Send</Button></form> : <Notice>{c.cannotSendReason ?? 'You can’t send messages here.'}</Notice>}
-      <ReportDialog target={rep && msgs.data?.items.length ? { type: 'user', id: c.other.id ?? '' } : null} onClose={() => setRep(false)} />
-    </div>)}</Async>;
-}
+// Messages moved to ./messages.
+export { MessagesPage, ConversationPage } from './messages';
 
 // ───────── Notifications ─────────
 export function NotificationsPage(_: P) {
