@@ -12,6 +12,7 @@ const BY_ROUTE: Record<string, string> = {
 };
 export function envFor(routeId: string | null | undefined, path = ''): string | null {
   if (path.startsWith('/soon/calls')) return 'calls';
+  if (path === '/founder/ai' || path.startsWith('/founder/ai/')) return 'founder-ai';
   const uv = /^\/universes\/([a-z]+)/.exec(path); if (uv) return `universe-${uv[1]}`;
   const sp = /^\/spaces\/([a-z_]+)/.exec(path); if (sp) return `space-${sp[1]}`;
   return routeId ? BY_ROUTE[routeId] ?? null : null;

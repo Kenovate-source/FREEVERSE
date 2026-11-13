@@ -80,12 +80,12 @@ for (const s of Object.keys(SIZES)) {
   check(`[${s}] no console errors in any condition`, results.filter((r) => r.size === s && r.errors.length).length === 0, '');
   check(`[${s}] Off stops visible movement everywhere`, off.every((r) => !r.moving), off.filter((r) => r.moving).map((r) => r.page).join(', '));
   check(`[${s}] Off draws no animated background and runs no CSS animations`, off.every((r) => r.running === 0 || r.canvasMode === 'none' || r.canvasMode === null), off.filter((r) => r.running > 0).map((r) => `${r.page}:${r.running}`).join(', '));
-  const still = full.filter((r) => !r.moving).map((r) => r.page); check(`[${s}] Full shows movement everywhere except deliberately calm pages (Settings, Founder AI when idle)`, still.every((p) => ['settings', 'founder-ai', 'founder-ecosystem'].includes(p)), `still: ${still.join(', ')}`);
+  const still = full.filter((r) => !r.moving).map((r) => r.page); check(`[${s}] Full shows movement everywhere except deliberately calm pages (Settings and the Founder ecosystem map)`, still.every((p) => ['settings', 'founder-ecosystem'].includes(p)), `still: ${still.join(', ')}`);
   check(`[${s}] Less moves no more than Full`, less.filter((r) => r.moving).length <= full.filter((r) => r.moving).length, '');
   check(`[${s}] OS reduced-motion behaves like Less or Off (nothing in constant motion)`, by('os-reduce', s).filter((r) => r.moving).length <= less.filter((r) => r.moving).length, by('os-reduce', s).filter((r) => r.moving).map((r) => r.page).join(', '));
   check(`[${s}] no-WebGL fallback renders every page with its heading`, by('no-webgl', s).every((r) => r.h1Visible || !r.h1), '');
   const shots = new Set(full.map((r) => r.shotHash)); check(`[${s}] all ${full.length} representative pages render a visibly different screen`, shots.size === full.length, `${shots.size} different`);
-  const noEnv = full.filter((r) => !r.canvasEnv && r.page !== 'founder-ecosystem' && r.page !== 'founder-ai' && r.page !== 'dashboard'); check(`[${s}] every page except the Dashboard and Founder pages has its own animated environment`, noEnv.length === 0, noEnv.map((r) => r.page).join(', '));
+  const noEnv = full.filter((r) => !r.canvasEnv && r.page !== 'founder-ecosystem' && r.page !== 'dashboard'); check(`[${s}] every page except the Dashboard and the Founder ecosystem map has its own animated environment`, noEnv.length === 0, noEnv.map((r) => r.page).join(', '));
   const canv = full.map((r) => r.canvasEnv).filter(Boolean); check(`[${s}] no two pages share the same environment (${new Set(canv).size} different of ${canv.length})`, new Set(canv).size === canv.length, canv.join(','));
   const slow = full.filter((r) => r.ready > 4000); check(`[${s}] every page is interactive within 4 s`, slow.length === 0, slow.map((r) => `${r.page}:${r.ready}ms`).join(', '));
 }
