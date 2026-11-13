@@ -49,6 +49,21 @@ for (const dialect of DIALECTS) {
       assert.equal((await notes(b, 'learning')).length, 0);
     });
 
+    test('new achievable achievements: baseline is silent, additions are announced once in one notice, switch honoured', async () => {
+      const { checkNewAchievable } = await import('../server/services/alerts');
+      const c = await t.member('c@example.com', { handle: 'cara', name: 'Cara' });
+      assert.equal(await checkNewAchievable(t.db, t.clock.now(), c.userId), 0, 'no identity yet: nothing to look at');
+      assert.equal((await t.call('POST', '/api/identities', { token: c.token, body: { archetype: 'student', primary: true } })).status, 201);
+      assert.equal((await notes(c, 'achievement_new')).length, 0, 'the first identity is a quiet baseline');
+      assert.equal(await checkNewAchievable(t.db, t.clock.now(), c.userId), 0, 'nothing new, nothing sent');
+      assert.equal((await t.call('POST', '/api/identities', { token: c.token, body: { archetype: 'creator' } })).status, 201);
+      const n = await notes(c, 'achievement_new'); assert.equal(n.length, 1, 'a second identity brings new achievements, in one notice'); assert.match(n[0].text, /new achievement/);
+      assert.equal(await checkNewAchievable(t.db, t.clock.now(), c.userId), 0, 'once');
+      await t.call('PATCH', '/api/settings', { token: c.token, body: { notifications: { achievements_new: false } } });
+      assert.equal((await t.call('POST', '/api/identities', { token: c.token, body: { archetype: 'developer' } })).status, 201);
+      assert.equal((await notes(c, 'achievement_new')).length, 1, 'off means no new notice');
+    });
+
     test('safety notices can be switched off, and are on by default', async () => {
       const { notify } = await import('../server/services/notify');
       assert.equal(await notify(t.db, { userId: a.userId, type: 'moderation', data: {} }, t.clock.now()), true, 'on by default');
