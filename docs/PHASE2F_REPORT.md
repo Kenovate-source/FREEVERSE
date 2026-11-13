@@ -49,3 +49,10 @@ None in 2F. Overall for Phase 2 the new migrations are 0007 to 0019; they still 
 ## 8. Decisions for you
 1. Should the Founder AI page have a gentle idle animation, or stay still until real work is happening (current, honest choice)?
 2. Do you want a real-device and deployed-site performance pass once the app is live?
+
+## Update after review: Founder AI now animated
+Decision answered: the idle Founder AI page gets an animation. New environment `founder-ai` (`src/environments/envs/founder-ai.ts`): agents on an outer orbit send proposals inward; each one stops and waits at an amber approval ring around the Founder, and only then passes through (green) and settles. It shows the bounded-autonomy rule (nothing crosses the ring unapproved). Mapped to `/founder/ai`. Follows the motion setting like every other page (Off = none, Less/OS reduce = calm).
+QA re-run: 26/26. Page is no longer in the "deliberately still" list; Settings and the Founder ecosystem map remain still.
+
+## Real-device and deployed performance pass (decision: yes)
+Not possible from this sandbox. To do after deployment: open the 12 pages on a real phone and a mid-range laptop against the Vercel URL, run `scripts/qa2f.mjs` with BASE pointed at the deployed site, and record the readyMs, long tasks and heap output. Send me the JSON and I will go through the results.
