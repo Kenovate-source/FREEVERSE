@@ -28,16 +28,20 @@
 `migrations/src/0017_mentoring.sql.tpl`, `migrations/src/0018_projects.sql.tpl` (+ rendered), `server/modules/mentoring.ts`, `server/modules/projects.ts`, `server/modules/opportunities.ts`, `server/modules/identities.ts`, `server/modules/index.ts`, `server/authz/permissions.ts`, `server/services/alerts.ts`, `server/services/notify.ts`, `server/modules/notifications.ts`, `shared/api/projects.ts`, `shared/api/catalog.ts`, `shared/api/settings.ts`, `shared/universe-spaces.ts`, `src/pages/mentoring.tsx`, `src/pages/projects.tsx`, `src/pages/grow.tsx`, `src/pages/index.tsx`, `src/pages/settings.tsx`, `src/features/universe/tools.tsx`, `src/lib/routes.ts`, `test/mentoring.test.ts`, `test/projects.test.ts`, `test/notification-categories.test.ts`, `scripts/e2e.mjs`.
 
 ## DB changes (follow-up)
-`0017_mentoring`: mentors gain `user_id`, `review_status`, review fields, `capacity`; mentor requests gain `reply`, `responded_at`. `0018_projects`: `projects`, `project_members`, `project_updates`. **Apply 0007 to 0018 to Supabase.**
+`0017_mentoring`: mentors gain `user_id`, `review_status`, review fields, `capacity`; mentor requests gain `reply`, `responded_at`. `0018_projects`: `projects`, `project_members`, `project_updates`. **Apply 0007 to 0019 to Supabase.** (0019 edits the allowed report types. On Postgres it replaces two CHECK constraints; on SQLite it edits the schema text.)
 
 ## Tests (final)
-`npm test`: **540/540** (sqlite and PostgreSQL). e2e: **258/258** on phone, tablet and desktop, including starting a project and posting an update, the mentor application going to review, and the reviewer queue opening.
+`npm test`: **544/544** (sqlite and PostgreSQL). e2e: **258/258** on phone, tablet and desktop, including starting a project and posting an update, the mentor application going to review, and the reviewer queue opening.
 
-## Limits and decisions
-- Mentors and project owners are not identity-verified; the pages say so. Reporting a project goes through reporting its owner, since the report system covers posts, comments, people and messages; a project-specific report type would need a database change to the moderation tables. Want that next?
-- Existing members who already earned achievements will each get one notice on their next qualifying action.
-- Mentor review is open to Founder and Council. Say if moderators should review too.
-- Mentors currently reply with text only; there is no scheduling or video.
+## Your answers to the last decisions (implemented)
+- **Project reports:** a project can now be reported directly (migration `0019_report_projects`). The report opens a moderation case with a snapshot of the project page only, moderators can remove it from the case (the project is hidden and the owner is told), and the owner can appeal; an overturned appeal restores it.
+- **Moderators reviewing mentor applications:** Founder and Council always review. The Founder has a switch on the Mentor applications page ("Let moderators review mentor applications"), off by default. Turning it on or off is audited, applies immediately, and nobody else can change it.
+- **Existing achievements:** members who already earned some get a notice on their next qualifying action, as you decided. Nothing is marked as seen.
+
+## Limits
+- Mentors and project owners are not identity-verified; the pages say so.
+- Mentors reply with text only; there is no scheduling or video.
+- Hiding a project from a case hides it for everyone except the owner and moderators.
 
 ## Changed files
 `migrations/src/0015_messaging_controls.sql.tpl` (+ rendered sqlite/postgres), `shared/api/settings.ts`, `shared/api/messages.ts`, `server/modules/messages.ts`, `server/modules/privacy.ts`, `server/services/notify.ts`, `src/lib/links.ts`, `src/pages/messages.tsx` (new), `src/pages/inbox.tsx`, `src/pages/settings-messaging.tsx` (new), `src/pages/settings.tsx`, `src/styles.css`, `test/messaging-controls.test.ts`, `test/links.test.ts`, `scripts/e2e.mjs`, `package.json`.

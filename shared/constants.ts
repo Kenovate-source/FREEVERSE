@@ -33,7 +33,7 @@ export type ReactionKind = (typeof REACTION_KINDS)[number];
 
 export const REPORT_CATEGORIES = ['harassment', 'unwanted_contact', 'self_harm_crisis', 'spam', 'impersonation', 'illegal', 'other'] as const;
 export type ReportCategory = (typeof REPORT_CATEGORIES)[number];
-export const REPORT_TARGETS = ['post', 'comment', 'user', 'message'] as const;
+export const REPORT_TARGETS = ['post', 'comment', 'user', 'message', 'project'] as const;
 export type ReportTarget = (typeof REPORT_TARGETS)[number];
 
 export const TAG_KINDS = ['interest', 'learn_topic', 'content_category', 'participation', 'creative', 'career', 'goal', 'community_interest', 'skill'] as const;

@@ -8,6 +8,9 @@ import { notify } from '../services/notify';
 import { personCards } from '../services/people';
 import { registerEraser, registerExporter } from '../services/erasure';
 import { screenLabel } from '../../shared/label-screen';
+import { cfgGet } from '../governance/actions';
+
+const POLICY_KEY = 'mentors.moderators_review';
 
 const id = z.string().uuid();
 const tag = z.string().trim().min(2).max(30);
@@ -31,6 +34,8 @@ const mine = (r: any) => !r ? null : {
 export const mentoringModule: ModuleDef = {
   name: 'mentoring',
   register(router, s) {
+    /** Founder and Council always review. Moderators do only while the Founder has switched that on. */
+    const canReview = async (c: { db: typeof s.db; me: { permissions: ReadonlySet<string> } }) => c.me.permissions.has('mentors.review') || (c.me.permissions.has('moderation.case.act') && (await cfgGet<boolean>(c.db, POLICY_KEY, false)) === true);
     const loadMine = (c: { db: typeof s.db; me: { userId: string } }) => c.db.get<any>('SELECT * FROM mentors WHERE user_id = $1', [c.me.userId]);
     const screen = (b: { headline: string; bio: string; expertise: string[]; availabilityNote?: string }) => {
       for (const [k, v] of Object.entries({ headline: b.headline, bio: b.bio, availabilityNote: b.availabilityNote ?? '', expertise: b.expertise.join(' ') })) { const bad = v ? screenLabel(v) : null; if (bad) throw badRequest(bad, { [k]: 'label_not_allowed' }, 'label_not_allowed'); }
@@ -40,7 +45,7 @@ export const mentoringModule: ModuleDef = {
     router.get('/api/mentor-profile', { auth: 'active' }, async (c) => {
       const open = await c.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM mentor_requests r JOIN mentors m ON m.id = r.mentor_id WHERE m.user_id = $1 AND r.status = 'received'", [c.me.userId]);
       const active = await c.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM mentor_requests r JOIN mentors m ON m.id = r.mentor_id WHERE m.user_id = $1 AND r.status = 'facilitated'", [c.me.userId]);
-      return { profile: mine(await loadMine(c)), openRequests: Number(open?.n ?? 0), activeMentees: Number(active?.n ?? 0), canReview: c.me.permissions.has('mentors.review') };
+      return { profile: mine(await loadMine(c)), openRequests: Number(open?.n ?? 0), activeMentees: Number(active?.n ?? 0), canReview: await canReview(c) };
     });
     // Apply, or change what the directory shows. Changing the words you are reviewed on sends the profile back for review; it stays hidden until approved.
     router.put('/api/mentor-profile', { auth: 'active', body: profileBody, rate: { key: 'mentor-apply', limit: 6, windowMs: 3600_000 } }, async (c) => {
@@ -78,12 +83,19 @@ export const mentoringModule: ModuleDef = {
     });
 
     // ───────── review ─────────
-    const R = { perm: 'mentors.review' } as const;
-    router.get('/api/mentor-applications', { auth: R }, async (c) => {
+    router.get('/api/mentor-review-policy', { auth: { perm: 'founder.console' } }, async (c) => ({ moderatorsMayReview: (await cfgGet<boolean>(c.db, POLICY_KEY, false)) === true, canChange: c.me.permissions.has('config.manage') }));
+    router.put('/api/mentor-review-policy', { auth: { perm: 'config.manage' }, body: z.object({ moderatorsMayReview: z.boolean() }).strict() }, async (c) => {
+      await c.db.run('INSERT INTO platform_config (key, value, updated_by, updated_at) VALUES ($1,$2,$3,$4) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at', [POLICY_KEY, JSON.stringify(c.body.moderatorsMayReview), c.me.userId, c.now().toISOString()]);
+      await audit(c.db, { actorId: c.me.userId, actorRole: 'founder', action: c.body.moderatorsMayReview ? 'mentor.review_moderators_on' : 'mentor.review_moderators_off', targetType: 'config', outcome: 'success' }, c.now());
+      return { moderatorsMayReview: c.body.moderatorsMayReview };
+    });
+    router.get('/api/mentor-applications', { auth: 'active' }, async (c) => {
+      if (!(await canReview(c))) throw forbidden('You don’t review mentor applications.');
       const rows = await c.db.query<any>("SELECT m.*, u.handle FROM mentors m JOIN users u ON u.id = m.user_id WHERE m.review_status = 'pending' AND m.user_id IS NOT NULL ORDER BY m.submitted_at");
       return { items: rows.map((r) => ({ id: r.id, name: r.name, handle: r.handle, headline: r.headline, bio: r.bio, expertise: json<string[]>(r.expertise, []), availabilityNote: r.availability_note ?? null, capacity: Number(r.capacity), submittedAt: r.submitted_at, mine: r.user_id === c.me.userId })) };
     });
-    router.post('/api/mentor-applications/:id/decision', { auth: R, body: z.object({ decision: z.enum(['approve', 'reject']), note: z.string().trim().max(500).optional() }).strict(), rate: { key: 'mentor-review', limit: 60, windowMs: 3600_000 } }, async (c) => {
+    router.post('/api/mentor-applications/:id/decision', { auth: 'active', body: z.object({ decision: z.enum(['approve', 'reject']), note: z.string().trim().max(500).optional() }).strict(), rate: { key: 'mentor-review', limit: 60, windowMs: 3600_000 } }, async (c) => {
+      if (!(await canReview(c))) throw forbidden('You don’t review mentor applications.');
       const m = await c.db.get<any>("SELECT * FROM mentors WHERE id = $1 AND review_status = 'pending' AND user_id IS NOT NULL", [c.params.id]);
       if (!m) throw notFound('That application is not waiting for review.');
       if (m.user_id === c.me.userId) throw forbidden('You can’t review your own application. Another reviewer will.', 'own_application');

@@ -38,6 +38,10 @@ export const reportsModule: ModuleDef = {
         if (b.targetId === me) throw conflict('You cannot report yourself.', 'own_content');
         const u = await c.db.get<any>("SELECT id FROM users WHERE id = $1 AND status IN ('active','suspended')", [b.targetId]);
         if (!u) throw notFound('We couldn’t find that.');
+      } else if (b.targetType === 'project') {
+        const pr = await c.db.get<any>('SELECT owner_id FROM projects WHERE id = $1 AND hidden_reason IS NULL', [b.targetId]);
+        if (!pr || (await c.db.get('SELECT 1 AS x FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)', [me, pr.owner_id]))) throw notFound('We couldn’t find that.');
+        if (pr.owner_id === me) throw conflict('You cannot report your own project.', 'own_content');
       } else {
         const m = await c.db.get<any>('SELECT m.id, m.sender_id FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $2 WHERE m.id = $1', [b.targetId, me]);
         if (!m) throw notFound('We couldn’t find that.');

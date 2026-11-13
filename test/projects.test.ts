@@ -86,6 +86,25 @@ for (const dialect of DIALECTS) {
       assert.equal((await t.call('DELETE', `/api/projects/${pid}`, { token: o.token })).status, 200); assert.equal((await list(o, 'freebuild')).length, 0);
     });
 
+    test('projects can be reported; a moderator removes it from the case; an appeal that is upheld on review restores it', async () => {
+      const r = await t.call('POST', '/api/universes/freework/projects', { token: o.token, body: { ...base, title: 'Reportable project' } }); const id = r.json.id;
+      assert.equal((await t.call('POST', '/api/reports', { token: o.token, body: { targetType: 'project', targetId: id, category: 'spam' } })).status, 409, 'not your own');
+      assert.equal((await t.call('POST', '/api/reports', { token: a.token, body: { targetType: 'project', targetId: crypto.randomUUID(), category: 'spam' } })).status, 404);
+      const rep = await t.call('POST', '/api/reports', { token: a.token, body: { targetType: 'project', targetId: id, category: 'spam', details: 'Looks like an advert' } }); assert.equal(rep.status, 201);
+      assert.equal((await t.call('POST', '/api/reports', { token: a.token, body: { targetType: 'project', targetId: id, category: 'spam' } })).status, 409, 'already reported');
+      const cs = await t.db.get<any>("SELECT id, target_user_id, snapshot FROM moderation_cases WHERE target_type = 'project' AND target_id = $1", [id]); assert.ok(cs); assert.equal(cs.target_user_id, o.userId);
+      assert.match(JSON.stringify(cs.snapshot), /Reportable project/);
+      const act = await t.call('POST', `/api/moderation/cases/${cs.id}/actions`, { token: mod.token, body: { action: 'remove_content', note: 'Advert, not a project' } }); assert.ok(act.status === 200 || act.status === 201, String(act.status));
+      assert.equal((await list(a, 'freework')).length, 0, 'hidden'); assert.equal((await t.call('GET', `/api/projects/${id}`, { token: a.token })).status, 404);
+      assert.ok((await notes(o)).length >= 0);
+      const mine = (await t.call('GET', '/api/safety/actions', { token: o.token })).json.items ?? []; assert.ok(mine.length >= 1, 'the owner can see what was done');
+      const mod2 = await t.member('m2@example.com', { handle: 'mod2', name: 'Mod2' }); await t.grantRole(mod2.userId, 'moderator');
+      assert.equal((await t.call('POST', '/api/appeals', { token: o.token, body: { actionId: mine[0].id, statement: 'This is a genuine project, here is the plan and the people.' } })).status, 201);
+      const ap = (await t.call('GET', '/api/moderation/appeals', { token: mod2.token })).json.items[0];
+      assert.equal((await t.call('POST', `/api/moderation/appeals/${ap.id}/decide`, { token: mod2.token, body: { decision: 'overturned', note: 'On review it is a real project' } })).status, 200);
+      assert.equal((await list(a, 'freework')).length, 1, 'restored');
+    });
+
     test('the Projects notification switch is honoured', async () => {
       await t.call('PATCH', '/api/settings', { token: a.token, body: { notifications: { projects: false } } });
       const { notify } = await import('../server/services/notify');

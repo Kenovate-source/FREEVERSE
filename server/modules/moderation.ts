@@ -115,10 +115,10 @@ export const moderationModule: ModuleDef = {
 
       switch (b.action) {
         case 'remove_content': {
-          if (cs.target_type !== 'post' && cs.target_type !== 'comment') throw badRequest('Only posts and comments can be removed.');
+          if (cs.target_type !== 'post' && cs.target_type !== 'comment' && cs.target_type !== 'project') throw badRequest('Only posts, comments and projects can be removed.');
           await c.db.tx(async (t) => {
-            const table = cs.target_type === 'post' ? 'posts' : 'comments';
-            await t.run(`UPDATE ${table} SET status = 'removed'${cs.target_type === 'post' ? ', removed_reason = $2' : ''} WHERE id = $1`, cs.target_type === 'post' ? [cs.target_id, cs.category.replace(/_/g, ' ')] : [cs.target_id]);
+            if (cs.target_type === 'project') await t.run('UPDATE projects SET hidden_reason = $2 WHERE id = $1', [cs.target_id, cs.category.replace(/_/g, ' ')]);
+            else await t.run(`UPDATE ${cs.target_type === 'post' ? 'posts' : 'comments'} SET status = 'removed'${cs.target_type === 'post' ? ', removed_reason = $2' : ''} WHERE id = $1`, cs.target_type === 'post' ? [cs.target_id, cs.category.replace(/_/g, ' ')] : [cs.target_id]);
             await record(t, targetUser);
             if (targetUser) await notify(t, { userId: targetUser, type: 'moderation', data: { actionId, action: 'remove_content', category: cs.category } }, now);
           });
@@ -227,7 +227,8 @@ export const moderationModule: ModuleDef = {
       await c.db.tx(async (t) => {
         await t.run('UPDATE appeals SET status = $2, reviewed_by = $3, decided_at = $4 WHERE id = $1', [p.id, c.body.decision, c.me.userId, nowIso]);
         if (c.body.decision === 'overturned') {
-          if (p.action === 'remove_content') await t.run(`UPDATE ${p.target_type === 'post' ? 'posts' : 'comments'} SET status = 'published'${p.target_type === 'post' ? ', removed_reason = NULL' : ''} WHERE id = $1 AND status = 'removed'`, [p.target_id]);
+          if (p.action === 'remove_content' && p.target_type === 'project') await t.run('UPDATE projects SET hidden_reason = NULL WHERE id = $1', [p.target_id]);
+          else if (p.action === 'remove_content') await t.run(`UPDATE ${p.target_type === 'post' ? 'posts' : 'comments'} SET status = 'published'${p.target_type === 'post' ? ', removed_reason = NULL' : ''} WHERE id = $1 AND status = 'removed'`, [p.target_id]);
           if (p.action === 'suspend' && p.user_id) await t.run("UPDATE users SET status = 'active', suspended_until = NULL, updated_at = $2 WHERE id = $1 AND status = 'suspended'", [p.user_id, nowIso]);
         }
         if (p.user_id) await notify(t, { userId: p.user_id, type: 'appeal', data: { decision: c.body.decision } }, now);

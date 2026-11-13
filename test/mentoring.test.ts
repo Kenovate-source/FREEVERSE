@@ -78,6 +78,25 @@ for (const dialect of DIALECTS) {
       assert.equal((await t.call('GET', '/api/mentor-profile', { token: mentor.token })).json.profile, null, 'stepped down: the profile is gone and they can apply again');
     });
 
+    test('the Founder decides whether moderators may review applications', async () => {
+      const mod = await t.member('mod@example.com', { handle: 'moddy', name: 'Moddy' }); await t.grantRole(mod.userId, 'moderator');
+      const cand = await t.member('cand@example.com', { handle: 'cand', name: 'Cand' }); assert.equal((await t.call('PUT', '/api/mentor-profile', { token: cand.token, body: good })).status, 201);
+      const pid = (await t.call('GET', '/api/mentor-applications', { token: rev.token })).json.items[0].id;
+      assert.equal((await t.call('GET', '/api/mentor-applications', { token: mod.token })).status, 403, 'off by default');
+      assert.equal((await t.call('GET', '/api/mentor-profile', { token: mod.token })).json.canReview, false);
+      assert.equal((await t.call('PUT', '/api/mentor-review-policy', { token: mod.token, body: { moderatorsMayReview: true } })).status, 403, 'only the Founder changes it');
+      assert.equal((await t.call('PUT', '/api/mentor-review-policy', { token: rev.token, body: { moderatorsMayReview: true } })).status, 200);
+      assert.equal((await t.call('GET', '/api/mentor-review-policy', { token: rev.token })).json.moderatorsMayReview, true);
+      assert.equal((await t.call('GET', '/api/mentor-profile', { token: mod.token })).json.canReview, true);
+      assert.equal((await t.call('GET', '/api/mentor-applications', { token: mod.token })).status, 200);
+      assert.equal((await t.call('POST', '/api/mentor-applications/' + pid + '/decision', { token: a.token, body: { decision: 'approve' } })).status, 403, 'ordinary members still can’t');
+      await t.call('PUT', '/api/mentor-review-policy', { token: rev.token, body: { moderatorsMayReview: false } });
+      assert.equal((await t.call('POST', '/api/mentor-applications/' + pid + '/decision', { token: mod.token, body: { decision: 'approve' } })).status, 403, 'off again');
+      await t.call('PUT', '/api/mentor-review-policy', { token: rev.token, body: { moderatorsMayReview: true } });
+      assert.equal((await t.call('POST', '/api/mentor-applications/' + pid + '/decision', { token: mod.token, body: { decision: 'approve' } })).status, 200);
+      assert.ok((await t.db.query<any>("SELECT 1 FROM audit_events WHERE action IN ('mentor.review_moderators_on','mentor.review_moderators_off')")).length >= 3);
+    });
+
     test('the mentorship notification switch is honoured', async () => {
       await t.call('PATCH', '/api/settings', { token: a.token, body: { notifications: { mentorship: false } } });
       const { notify } = await import('../server/services/notify');
