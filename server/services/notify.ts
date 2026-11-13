@@ -1,5 +1,10 @@
 import type { Db } from '../db';
 import { json, uuid } from '../db';
+import { DEFAULT_SETTINGS, inQuietHours, mergeSettings } from '../../shared/api/settings';
+
+/** Notification types that belong to conversations. Quiet hours hold these back; the messages themselves still wait in the Inbox. */
+const PREF_KEY: Record<string, string> = { comment: 'comments', reply: 'replies', reaction: 'reactions', follow: 'follows', connection: 'follows', mention: 'mentions', message: 'messages' };
+const CHAT_TYPES = new Set(['message', 'message_request']);
 
 export interface NotifyInput {
   userId: string; // recipient
@@ -19,9 +24,13 @@ export async function notify(db: Db, n: NotifyInput, now: Date = new Date()): Pr
     const blocked = await db.get('SELECT 1 AS x FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)', [n.userId, n.actorId]);
     if (blocked) return false;
   }
-  const settings = await db.get<{ notifications: unknown }>('SELECT notifications FROM user_settings WHERE user_id = $1', [n.userId]);
+  const settings = await db.get<{ notifications: unknown; messaging: unknown }>('SELECT notifications, messaging FROM user_settings WHERE user_id = $1', [n.userId]);
   const prefs = json<Record<string, boolean>>(settings?.notifications, {});
-  if (prefs[n.type] === false) return false;
+  // The settings page stores plural keys (comments, replies...) while notifications use singular types. Both spellings are honoured.
+  const prefKey = PREF_KEY[n.type] ?? n.type;
+  if (prefs[prefKey] === false || prefs[n.type] === false) return false;
+  const isChat = CHAT_TYPES.has(n.type) || (n.type === 'reaction' && !!n.data?.conversationId);
+  if (isChat && inQuietHours(mergeSettings({ messaging: json(settings?.messaging, DEFAULT_SETTINGS.messaging) }).messaging, now)) return false;
   await db.run(
     `INSERT INTO notifications (id, user_id, type, actor_id, actor_anonymous, target_type, target_id, data, created_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,

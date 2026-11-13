@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { Link, navigate } from '../lib/router';
 import { Avatar } from '../ui/Avatar';
 import { Async, Badge, Button, Card, Confirm, EmptyState, Notice, PageHead, SelectField, Switch, TextField, errMsg, useResource } from '../ui/kit';
+import { MessagingSettingsPanel } from './settings-messaging';
 import { useToast } from '../state/toast';
 import { useSession } from '../state/session';
 import { useStepUp } from '../state/stepup';
@@ -80,20 +81,25 @@ function SecurityS() {
   return <><H>Security</H><Card className="stack-sm"><h3 className="h-sm">Sign-in</h3>
     {dev ? <Notice tone="demo" title="Local demo sign-in">This copy uses a local development sign-in so you can try FREEVERSE without external services. Real accounts use managed authentication (Supabase Auth) once it’s configured. Passwords here aren’t for real use.</Notice> : <p className="muted">Your password is handled by our managed sign-in provider. FREEVERSE never stores it.</p>}
     {!dev && <form className="stack-sm" onSubmit={async (e) => { e.preventDefault(); if (pw !== pw2) { say('The passwords don’t match.', 'error'); return; } setBusy(true); try { await api.post('/api/auth/password', { newPassword: pw }); setPw(''); setPw2(''); say('Password changed'); } catch (er) { say(errMsg(er), 'error'); } finally { setBusy(false); } }}><TextField label="New password" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} hint="At least 10 characters" /><TextField label="Confirm new password" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /><Button type="submit" variant="primary" busy={busy} disabled={pw.length < 10} style={{ justifySelf: 'start' }}>Change password</Button></form>}</Card>
-    <Card className="stack-sm"><h3 className="h-sm">Confirming sensitive actions</h3><p className="muted">Deleting your account or exporting sensitive data asks you to confirm it’s you again.</p><Button onClick={() => void signOut()}>Sign out on this device</Button></Card></>;
+    <Card className="stack-sm"><h3 className="h-sm">Confirming sensitive actions</h3><p className="muted">Deleting your account or exporting sensitive data asks you to confirm it’s you again.</p><Button onClick={() => void signOut()}>Sign out on this device</Button></Card>
+    <Card className="stack-sm"><h3 className="h-sm">Recovery and age declaration</h3><p className="muted">Account recovery works through the email on your account (use “Forgot password” on the sign-in page). Your age declaration is shown under Account. Closing or deleting your account is under Your data &amp; account.</p><div className="row-wrap"><Link to="/settings/account" className="btn btn-secondary btn-sm">Account</Link><Link to="/settings/data" className="btn btn-ghost btn-sm">Delete or export</Link></div></Card>
+    <Card className="stack-sm"><div className="row-wrap"><h3 className="h-sm">Not available yet</h3><Badge>In development</Badge></div><p className="muted">A list of your signed-in devices with remote sign-out, two-step verification, and Google, Apple or phone sign-in. Until then, “Sign out on this device” is the only session control, and changing your password is the way to lock out others.</p></Card></>;
 }
-const NOTIF_LABEL: Record<string, string> = { comments: 'Comments on your posts', replies: 'Replies to your comments', reactions: 'Reactions', follows: 'New followers', mentions: 'Mentions', messages: 'Messages', message_request: 'Message requests', system: 'Safety and account notices', events: 'Event updates' };
+const NOTIF_GROUPS: { title: string; help: string; keys: [string, string, string?][] }[] = [
+  { title: 'Community activity', help: 'What people do with your posts and profile.', keys: [['comments', 'Comments on your posts'], ['replies', 'Replies to your comments'], ['reactions', 'Reactions to your posts'], ['follows', 'New followers and connections'], ['mentions', 'Mentions']] },
+  { title: 'Announcements and updates', help: 'Notices from FREEVERSE itself.', keys: [['system', 'Platform notices', 'Poll results, updates on suggestions you made, governance appointments and similar. Turn off to stop these appearing.']] },
+];
+const SOON = ['Mentorship', 'Learning', 'Opportunities', 'Events', 'Projects', 'Achievements', 'AI activity', 'Product announcements'];
 function NotifS() {
   const { res, patch } = useSettings();
-  return <><H>Notifications</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><p className="muted">Choose what appears in your Notifications. Nothing is sent by email or push in this version.</p>{Object.keys(s.notifications).map((k) => <Switch key={k} label={NOTIF_LABEL[k] ?? k} checked={s.notifications[k as keyof typeof s.notifications]} onChange={(v) => void patch({ notifications: { [k]: v } })} />)}<p className="faint">Safety and account notices are always shown if they’re about your account’s safety.</p></Card>}</Async></>;
+  return <><H>Notifications</H><Async res={res}>{({ settings: s }) => <>
+    <Notice>Notifications appear inside FREEVERSE. Nothing is sent by email or push in this version.</Notice>
+    {NOTIF_GROUPS.map((g) => <Card key={g.title} className="stack-sm"><h3 className="h-sm">{g.title}</h3><p className="muted">{g.help}</p>{g.keys.map(([k, l, h]) => <Switch key={k} label={l} checked={s.notifications[k as keyof typeof s.notifications] !== false} onChange={(v) => void patch({ notifications: { [k]: v } })} hint={h} />)}</Card>)}
+    <Card className="stack-sm"><h3 className="h-sm">Messages</h3><p className="muted">Message and request notifications, quiet hours and per-conversation muting live with your other messaging controls, so they aren’t repeated here.</p><Link to="/settings/messaging" className="btn btn-secondary btn-sm" style={{ justifySelf: 'start' }}>Open messaging notifications</Link></Card>
+    <Card className="stack-sm"><h3 className="h-sm">Always on</h3><p className="muted">Safety and account notices can’t be switched off: moderation decisions, report updates and appeal outcomes. They only reach you when something affects your account or something you reported.</p></Card>
+    <Card className="stack-sm"><div className="row-wrap"><h3 className="h-sm">Not available yet</h3><Badge>In development</Badge></div><p className="muted">These areas don’t send notifications yet, so there is nothing to switch on or off: {SOON.join(', ')}. Each will get its own control when it starts sending.</p></Card></>}</Async></>;
 }
-function MsgS() {
-  const { res, patch } = useSettings();
-  return <><H>Messaging</H><Async res={res}>{({ settings: s }) => <Card className="stack-sm"><Switch label="Read receipts" checked={s.messaging.readReceipts} onChange={(v) => void patch({ messaging: { readReceipts: v } })} hint="When off, others can’t see that you’ve read their messages, and you can’t see theirs." /><Switch label="Allow message requests" checked={s.messaging.allowMessageRequests} onChange={(v) => void patch({ messaging: { allowMessageRequests: v } })} hint="First messages from people you don’t follow go to Requests." />
-    <p className="hint">Who can message you at all (anyone, only connections, or no one) is set in <Link to="/settings/privacy">Privacy & visibility</Link>.</p>
-    <Switch label="Press Enter to send" checked={s.messaging.enterToSend} onChange={(v) => void patch({ messaging: { enterToSend: v } })} hint="Shift+Enter adds a new line. Off by default so a message is never sent by accident." />
-    <SelectField label="Conversation density" value={s.messaging.density} onChange={(e) => void patch({ messaging: { density: e.target.value as 'comfortable' | 'compact' } })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></SelectField></Card>}</Async></>;
-}
+function MsgS() { return <><H>Messaging</H><MessagingSettingsPanel /></>; }
 function MotionNote() { const m = useMotion(); return <p className="faint" role="status" data-testid="motion-note">Right now: <strong>{m.level === 'less' ? 'Less' : m.level === 'off' ? 'Off' : 'Full'}</strong> ({m.mode} mode). {m.reason}.</p>; }
 const CURSOR_OPTIONS: [CursorStyle, string][] = [['standard', 'Standard (default)'], ['graduate', 'Graduate: arrow with a graduation cap'], ['creator-pen', 'Creator: pen'], ['creator-brush', 'Creator: brush'], ['developer', 'Developer: code'], ['entrepreneur', 'Entrepreneur: upward arrow']];
 function A11yS() {
@@ -112,6 +118,7 @@ function NovaS() {
     <Card className="stack-sm"><h3 className="h-sm">Private tools</h3><p className="muted">Off by default. Private to you: moderators, governance roles and the Founder can’t read them, and nothing is ever posted automatically.</p>
       <Switch label="Journal" checked={n.journalEnabled} onChange={(v) => void patch({ nova: { journalEnabled: v } })} /><Switch label="Goals" checked={n.goalsEnabled} onChange={(v) => void patch({ nova: { goalsEnabled: v } })} /><Switch label="Habits" checked={n.habitsEnabled} onChange={(v) => void patch({ nova: { habitsEnabled: v } })} /></Card>
     <Async res={info}>{(i) => <Notice title="Safety flags">{i.disclosure} Flagged excerpts are kept for {i.flagRetentionDays} days by default. {i.mode === 'demo' ? 'No AI model is connected right now, so replies are scripted demos.' : ''}</Notice>}</Async>
+    <Card className="stack-sm"><div className="row-wrap"><h3 className="h-sm">Not available yet</h3><Badge>In development</Badge></div><p className="muted">Voice chat, per-topic data-access permissions and AI notification choices. Nova never reads your private profile fields or messages, and sends no notifications of its own, so there is nothing to switch on or off.</p></Card>
     <Link to="/ai" className="btn btn-secondary" style={{ justifySelf: 'start' }} onClick={() => say('')}>Manage conversations</Link></>}</Async></>;
 }
 function BlockedS() {

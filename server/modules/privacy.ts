@@ -3,7 +3,7 @@ import type { ModuleDef } from './types';
 import { badRequest } from '../http/errors';
 import { AUDIENCES, type Audience } from '../../shared/constants';
 import { FIELD_AUDIENCES, FIELD_LABEL, PROFILE_FIELDS, fieldAudience, presetSettings, type PrivacySettings, type ProfileField } from '../../shared/privacy';
-import { DEFAULT_SETTINGS, mergeSettings, type PrivacyView, type Settings } from '../../shared/api/settings';
+import { DEFAULT_SETTINGS, MSG_CHOICES, mergeSettings, type PrivacyView, type Settings } from '../../shared/api/settings';
 import { loadPrivacy, loadSettings } from '../profile/common';
 import { audit } from '../services/audit';
 import type { Db } from '../db';
@@ -30,7 +30,8 @@ const privacyPatch = z.object({
 const styleZod = { tone: z.enum(['warm', 'neutral', 'direct']).optional(), formality: z.enum(['casual', 'balanced', 'formal']).optional(), humor: z.enum(['none', 'light', 'playful']).optional(), detail: z.enum(['brief', 'balanced', 'thorough']).optional(), coaching: z.enum(['supportive', 'challenging', 'questions']).optional(), styleNote: z.string().trim().max(200).optional() };
 const settingsPatch = z.object({
   notifications: z.object(Object.fromEntries(Object.keys(DEFAULT_SETTINGS.notifications).map((k) => [k, z.boolean().optional()]))).strict().optional(),
-  messaging: z.object({ readReceipts: z.boolean().optional(), allowMessageRequests: z.boolean().optional(), enterToSend: z.boolean().optional(), density: z.enum(['comfortable', 'compact']).optional() }).strict().optional(),
+  messaging: z.object({ readReceipts: z.boolean().optional(), allowMessageRequests: z.boolean().optional(), enterToSend: z.boolean().optional(), density: z.enum(['comfortable', 'compact']).optional(), allowReactions: z.boolean().optional(), allowReplies: z.boolean().optional(), quietEnabled: z.boolean().optional(), linkWarnings: z.boolean().optional(), quietStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), quietEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), quietOffset: z.number().int().min(-840).max(840).optional(),
+    ...Object.fromEntries(Object.entries(MSG_CHOICES).map(([k, v]) => [k, z.enum(v as unknown as [string, ...string[]]).optional()])) }).strict().optional(),
   accessibility: z.object({ textSize: z.enum(['sm', 'md', 'lg', 'xl']).optional(), reduceMotion: z.boolean().optional(), decorativeMotion: z.enum(['auto', 'full', 'reduced', 'off']).optional(), cursor: z.enum(['standard', 'graduate', 'creator-pen', 'creator-brush', 'developer', 'entrepreneur']).optional(), highContrast: z.boolean().optional(), calmBackground: z.boolean().optional(), underlineLinks: z.boolean().optional() }).strict().optional(),
   nova: z.object({ journalEnabled: z.boolean().optional(), goalsEnabled: z.boolean().optional(), habitsEnabled: z.boolean().optional(), historyRetentionDays: z.union([z.literal(30), z.literal(90), z.literal(365), z.null()]).optional(), saveHistory: z.boolean().optional(), ...styleZod }).strict().optional(),
 }).strict();

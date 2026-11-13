@@ -178,7 +178,7 @@ async function run(size, who = 'member') {
   });
   if (who === 'founder') await step('founder AI: tabbed workspace; prepared change shows its lifecycle at Decide; Mode lives under its own tab', async () => {
     await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Ask' }).waitFor({ timeout: 10000 });
-    if ((await page.getByRole('tab').count()) !== 8) throw new Error('expected 8 workspace tabs');
+    if ((await page.getByRole('tab').count()) !== 10) throw new Error('expected 10 workspace tabs');
     if (await page.getByRole('heading', { name: /^Mode:/ }).count()) throw new Error('mode card should not be on the Ask tab');
     await page.getByRole('tab', { name: 'Mode and boundaries' }).click(); await page.getByRole('heading', { name: /^Mode:/ }).waitFor({ timeout: 5000 });
     await page.getByRole('tab', { name: 'Prepare a change' }).click();
@@ -217,6 +217,19 @@ async function run(size, who = 'member') {
     await page.getByRole('button', { name: 'Accept', exact: true }).click(); await page.getByText(/Accepted\. Nothing was changed/).waitFor({ timeout: 5000 });
     await page.getByRole('tab', { name: 'Agent activity' }).click(); await page.getByText(/Finding acknowledge/).first().waitFor({ timeout: 8000 });
   });
+  if (who === 'founder') await step('founder AI: generate a report and plan a meeting with agenda, briefing, notes and an action item', async () => {
+    await page.goto(`${BASE}/#/founder/ai`); await page.getByRole('tab', { name: 'Reports' }).click(); await page.getByRole('button', { name: 'Generate report' }).click();
+    await page.getByRole('heading', { name: 'Safety and moderation' }).waitFor({ timeout: 10000 }); await page.getByRole('button', { name: 'Download (.md)' }).waitFor();
+    await page.screenshot({ path: `${OUT}/${size}-founder-ai-report.png` });
+    await page.getByRole('tab', { name: 'Meetings' }).click(); await page.getByLabel('Title').fill('E2E weekly review'); await page.getByLabel('When').fill('2030-01-15T10:00'); await page.getByRole('button', { name: 'Add meeting' }).click();
+    await page.getByRole('heading', { name: 'E2E weekly review' }).waitFor({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Prepare briefing from real records' }).click(); await page.getByText(/Read from this platform/).waitFor({ timeout: 8000 });
+    await page.getByLabel('Add an agenda item').fill('Check safety'); await page.getByRole('button', { name: 'Add', exact: true }).first().click(); await page.getByText('Check safety').waitFor({ timeout: 5000 });
+    await page.getByLabel('What was said and decided').fill('Agreed to wait a week.'); await page.getByRole('button', { name: 'Save notes' }).click(); await page.getByText('Notes saved.').waitFor({ timeout: 5000 });
+    await page.getByLabel('New action item').fill('Read the report'); await page.getByRole('button', { name: 'Add', exact: true }).last().click(); await page.getByText('Read the report').waitFor({ timeout: 5000 });
+    await page.screenshot({ path: `${OUT}/${size}-founder-ai-meeting.png` });
+    await page.getByRole('button', { name: 'Mark as held' }).click(); await page.getByText('Marked as held.').waitFor({ timeout: 5000 });
+  });
   if (who === 'founder') await step('universes admin: preview shows what members will see before saving; history is listed', async () => {
     await page.goto(`${BASE}/#/founder/universes`); await page.getByRole('heading', { name: 'Universes', exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: 'Change' }).first().click();
@@ -238,6 +251,21 @@ async function run(size, who = 'member') {
     await page.goto(`${BASE}/#/polls`); await page.getByRole('heading', { name: q }).waitFor({ timeout: 8000 }); await page.getByLabel('Yes').check(); await page.getByRole('button', { name: 'Send my vote' }).click(); await page.getByText(/You voted/).waitFor({ timeout: 8000 });
     await page.goto(`${BASE}/#/founder/appointments`); await page.getByRole('heading', { name: 'Appointments and access' }).waitFor({ timeout: 8000 });
     await page.goto(`${BASE}/#/founder/communities`); await page.getByRole('button', { name: 'Restrict' }).first().waitFor({ timeout: 8000 });
+  });
+  if (who === 'member') await step('settings: messaging search and groups, a toggle persists; notifications and security are honest; Messages tabs', async () => {
+    await page.goto(`${BASE}/#/settings/messaging`); await page.getByLabel('Search messaging settings').waitFor();
+    await page.getByText('not end-to-end encrypted').first().waitFor();
+    await page.getByRole('tab', { name: 'Notifications' }).click(); await page.getByText('Quiet hours').first().waitFor();
+    await page.getByLabel('Search messaging settings').fill('read receipts'); await page.getByText('Read receipts').first().waitFor();
+    const sw = page.getByRole('switch', { name: /Read receipts/ }).first(); const before = await sw.getAttribute('aria-checked'); await sw.click(); await page.waitForTimeout(600);
+    await page.reload(); await page.getByLabel('Search messaging settings').fill('read receipts');
+    const after = await page.getByRole('switch', { name: /Read receipts/ }).first().getAttribute('aria-checked'); if (after === before) throw new Error('read receipts did not persist');
+    await page.goto(`${BASE}/#/settings/messaging`); await page.getByLabel('Search messaging settings').fill('calls'); await page.getByText('In development').first().waitFor();
+    await page.goto(`${BASE}/#/settings/notifications`); await page.getByRole('heading', { name: 'Community activity' }).waitFor(); await page.getByText('Always on').first().waitFor(); await page.getByText('Not available yet').first().waitFor();
+    if (await page.getByLabel('Event updates').count()) throw new Error('dead Event updates toggle still shown');
+    await page.goto(`${BASE}/#/settings/security`); await page.getByText('Not available yet').first().waitFor();
+    await page.goto(`${BASE}/#/messages`); await page.getByText('No conversations yet').waitFor(); await page.getByRole('link', { name: 'Messaging settings' }).waitFor();
+    if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) throw new Error('horizontal overflow');
   });
   if (who === 'member' && size === 'desktop') await step('motion: Full, Less and Off really differ in the app and on the landing page', async () => {
     const anim = (sel) => page.evaluate((q) => { const el = document.querySelector(q); return el ? getComputedStyle(el).animationName : 'missing'; }, sel);
